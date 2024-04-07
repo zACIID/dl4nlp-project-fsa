@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "dl4nlp-project-fsa"
+version = "0.1.0"
+description = ""
+authors = ["zACIID <marchioropierluigi@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "dl4nlp-project-fsa" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+numpy = "^1.26.4"
+pandas = "^2.2.1"
+matplotlib = "^3.8.4"
+loguru = "^0.7.2"
+seaborn = "^0.13.2"
+plotly = "^5.20.0"
+tqdm = "^4.66.2"
+jupyter = "^1.0.0"
+jupytext = "^1.16.1"
+torch = {version = "^2.2.2", source = "pytorch_cu118"}
+transformers = "^4.39.3"
+
+
+[[tool.poetry.source]]
+# Added via
+# `poetry source add --priority explicit pytorch_cu118 https://download.pytorch.org/whl/cu118`
+# Reference SO answer:
+# https://stackoverflow.com/a/76359919
+name = "pytorch_cu118"
+url = "https://download.pytorch.org/whl/cu118"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
