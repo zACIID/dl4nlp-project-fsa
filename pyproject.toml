@@ -23,6 +23,7 @@ torch = {version = "^2.2.2", source = "pytorch_cu118"}
 transformers = "^4.39.3"
 lightning = "^2.2.1"
 mlflow = "^2.11.3"
+python-dotenv = "^1.0.1"
 
 
 [[tool.poetry.source]]
