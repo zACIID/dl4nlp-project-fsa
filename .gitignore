@@ -128,7 +128,7 @@ ENV/
 env.bak/
 venv.bak/
 *.env
-!no-secrets.env
+!mlflow.env
 
 # Spyder project settings
 .spyderproject
