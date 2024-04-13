@@ -24,6 +24,7 @@ transformers = "^4.39.3"
 lightning = "^2.2.1"
 mlflow = "^2.11.3"
 python-dotenv = "^1.0.1"
+datasets = "^2.18.0"
 
 
 [[tool.poetry.source]]
