@@ -29,6 +29,7 @@ class FineTunedFinBERT(L.LightningModule):
             model_name_or_path: str = "ahmedrachid/FinancialBERT",
             max_lr: float = 2e-5,
             weight_decay: float = 0.0,
+            enable_gradient_checkpointing: bool = False,
             **kwargs,
     ):
         """
@@ -48,6 +49,11 @@ class FineTunedFinBERT(L.LightningModule):
 
         self.config = AutoConfig.from_pretrained(model_name_or_path)
         self.model: BertForMaskedLM = AutoModelForMaskedLM.from_pretrained(model_name_or_path)
+
+        if enable_gradient_checkpointing:
+            self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={
+                "use_reentrant": False
+            })
 
     # NOTES ON LOGGING:
     # - PyTorch Lightning already logs useful stuff to the console
@@ -104,7 +110,8 @@ class FineTunedFinBERT(L.LightningModule):
         outputs: MaskedLMOutput = self(**batch)
 
         # TODO change loss function
-        loss = F.cross_entropy(outputs.logits, batch['input_ids'])
+        # loss = F.cross_entropy(outputs.logits, labels)
+        loss = torch.tensor([1.0], requires_grad=True)
 
         # TODO define other metrics to log, e.g. taken by torchmetrics or HuggingFace's evaluate package
         self.log_dict(
@@ -117,57 +124,56 @@ class FineTunedFinBERT(L.LightningModule):
 
         return loss
 
+    def configure_optimizers(self):
+        # TODO "manual optimization is required [meaning that I have to manually call zero_grad, step, etc. on the optimizer | ndr]
+        #   when working with multiple optimizers https://lightning.ai/docs/pytorch/stable/common/optimization.html#automatic-optimization
+        #   This is important for the idea of class "WithClassificationLayers" that accepts as input one PyTorchLightning module
+        #       and will extract the optimizers from it
 
-def configure_optimizers(self):
-    # TODO "manual optimization is required [meaning that I have to manually call zero_grad, step, etc. on the optimizer | ndr]
-    #   when working with multiple optimizers https://lightning.ai/docs/pytorch/stable/common/optimization.html#automatic-optimization
-    #   This is important for the idea of class "WithClassificationLayers" that accepts as input one PyTorchLightning module
-    #       and will extract the optimizers from it
+        # Why no decay for bias and LayerNorm parameters?
+        # Possible explanation:
+        # https://stats.stackexchange.com/questions/576463/why-not-perform-weight-decay-on-layernorm-embedding
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": self.hparams.weight_decay,
+            },
+            {
+                "params": [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+            }
+        ]
 
-    # Why no decay for bias and LayerNorm parameters?
-    # Possible explanation:
-    # https://stats.stackexchange.com/questions/576463/why-not-perform-weight-decay-on-layernorm-embedding
-    no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = [
-        {
-            "params": [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": self.hparams.weight_decay,
-        },
-        {
-            "params": [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)],
-            "weight_decay": 0.0,
-        }
-    ]
+        # SOME IMPORTANT NOTES ON LEARNING RATE:
+        # From OneCycleLR docs:
+        # The 1cycle learning rate policy changes the learning rate after every batch.
+        # step() should be called after a batch has been used for training.
+        #
+        # Also, according to the outputs int and the answer to this post
+        # https://stackoverflow.com/questions/73471929/how-to-use-onecyclelr
+        # 1. Starting learning rate provided to the optimizer seems to be ignored
+        # 2. max_lr is the maximum learning rate of OneCycleLR.
+        #   To be exact, the learning rate will increate from max_lr / div_factor to max_lr
+        #   in the first pct_start * total_steps steps,
+        #   and decrease smoothly to max_lr / final_div_factor then.
 
-    # SOME IMPORTANT NOTES ON LEARNING RATE:
-    # From OneCycleLR docs:
-    # The 1cycle learning rate policy changes the learning rate after every batch.
-    # step() should be called after a batch has been used for training.
-    #
-    # Also, according to the outputs int and the answer to this post
-    # https://stackoverflow.com/questions/73471929/how-to-use-onecyclelr
-    # 1. Starting learning rate provided to the optimizer seems to be ignored
-    # 2. max_lr is the maximum learning rate of OneCycleLR.
-    #   To be exact, the learning rate will increate from max_lr / div_factor to max_lr
-    #   in the first pct_start * total_steps steps,
-    #   and decrease smoothly to max_lr / final_div_factor then.
+        # REFERENCES: why AdamW + OneCycleLR scheduler?
+        # 1. https://www.fast.ai/posts/2018-07-02-adam-weight-decay.html
+        # 2. https://residentmario.github.io/pytorch-training-performance-guide/lr-sched-and-optim.html
+        optimizer = AdamW(optimizer_grouped_parameters, lr=1)
 
-    # REFERENCES: why AdamW + OneCycleLR scheduler?
-    # 1. https://www.fast.ai/posts/2018-07-02-adam-weight-decay.html
-    # 2. https://residentmario.github.io/pytorch-training-performance-guide/lr-sched-and-optim.html
-    optimizer = AdamW(optimizer_grouped_parameters, lr=1)
+        scheduler = OneCycleLR(
+            optimizer,
+            max_lr=self.hparams.max_lr,
+            steps_per_epoch=self.hparams.n_batches,
+            epochs=self.hparams.epochs,
+        )
 
-    scheduler = OneCycleLR(
-        optimizer,
-        max_lr=self.hparams.max_lr,
-        steps_per_epoch=self.hparams.n_batches,
-        epochs=self.hparams.epochs,
-    )
-
-    # Docs on return values and scheduler config dictionary:
-    # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.LightningModule.html#lightning.pytorch.core.LightningModule.configure_optimizers
-    # As said above, OneCycleLR should be stepped after each optimizer step
-    scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
-    return [optimizer], [scheduler]
+        # Docs on return values and scheduler config dictionary:
+        # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.LightningModule.html#lightning.pytorch.core.LightningModule.configure_optimizers
+        # As said above, OneCycleLR should be stepped after each optimizer step
+        scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
+        return [optimizer], [scheduler]
 
 

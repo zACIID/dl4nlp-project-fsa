@@ -45,8 +45,8 @@ class TrainValDataModule(L.LightningDataModule):
     def prepare_data(self):
         # This method is called at the beginning to basically load (i.e. read from file)/download the data
         # datasets.load_dataset("glue", self.task_name)
-        self.dataset = datasets.load_dataset('glue', 'mrpc')
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, use_fast=True)
+        datasets.load_dataset('glue', 'mrpc')
+        AutoTokenizer.from_pretrained(self.model_name_or_path, use_fast=True)
 
     def setup(self, stage: str = None):
         # TODO should I ignore stage? because train and val datasets are created at the same moment
@@ -72,12 +72,20 @@ class TrainValDataModule(L.LightningDataModule):
         #     self.dataset[split].set_format(type="torch", columns=self.columns)
         #
         # self.eval_splits = [x for x in self.dataset.keys() if "validation" in x]
+        self.dataset = datasets.load_dataset('glue', 'mrpc')
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, use_fast=True)
 
-        self.dataset['train'] = self.dataset['train'].map(lambda e: self.tokenizer(e['sentence1'], padding=True, return_tensors='pt'), batched=True)
-        self.dataset['validation'] = self.dataset['validation'].map(lambda e: self.tokenizer(e['sentence1'], padding=True, return_tensors='pt'), batched=True)
+        for split in ['train', 'validation']:
+            # TODO here I must use padding='max_length' along with batched, else it doesn't work because batches will be padded to different lengths
+            #   what I could do, which also avoids the parallelism warning, is to tokenize with fast tokenizer
+            #   outside of the lambda: I pay the price of not-lazy loading but I ideally use less memory because batches
+            #   anre't padded to max length and I can also use parallel dataloaders
+            self.dataset[split] = self.dataset['train'].map(lambda e: self.tokenizer(e['sentence1'], padding='max_length', return_tensors='pt'), batched=True)
 
-        # TODO i think setting type='torch' is redundant since tokenizer already returns pytorch tensors?
-        self.dataset.set_format(columns=['input_ids', 'token_type_ids', 'attention_mask', 'label'])
+            # TODO i think setting type='torch' is redundant since tokenizer already returns pytorch tensors?
+            self.dataset[split].set_format(type='torch', columns=['input_ids', 'token_type_ids', 'attention_mask'])
+
+            # self.dataset[split].remove_columns(column_names=['label'])
 
     def train_dataloader(self):
         return DataLoader(
@@ -94,7 +102,7 @@ class TrainValDataModule(L.LightningDataModule):
             batch_size=self.train_batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
-            shuffle=True
+            shuffle=False
         )
 
     def test_dataloader(self):
