@@ -87,6 +87,20 @@ I'd still like to be able to override stuff from command line because it is fast
 
 *UPDATE*: It seems that I can overide config values via CLI arguments, as shown in the `# Template Design` section of the above mentioned hydra + poetry + mlflow template
 
+### Lightning CLI
+
+**I think this is it**: this basically provides the same functionality that I desired Hydra for, that is being able to define yaml config files.
+It provides automatic instantiation of objects and does A LOT of stuff under the hood.
+See the docs:
+- [Main Reference](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli.html)
+
+Check the `--print-config` option to have the yaml file with every available option, even model/datamodule specific, so that configuration is easier
+
+**UPDATE: THIS MAY NOT BE IT** because I do not know If I can provide a custom body to the launch script that includes the Lightning CLI, which I need because I have to wrap stuff with mlflow and then use hyperopt to search params.
+If this is the unfortunate case, then I have to resort to hydra and manually setup the config file
+**UPDATE2: IT MAY BE PARTIALLY IT**: 
+- I think this is useful for scripts that do not involve changing parameters, because parameter tuning algos must be able to pass stuff directly to the classes called
+- I can still use LightningCLI inside a script and call it via an MLflow project entry point, so that via code I can use `mlflow.projects.run(...)` and invoke the entry points with the parameters that I need
 
 ## Other Stuff
 

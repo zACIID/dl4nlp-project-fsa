@@ -41,5 +41,4 @@
 - [Gradient Checkpointing Explained Visually](https://medium.com/tensorflow/fitting-larger-networks-into-memory-583e3c758ff9)
     - the gifs show very well that checkpointing makes it so that you do not have to restart from the beginning, but rather from the last checkpoint, to recalculate activations and hence gradients during the backward pass.
     - it also describes various strategies for checkpointing
-
-**Da capire come abilitare gradient accumulation e checkpointing in maniera piu' granulare sul modello pre-trainato. O forse anche no, perche' se usiamo LoRA, i pesi del modello pre-trainato rimangono sempre freezati, dunque possiamo gestire meglio cosa fare sui pesi del LoRA**
+- [PyTorch Implementation of Gradient Checkpointing Explained | Medium](https://medium.com/pytorch/how-activation-checkpointing-enables-scaling-up-training-deep-learning-models-7a93ae01ff2d)
