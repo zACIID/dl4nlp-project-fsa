@@ -19,12 +19,19 @@ plotly = "^5.20.0"
 tqdm = "^4.66.2"
 jupyter = "^1.0.0"
 jupytext = "^1.16.1"
-torch = {version = "^2.2.2", source = "pytorch_cu118"}
 transformers = "^4.39.3"
-lightning = "^2.2.1"
+
+# UserWarning raised by mlflow.utils.autologging_utils
+# Autologging is known to be compatible with pytorch-lightning versions between 1.4.9 and 2.2.0.post0
+#   and may not succeed with packages outside this range.
+# Supported pytorch is <= 2.2.1, as per mlflow.mlflow_package_versions
+torch = {version = "2.2.1", source = "pytorch_cu118"}
+lightning = "2.2.0"
+
 mlflow = "^2.11.3"
 python-dotenv = "^1.0.1"
 datasets = "^2.18.0"
+pynvml = "^11.5.0"
 
 
 [[tool.poetry.source]]
