@@ -1,1 +1,1 @@
-poetry run mlflow server --host 0.0.0.0 --port 5000
+cd artifacts && poetry run mlflow server --host 0.0.0.0 --port 5000
