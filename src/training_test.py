@@ -37,13 +37,23 @@ if __name__ == '__main__':
 
     # TODO mlflow is not properly setup - check what I wrote in my notes and see some examples
     #  (e.g. I need to launch the script, call mlflow.set_experiment, mlflow.start_run, etc.)
-
-    mlflow_logger = MLFlowLogger(experiment_name=EXPERIMENT_NAME)
+    mlflow_logger = MLFlowLogger(
+        # This should be by default (check MLFlowLogger source code),
+        #   but apparently it doesn't correctly read the uri from the env
+        tracking_uri=os.getenv('MLFLOW_TRACKING_URI'),
+        experiment_name=EXPERIMENT_NAME
+    )
 
     with mlflow.start_run(log_system_metrics=True) as run:
         L.seed_everything(42)
 
-        dm = TrainValDataModule(train_batch_size=8, eval_batch_size=8, prefetch_factor=2, pin_memory=True, num_workers=20)
+        dm = TrainValDataModule(
+            train_batch_size=8,
+            eval_batch_size=8,
+            prefetch_factor=4,
+            pin_memory=True,
+            num_workers=16
+        )
         dm.setup()
 
         max_epochs = 10
@@ -56,7 +66,8 @@ if __name__ == '__main__':
         model = FineTunedFinBERT(
             epochs=max_epochs,
             n_batches=len(dm.train_dataloader()),
-            enable_gradient_checkpointing=True
+            lora_rank=8,
+            enable_gradient_checkpointing=False # TODO this will be remvoed
         )
 
         trainer = L.Trainer(
@@ -76,8 +87,8 @@ if __name__ == '__main__':
             # - https://www.restack.io/docs/mlflow-knowledge-mlflow-pytorch-lightning-integration
             # - https://dwarez.github.io/posts/lightning_and_mlflow_logging/
             enable_checkpointing=False,
-            accumulate_grad_batches=4,  # TODO this doesn't work possibly becaused of pre trained model?
-            precision='16-mixed',
+            accumulate_grad_batches=1,  # TODO this doesn't work possibly becaused of pre trained model?
+            # precision='16-mixed',
             # callbacks=[
             #     cb.EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=5),
             #     cb.ModelCheckpoint(
