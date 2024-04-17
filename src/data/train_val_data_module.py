@@ -80,7 +80,7 @@ class TrainValDataModule(L.LightningDataModule):
             #   what I could do, which also avoids the parallelism warning, is to tokenize with fast tokenizer
             #   outside of the lambda: I pay the price of not-lazy loading but I ideally use less memory because batches
             #   anre't padded to max length and I can also use parallel dataloaders
-            self.dataset[split] = self.dataset['train'].map(lambda e: self.tokenizer(e['sentence1'], padding='max_length', return_tensors='pt'), batched=True)
+            self.dataset[split] = self.dataset[split].map(lambda e: self.tokenizer(e['sentence1'], padding='max_length', return_tensors='pt'), batched=True)
 
             # TODO i think setting type='torch' is redundant since tokenizer already returns pytorch tensors?
             self.dataset[split].set_format(type='torch', columns=['input_ids', 'token_type_ids', 'attention_mask'])
