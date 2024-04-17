@@ -2,6 +2,7 @@ from typing import Any
 
 import lightning as L
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from transformers import (
     AutoConfig,
@@ -13,22 +14,33 @@ from transformers.tokenization_utils_base import BatchEncoding
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 
+import src.models.modules.lora as lora
+
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
 class FineTunedFinBERT(L.LightningModule):
     """
     Class that represents a model (currently "ahmedrachid/FinancialBERT" from HuggingFace) combined with
-    all the fine-tuning infrastructure
+    a custom implemented LoRA fine-tuning infrastructure.
+    The caller can choose where to apply LoRA layers (query, key, value, output projection matrices of transformer layers)
+    The parameters option should contain the following keys with a valid bool value:
     """
 
     def __init__(
             self,
             epochs: int,
             n_batches: int,
+            lora_rank: int,
             model_name_or_path: str = "ahmedrachid/FinancialBERT",
             max_lr: float = 2e-5,
             weight_decay: float = 0.0,
+            W_q: bool = True,
+            W_v: bool = True,
+            W_k: bool = True,
+            W_o: bool = True,
+            update_bias: bool = True,
+            alpha: float = 1,
             enable_gradient_checkpointing: bool = False,
             **kwargs,
     ):
@@ -39,8 +51,26 @@ class FineTunedFinBERT(L.LightningModule):
         :param n_batches: e.g. obtainable by `len(train_dataloader)` - needed by the LR scheduler
         :param max_lr: maximum learning rate that the LR scheduler will push the optimizer to
         :param weight_decay:
-        :param kwargs:
+        :param lora_rank: rank of the gradient update matrices used by LoRA. 
+            LoRA paper found good values to be 2, 4, 8 on GPT-3
+        :param W_q: if True, then all the attention.query layers inside the model's transformer 
+            layers will have a LoRa layer
+        :param W_v: if True, then all the attention.value layers inside the model's transformer 
+            layers will have a LoRa layer
+        :param W_k: if True, then all the attention.key layers inside the model's transformer 
+            layers will have a LoRa layer
+        :param W_o: if True, then all the dense output linear layers inside the model's transformer 
+            layers will have a LoRa layer
+        :param update_bias: if true, model bias parameters will require gradient, meaning that they will
+            be updated during backpropagation. This was mentioned in the LoRA paper to be empirically effective,
+            although they (if I recall correctly) said that their study on biases wasn't rigorous
+        :param alpha: LoRA hyperparameter that weighs the gradient update matrices
+        :param enable_gradient_checkpointing: 
+            TODO implement - idea is maybe to pass something like `checkpoint_every_n_segments`
+                param that will be forwarded to checkpoint_sequential, but I am not sure that checkpointing will even be needed with LoRA
+        :param kwargs: 
         """
+
         super().__init__()
 
         # NOTE: this call saves all the parameters passed to __init__ into self.hparams
@@ -49,6 +79,20 @@ class FineTunedFinBERT(L.LightningModule):
 
         self.config = AutoConfig.from_pretrained(model_name_or_path)
         self.model: BertForMaskedLM = AutoModelForMaskedLM.from_pretrained(model_name_or_path)
+
+        self._loRA_layers: dict[lora.HeadType, list[lora.LoRABundle]] = {
+            key: [] for key in lora.HeadType
+        }
+        self._update_bias: bool = update_bias
+
+        self._freeze_net()
+
+        if lora_rank is None or lora_rank < 0:
+            raise ValueError('lora_rank must be greater than or equal to 0')
+
+        self._setup_LoRA_layers(
+            rank=lora_rank, alpha=alpha, W_q=W_q, W_v=W_v, W_k=W_k, W_o=W_o
+            )
 
         if enable_gradient_checkpointing:
             self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={
@@ -68,8 +112,86 @@ class FineTunedFinBERT(L.LightningModule):
     #   - PyTorch Lightning auto-detects the logger based on what is passed to the Trainer instance
     #   - can log in multiple places based on the arguments passed to self.log()
 
+    def _freeze_net(self) -> None:
+        for param in self.model.parameters():
+            param.requires_grad = False
+
     def forward(self, **inputs) -> MaskedLMOutput:
         return self.model(**inputs)
+
+    def get_LoRA_layers(self) -> dict[lora.HeadType, list[lora.LoRABundle]]:
+        """Collection of """
+        return self._loRA_layers
+
+    def _setup_LoRA_layers(
+            self,
+            rank: int,
+            alpha: float,
+            W_q: bool,
+            W_v: bool,
+            W_k: bool,
+            W_o: bool
+    ) -> None:
+        for depth, layer in enumerate(self.model.bert.encoder.layer):
+            if W_q:
+                layer.attention.self.query = self._set_layer(
+                    layer=layer.attention.self.query,
+                    head_type=lora.HeadType.W_q,
+                    depth=depth,
+                    rank=rank,
+                    alpha=alpha
+                )
+
+            if W_v:
+                layer.attention.self.value = self._set_layer(
+                    layer=layer.attention.self.value,
+                    head_type=lora.HeadType.W_v,
+                    depth=depth,
+                    rank=rank,
+                    alpha=alpha
+                )
+
+            if W_k:
+                layer.attention.self.key = self._set_layer(
+                    layer=layer.attention.self.key,
+                    head_type=lora.HeadType.W_k,
+                    depth=depth,
+                    rank=rank,
+                    alpha=alpha
+                )
+
+            if W_o:
+                layer.attention.output.dense = self._set_layer(
+                    layer=layer.attention.output.dense,
+                    head_type=lora.HeadType.W_o,
+                    depth=depth,
+                    rank=rank,
+                    alpha=alpha
+                )
+
+    def _set_layer(
+            self,
+            layer: nn.Module,
+            head_type: lora.HeadType,
+            depth: int,
+            rank: int,
+            alpha: float
+    ) -> lora.CustomLoRA:
+        if not isinstance(layer, nn.Linear):
+            layer = layer.get_old_linear()
+
+        temp_layer: lora.CustomLoRA = lora.CustomLoRA(
+            old_linear=layer,
+            layer=depth,
+            head_type=head_type,
+            rank=rank,
+            alpha=alpha,
+            update_bias=self._update_bias
+        )
+
+        self._loRA_layers[head_type].append(temp_layer.get_LoRA_bundle())
+
+        return temp_layer
 
     def predict_step(self, *args: Any, **kwargs: Any) -> Any:
         # TODO might want to override this for example to return the sentiment score
@@ -111,7 +233,7 @@ class FineTunedFinBERT(L.LightningModule):
 
         # TODO change loss function
         # loss = F.cross_entropy(outputs.logits, labels)
-        loss = torch.tensor([1.0], requires_grad=True)
+        loss = outputs.logits.mean()
 
         # TODO define other metrics to log, e.g. taken by torchmetrics or HuggingFace's evaluate package
         self.log_dict(
@@ -175,5 +297,3 @@ class FineTunedFinBERT(L.LightningModule):
         # As said above, OneCycleLR should be stepped after each optimizer step
         scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
         return [optimizer], [scheduler]
-
-
