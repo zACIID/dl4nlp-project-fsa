@@ -54,16 +54,16 @@ class CustomLoRA(nn.Module):
         else:
             self.old_linear.bias.requires_grad = False
 
-        std_dev: float = 1 / th.sqrt(th.tensor(rank).float())
-        self.A = nn.Parameter(th.randn(rank, self.old_linear.weight.shape[1]) * std_dev)
-        self.B = nn.Parameter(th.zeros(self.old_linear.weight.shape[0], rank))
+        std_dev: float = 1 / th.sqrt(th.tensor(rank).float()) # TODO chiedere a biango perche stdev viene calcolata cosi'
+        self.A = nn.Parameter(th.randn(self.old_linear.weight.shape[1], rank) * std_dev)
+        self.B = nn.Parameter(th.zeros(rank, self.old_linear.weight.shape[0]))
         self.alpha: float = alpha
         self.layer: int = layer
         self.head_type: HeadType = head_type
 
     def forward(self, x_batch: th.Tensor) -> th.Tensor:
         old_pass: th.Tensor = self.old_linear(x_batch)
-        new_pass: th.Tensor = self.alpha * ((self.B @ self.A) @ x_batch)
+        new_pass: th.Tensor = self.alpha * (x_batch @ self.A @ self.B)
         return old_pass + new_pass
 
     def get_LoRA_bundle(self) -> LoRABundle:
