@@ -14,7 +14,7 @@ from transformers.tokenization_utils_base import BatchEncoding
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 
-import src.models.modules.lora as lora
+import models.modules.lora as lora
 
 
 # Initial reference:
@@ -29,8 +29,6 @@ class FineTunedFinBERT(L.LightningModule):
 
     def __init__(
             self,
-            epochs: int,
-            n_batches: int,
             lora_rank: int,
             model_name_or_path: str = "ahmedrachid/FinancialBERT",
             max_lr: float = 2e-5,
@@ -241,7 +239,8 @@ class FineTunedFinBERT(L.LightningModule):
                 f"{step_type}_loss": loss,
             },
             on_step=True,
-            on_epoch=True
+            on_epoch=True,
+            prog_bar=True
         )
 
         return loss
@@ -288,12 +287,11 @@ class FineTunedFinBERT(L.LightningModule):
         scheduler = OneCycleLR(
             optimizer,
             max_lr=self.hparams.max_lr,
-            steps_per_epoch=self.hparams.n_batches,
-            epochs=self.hparams.epochs,
+            total_steps=self.trainer.estimated_stepping_batches
         )
 
         # Docs on return values and scheduler config dictionary:
         # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.LightningModule.html#lightning.pytorch.core.LightningModule.configure_optimizers
         # As said above, OneCycleLR should be stepped after each optimizer step
-        scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
+        scheduler = {"name": OneCycleLR.__name__, "scheduler": scheduler, "interval": "step", "frequency": 1}
         return [optimizer], [scheduler]
