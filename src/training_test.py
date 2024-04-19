@@ -17,10 +17,11 @@ import lightning as L
 import lightning.pytorch.callbacks as cb
 from lightning.pytorch.loggers import MLFlowLogger
 import mlflow.utils.autologging_utils
+from lightning.pytorch.profilers import SimpleProfiler
 
-from src.data.train_val_data_module import TrainValDataModule
-from src.models.fine_tuned_finbert import FineTunedFinBERT
-from src.utils.utils import PROJECT_ROOT
+from data.train_val_data_module import TrainValDataModule
+from models.fine_tuned_finbert import FineTunedFinBERT
+from utils.utils import PROJECT_ROOT
 
 
 if __name__ == '__main__':
@@ -35,20 +36,19 @@ if __name__ == '__main__':
     # mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI'))
     mlflow.set_experiment(EXPERIMENT_NAME)
 
-    # TODO mlflow is not properly setup - check what I wrote in my notes and see some examples
-    #  (e.g. I need to launch the script, call mlflow.set_experiment, mlflow.start_run, etc.)
     mlflow_logger = MLFlowLogger(
         # This should be by default (check MLFlowLogger source code),
         #   but apparently it doesn't correctly read the uri from the env
         tracking_uri=os.getenv('MLFLOW_TRACKING_URI'),
-        experiment_name=EXPERIMENT_NAME
+        experiment_name=EXPERIMENT_NAME,
+        log_model=True
     )
 
     with mlflow.start_run(log_system_metrics=True) as run:
         L.seed_everything(42)
 
         dm = TrainValDataModule(
-            train_batch_size=8,
+            train_batch_size=64,
             eval_batch_size=8,
             prefetch_factor=4,
             pin_memory=True,
@@ -58,14 +58,7 @@ if __name__ == '__main__':
 
         max_epochs = 10
 
-        # TODO check this for GRADIENT checkpointing and try to implement it in FineTunedFinBERT
-        # https://residentmario.github.io/pytorch-training-performance-guide/gradient-checkpoints.html
-        # Can I parameterize the number of steps after which checkpointing happens?
-        # TODO 2: but FIRST SEE HOW IS MEMORY WITHOUT CHECKPOINTING
-
         model = FineTunedFinBERT(
-            epochs=max_epochs,
-            n_batches=len(dm.train_dataloader()),
             lora_rank=8,
             enable_gradient_checkpointing=False # TODO this will be remvoed
         )
@@ -73,31 +66,26 @@ if __name__ == '__main__':
         trainer = L.Trainer(
             default_root_dir=os.path.join(PROJECT_ROOT, "artifacts"),
             max_epochs=max_epochs,
-            accelerator="auto",
+            accelerator="gpu",
             devices=1,
-            profiler='simple',
+            profiler=SimpleProfiler(filename='simple-profiler-logs'),
             logger=mlflow_logger,
 
-            # TODO idea here is to gradually try all of these parameters and see the impact on VRAM
-            #   also try to use the basic profiling api and the short dev runs api, see urls at the beginning of file
-
             # Checkpoints are automatically logged to mlflow according to the ModelCheckpoint callback
-            # Remember to call mlflow.pytorch.autolog()
-            # TODO See Examples:
-            # - https://www.restack.io/docs/mlflow-knowledge-mlflow-pytorch-lightning-integration
-            # - https://dwarez.github.io/posts/lightning_and_mlflow_logging/
-            enable_checkpointing=False,
-            accumulate_grad_batches=1,  # TODO this doesn't work possibly becaused of pre trained model?
-            # precision='16-mixed',
-            # callbacks=[
-            #     cb.EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=5),
-            #     cb.ModelCheckpoint(
-            #         monitor='val_loss',
-            #         mode='min',
-            #         save_top_k=3,
-            #         save_weights_only=False
-            #     ),
-            # ],
+            # Remember to call mlflow.pytorch.autolog() and set log_model=True in MLflowLogger
+            enable_checkpointing=True,
+            accumulate_grad_batches=4,
+            precision='16-mixed',
+            callbacks=[
+                cb.EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=2),
+                cb.ModelCheckpoint(
+                    monitor='val_loss',
+                    mode='min',
+                    save_top_k=3,
+                    save_weights_only=False
+                ),
+                cb.LearningRateMonitor(logging_interval='step'),
+            ],
         )
 
         trainer.fit(model, datamodule=dm)
