@@ -1,72 +1,42 @@
-import json
-import math
+import shutil
 import sys
 import os
-from typing import Tuple, Type, List, Dict, Any
+from pathlib import Path
 
-import pandas as pd
+import dotenv
 import pyspark.sql as psql
 from loguru import logger
-from matplotlib import pyplot as plt
 from pyspark import SparkFiles
 
 import utils.io as io_
-from utils.system import MAX_AVAILABLE_CORES, MAX_AVAILABLE_RAM_GB
+
+
+dotenv.load_dotenv(io_.PROJECT_ROOT / 'spark' / 'spark.application.env')
+
+MASTER_HOST = os.getenv('MASTER_HOST')
+DRIVER_RAM_GB = int(os.getenv('DRIVER_RAM_GB'))
+DRIVER_CORES = int(os.getenv('DRIVER_CORES'))
+N_EXECUTORS = int(os.getenv('N_EXECUTORS'))
+EXECUTORS_AVAILABLE_RAM_GB = int(os.getenv('EXECUTORS_AVAILABLE_RAM_GB'))
+EXECUTORS_AVAILABLE_CORES = int(os.getenv('EXECUTORS_AVAILABLE_CORES'))
 
 # Since the datasets used are relatively small, one partition per core is sufficient
 # The rule of thumb would be "numPartitions = numWorkers * cpuCoresPerWorker"
 # In my case, local standalone cluster, there is just 1 worker with AVAILABLE_CORES cores
 # See this answer for a useful discussion about how to determine numPartitions
 #   https://stackoverflow.com/a/39398750/19582401
-N_PARTITIONS = MAX_AVAILABLE_CORES
+N_PARTITIONS = EXECUTORS_AVAILABLE_CORES
 
-# Needed to correctly set the python executable of the current conda env
-os.environ['PYSPARK_PYTHON'] = sys.executable
-os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
-os.environ['SPARK_LOCAL_IP'] = "127.0.0.1"
 
-# UserWarning: 'PYARROW_IGNORE_TIMEZONE' environment variable was not set.
-# It is required to set this environment variable to '1' in both driver and executor
-#   sides if you use pyarrow>=2.0.0.
-os.environ["PYARROW_IGNORE_TIMEZONE"] = "1"
-
-# TODO all of the stuff above is actually fine to leave there as the module is loaded
-# TODO maybe inject via spark.env file?
-#   I'd like to specify the following:
-#   - master host
-#   - driver ram gb
-#   - driver cores
-#   - n executors
-#   - cores available to executors
-#   - ram available to executors
-#   the last two default to max system cores and ram if not specified, else the resources
-#   will be split equally among executors
-MASTER_HOST = "localhost"  # master host in local standalone cluster
-
-# TODO example usage
-# Create "single-use" spark session to parse the text
-# spark = create_spark_session(n_executors=4, app_name="Doc Features")
-# docs_scores_df = tok.get_document_features(
-#     spark=spark,
-#     corpus_json_path=corpus_paths[d_name],
-#     n_partitions=N_PARTITIONS
-# )
-# docs_scores_pandas: pd.DataFrame = docs_scores_df.toPandas()
-# spark.stop()
 def create_spark_session(app_name: str) -> psql.SparkSession:
-    driver_ram_gb = 2
-    driver_cores = 2
-    executors_tot_ram = None TODO
-    executors_tot_cores = None |TODo
-    n_executors = None | TOdo
-    mem_per_executor = executors_tot_ram // n_executors
-    cores_per_executor = executors_tot_cores // n_executors
+    logger.info(f'Creating spark session for {app_name}')
 
-    logger.debug(f"Executor memory: {mem_per_executor}")
-    logger.debug(f"AVAILABLE_RAM_GB: {MAX_AVAILABLE_RAM_GB}")
-    logger.debug(f"Total executor memory: {(MAX_AVAILABLE_RAM_GB - driver_ram_gb)}")
-    logger.debug(f"Executor cores: {cores_per_executor}")
+    mem_per_executor = EXECUTORS_AVAILABLE_RAM_GB // N_EXECUTORS
+    cores_per_executor = EXECUTORS_AVAILABLE_CORES // N_EXECUTORS
 
+    logger.debug(f"RAM GB/Executor: {mem_per_executor}")
+    logger.debug(f"Cores/Executor: {cores_per_executor}")
+    logger.debug(f"Total executor RAM GB: {EXECUTORS_AVAILABLE_RAM_GB}")
 
     spark: psql.SparkSession = (
         psql.SparkSession.builder
@@ -74,22 +44,30 @@ def create_spark_session(app_name: str) -> psql.SparkSession:
 
         .appName(f"{app_name}")
         #.config("spark.driver.host", f"{MASTER_HOST}:7077")
-        .config("spark.driver.cores", driver_cores)
-        .config("spark.driver.memory", f"{driver_ram_gb}g")
-        .config("spark.executor.instances", n_executors)
+        .config("spark.driver.cores", DRIVER_CORES)
+        .config("spark.driver.memory", f"{DRIVER_RAM_GB}g")
+        .config("spark.executor.instances", N_EXECUTORS)
         .config("spark.executor.cores", cores_per_executor)
         .config("spark.executor.memory", f"{mem_per_executor}g")
-        .config("spark.default.parallelism", MAX_AVAILABLE_CORES)
-        .config("spark.cores.max", MAX_AVAILABLE_CORES - driver_cores)
+        # .config("spark.default.parallelism", MAX_AVAILABLE_CORES) not sure if needed, check https://spark.apache.org/docs/latest/configuration.html
+        .config("spark.cores.max", EXECUTORS_AVAILABLE_CORES)
         .getOrCreate()
     )
 
     # Add local dependencies (local python source files) to SparkContext and sys.path
-    src_zip_path = os.path.abspath(io_.SRC_DIR)
+    src_zip_path = _ensure_src_dir_is_zipped()
     logger.debug(f"Adding {src_zip_path} to SparkContext")
 
-    spark.sparkContext.addPyFile(src_zip_path)
+    spark.sparkContext.addPyFile(str(src_zip_path.absolute()))
     sys.path.insert(0, SparkFiles.getRootDirectory())
 
     return spark
 
+
+def _ensure_src_dir_is_zipped() -> Path:
+    src_zip_path = io_.PROJECT_ROOT / 'spark' / 'src.zip'
+    if not os.path.exists(src_zip_path):
+        logger.debug(f"Zipping `{io_.SRC_DIR}` directory to {src_zip_path}")
+        shutil.make_archive(io_.PROJECT_ROOT / 'spark' / 'src', 'zip', root_dir=io_.SRC_DIR, base_dir=io_.SRC_DIR, verbose=True)
+
+    return src_zip_path

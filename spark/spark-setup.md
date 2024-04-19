@@ -35,35 +35,32 @@ export SPARK_HOME=<PATH-TO-SPARK-INSTALL>
 export PATH=$PATH:$SPARK_HOME/bin
 ```
 
-- Create `$SPARK_HOME/conf/spark-env.sh` containing the following lines:
+- Create `$SPARK_HOME/conf/spark-env.sh` containing the following lines (check the [reference](https://spark.apache.org/docs/latest/spark-standalone.html#cluster-launch-scripts) when in doubt):
 
 ```bash
-export PYTHONPATH=<PROJECT-CONDA-ENV-PATH>/bin/python
-export PYSPARK_PYTHON=<PROJECT-CONDA-ENV-PATH>/bin/python
-export PYSPARK_DRIVER_PYTHON=<PROJECT-CONDA-ENV-PATH>/bin/python
-export SPARK_MASTER_HOST=127.0.0.1
-export SPARK_LOCAL_IP=127.0.0.1
+export PYTHONPATH=/usr/bin/python3
+
+# https://spark.apache.org/docs/latest/spark-standalone.html#cluster-launch-scripts
+# NOTE: these are the resources allocated to the *nodes*, not the application
+#   The latter are likely decided via each SparkSession configuration
 export SPARK_WORKER_CORES=<MAX-CPU-CORES>
 export SPARK_WORKER_MEMORY=<MAX-RAM-GB>g   # for example, 64g, 32g, 16g, etc.
-```
+export SPARK_MASTER_HOST=127.0.0.1
 
-- Make sure to set the following os env. vars in the Python script as follows:
-
-```python
-os.environ['PYSPARK_PYTHON'] = sys.executable
-os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
-os.environ['SPARK_LOCAL_IP'] = "127.0.0.1"
+# https://spark.apache.org/docs/latest/configuration.html#environment-variables
+export PYSPARK_PYTHON=/usr/bin/python3
+export PYSPARK_DRIVER_PYTHON=/usr/bin/python3
+export SPARK_LOCAL_IP=127.0.0.1
 
 # UserWarning: 'PYARROW_IGNORE_TIMEZONE' environment variable was not set.
 # It is required to set this environment variable to '1' in both driver and executor
 #   sides if you use pyarrow>=2.0.0.
-os.environ["PYARROW_IGNORE_TIMEZONE"] = "1"
+export PYARROW_IGNORE_TIMEZONE=1
 ```
 
 - Make sure to add local source files as dependencies of the SparkContext; they must be sent to worker nodes, which are not in the drivers' (this) working directory.
   - Make sure to **compress and add the whole source folder** (e.g. `src/`) **as a `.zip` archive**, so that the package structure is preserved.
   - Example:
-
 ```python
 # Add local dependencies (local python source files) to SparkContext and sys.path
 src_zip_path = os.path.abspath("../../src.zip")
