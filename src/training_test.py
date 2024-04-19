@@ -21,7 +21,7 @@ from lightning.pytorch.profilers import SimpleProfiler
 
 from data.data_modules.train_val_data_module import TrainValDataModule
 from models.fine_tuned_finbert import FineTunedFinBERT
-from utils.utils import PROJECT_ROOT
+from utils.io import PROJECT_ROOT
 
 EXPERIMENT_NAME = 'Training Test'
 RUN_NAME_PREFIX = 'training_test'
