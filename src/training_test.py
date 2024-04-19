@@ -3,13 +3,13 @@
 #   reuse the hyperopt code and just handle parameters in the various scripts
 # TODO 2: define the MLflow project thing, along with docker image and env, and the three training entrypoints, one per
 #   training script
-
 # TODO entry points to define:
 # - debug entry point with debug stuff on the Trainer class, as highlighted in this guide:
 #   - SHORT RUNS to verify everything ok: https://lightning.ai/docs/pytorch/stable/debug/debugging_basic.html
 #   - BASIC PROFILING: https://lightning.ai/docs/pytorch/stable/tuning/profiler_basic.html
 
 import os
+import datetime
 
 import mlflow
 import dotenv
@@ -19,9 +19,12 @@ from lightning.pytorch.loggers import MLFlowLogger
 import mlflow.utils.autologging_utils
 from lightning.pytorch.profilers import SimpleProfiler
 
-from data.train_val_data_module import TrainValDataModule
+from data.data_modules.train_val_data_module import TrainValDataModule
 from models.fine_tuned_finbert import FineTunedFinBERT
 from utils.utils import PROJECT_ROOT
+
+EXPERIMENT_NAME = 'Training Test'
+RUN_NAME_PREFIX = 'training_test'
 
 
 if __name__ == '__main__':
@@ -30,39 +33,39 @@ if __name__ == '__main__':
     # https://stackoverflow.com/questions/62691279/how-to-disable-tokenizers-parallelism-true-false-warning
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    mlflow.pytorch.autolog()
-
-    EXPERIMENT_NAME = 'first test'
-    # mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI'))
     mlflow.set_experiment(EXPERIMENT_NAME)
 
-    mlflow_logger = MLFlowLogger(
-        # This should be by default (check MLFlowLogger source code),
-        #   but apparently it doesn't correctly read the uri from the env
-        tracking_uri=os.getenv('MLFLOW_TRACKING_URI'),
-        experiment_name=EXPERIMENT_NAME,
-        log_model=True
-    )
+    mlflow.pytorch.autolog()
 
-    with mlflow.start_run(log_system_metrics=True) as run:
+    with mlflow.start_run(
+            log_system_metrics=True,
+            run_name=f"{RUN_NAME_PREFIX}-{datetime.datetime.now()}"
+    ) as run:
+        mlflow_logger = MLFlowLogger(
+            # This should be by default (check MLFlowLogger source code),
+            #   but apparently it doesn't correctly read the uri from the env
+            tracking_uri=os.getenv('MLFLOW_TRACKING_URI'),
+            experiment_name=EXPERIMENT_NAME,
+            log_model=True,
+            run_id=run.info.run_id
+        )
+
         L.seed_everything(42)
 
         dm = TrainValDataModule(
             train_batch_size=64,
             eval_batch_size=8,
-            prefetch_factor=4,
+            prefetch_factor=8,
             pin_memory=True,
             num_workers=16
         )
-        dm.setup()
-
-        max_epochs = 10
 
         model = FineTunedFinBERT(
             lora_rank=8,
             enable_gradient_checkpointing=False # TODO this will be remvoed
         )
 
+        max_epochs = 10
         trainer = L.Trainer(
             default_root_dir=os.path.join(PROJECT_ROOT, "artifacts"),
             max_epochs=max_epochs,
@@ -84,7 +87,7 @@ if __name__ == '__main__':
                     save_top_k=3,
                     save_weights_only=False
                 ),
-                cb.LearningRateMonitor(logging_interval='step'),
+                cb.LearningRateMonitor(logging_interval='epoch'),
             ],
         )
 
