@@ -33,6 +33,7 @@ python-dotenv = "^1.0.1"
 datasets = "^2.18.0"
 pynvml = "^11.5.0"
 openpyxl = "^3.1.2"
+pyspark = "^3.5.1"
 
 
 [[tool.poetry.source]]
