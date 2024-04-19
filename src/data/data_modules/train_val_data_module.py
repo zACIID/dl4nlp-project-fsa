@@ -8,12 +8,12 @@ from transformers import AutoTokenizer
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
-class TrainValDataModule(L.LightningDataModule):
+class TrainValDataModule(L.LightningDataModule): # TODO rename to FinBERTTrainVal data module
     def __init__(
             self,
-            model_name_or_path: str = "ahmedrachid/FinancialBERT",
+            model_name_or_path: str = "ahmedrachid/FinancialBERT-Sentiment-Analysis",
             train_batch_size: int = 64,
-            eval_batch_size: int = 32,
+            eval_batch_size: int = 8,
             train_split_size: float = 0.8,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
@@ -58,6 +58,8 @@ class TrainValDataModule(L.LightningDataModule):
         # TODO 2: try to use spark to read datasets and perform operations on them since it allows for easy
         #   parallel computing so that every core of this machine can be leveraged
         #   Plain pandas is single core
+        # TODO 3: I might want to process stuff via spark in another class, because the result of such pre-processing
+        #   will be used by different dataloaders (finberttrainval, finberttest, HandEngTrainVal, HandEngTest, E2ETrainVal, E2ETest)
 
         # self.dataset = datasets.load_dataset("ElKulako/stocktwits-emoji")
         #
@@ -80,7 +82,7 @@ class TrainValDataModule(L.LightningDataModule):
             #   what I could do, which also avoids the parallelism warning, is to tokenize with fast tokenizer
             #   outside of the lambda: I pay the price of not-lazy loading but I ideally use less memory because batches
             #   anre't padded to max length and I can also use parallel dataloaders
-            self.dataset[split] = self.dataset[split].map(lambda e: self.tokenizer(e['sentence1'], padding='max_length', return_tensors='pt'), batched=True)
+            self.dataset[split] = self.dataset[split].map(lambda e: self.tokenizer(e['sentence1'], padding='max_length', return_tensors='pt', max_length=160), batched=True)
 
             # TODO i think setting type='torch' is redundant since tokenizer already returns pytorch tensors?
             self.dataset[split].set_format(type='torch', columns=['input_ids', 'token_type_ids', 'attention_mask'])

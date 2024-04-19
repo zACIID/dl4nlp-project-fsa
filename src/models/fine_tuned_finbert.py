@@ -5,9 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import (
-    AutoConfig,
-    AutoModelForMaskedLM,
-    BertForMaskedLM,
+    BertForSequenceClassification,
 )
 from transformers.modeling_outputs import MaskedLMOutput
 from transformers.tokenization_utils_base import BatchEncoding
@@ -21,7 +19,7 @@ import models.modules.lora as lora
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
 class FineTunedFinBERT(L.LightningModule):
     """
-    Class that represents a model (currently "ahmedrachid/FinancialBERT" from HuggingFace) combined with
+    Class that represents a model (currently "ahmedrachid/FinancialBERT-Sentiment-Analysis" from HuggingFace) combined with
     a custom implemented LoRA fine-tuning infrastructure.
     The caller can choose where to apply LoRA layers (query, key, value, output projection matrices of transformer layers)
     The parameters option should contain the following keys with a valid bool value:
@@ -30,7 +28,7 @@ class FineTunedFinBERT(L.LightningModule):
     def __init__(
             self,
             lora_rank: int,
-            model_name_or_path: str = "ahmedrachid/FinancialBERT",
+            model_name_or_path: str = "ahmedrachid/FinancialBERT-Sentiment-Analysis",
             max_lr: float = 2e-5,
             weight_decay: float = 0.0,
             W_q: bool = True,
@@ -75,8 +73,7 @@ class FineTunedFinBERT(L.LightningModule):
         #   For this reason, do not delete the parameters even if they seem unused
         self.save_hyperparameters(logger=True)
 
-        self.config = AutoConfig.from_pretrained(model_name_or_path)
-        self.model: BertForMaskedLM = AutoModelForMaskedLM.from_pretrained(model_name_or_path)
+        self.model: BertForSequenceClassification = BertForSequenceClassification.from_pretrained(model_name_or_path, num_labels=3)
 
         self._loRA_layers: dict[lora.HeadType, list[lora.LoRABundle]] = {
             key: [] for key in lora.HeadType
