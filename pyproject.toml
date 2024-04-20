@@ -34,6 +34,7 @@ datasets = "^2.18.0"
 pynvml = "^11.5.0"
 openpyxl = "^3.1.2"
 pyspark = "^3.5.1"
+scikit-learn = "^1.4.2"
 
 
 [[tool.poetry.source]]
