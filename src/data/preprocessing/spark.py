@@ -49,7 +49,9 @@ def create_spark_session(app_name: str) -> psql.SparkSession:
         .config("spark.executor.instances", N_EXECUTORS)
         .config("spark.executor.cores", cores_per_executor)
         .config("spark.executor.memory", f"{mem_per_executor}g")
-        # .config("spark.default.parallelism", MAX_AVAILABLE_CORES) not sure if needed, check https://spark.apache.org/docs/latest/configuration.html
+        # TODO not sure if needed, check https://spark.apache.org/docs/latest/configuration.html
+        #   I think this determines the number of RDD partitions
+        .config("spark.default.parallelism", EXECUTORS_AVAILABLE_CORES)
         .config("spark.cores.max", EXECUTORS_AVAILABLE_CORES)
         .getOrCreate()
     )
