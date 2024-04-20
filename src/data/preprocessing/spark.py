@@ -28,6 +28,10 @@ EXECUTORS_AVAILABLE_CORES = int(os.getenv('EXECUTORS_AVAILABLE_CORES'))
 N_PARTITIONS = EXECUTORS_AVAILABLE_CORES
 
 
+# See spark-setup.md to understand why this is needed
+os.environ['PYSPARK_PYTHON'] = str(io_.PROJECT_ROOT / '.venv' / 'bin' / 'python')
+
+
 def create_spark_session(app_name: str) -> psql.SparkSession:
     logger.info(f'Creating spark session for {app_name}')
 

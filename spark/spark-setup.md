@@ -35,8 +35,15 @@ export SPARK_HOME=<PATH-TO-SPARK-INSTALL>
 export PATH=$PATH:$SPARK_HOME/bin
 ```
 
-- Create `$SPARK_HOME/conf/spark-env.sh` containing the following lines (check the [reference](https://spark.apache.org/docs/latest/spark-standalone.html#cluster-launch-scripts) when in doubt):
+- Make sure to install the JDK (Java Development Kit) if not done already:
+```bash
+sudo apt install openjdk-21-jdk-headless
 
+# Use this to check that Java is correctly installed:
+java --version
+```
+
+- Create `$SPARK_HOME/conf/spark-env.sh` containing the following lines (check the [reference](https://spark.apache.org/docs/latest/spark-standalone.html#cluster-launch-scripts) when in doubt):
 ```bash
 export PYTHONPATH=/usr/bin/python3
 
@@ -56,6 +63,13 @@ export SPARK_LOCAL_IP=127.0.0.1
 # It is required to set this environment variable to '1' in both driver and executor
 #   sides if you use pyarrow>=2.0.0.
 export PYARROW_IGNORE_TIMEZONE=1
+```
+
+- If Spark needs to serialize python object with dependencies on third-party libraries, e.g. a tokenizer from the *transformers* library, dynamically set the worker node python env:
+```python
+# NOTE: This is the place that the venv is installed at with Poetry 
+#   (properly configured, else it installs venvs somewhere in the home dir)
+os.environ['PYSPARK_PYTHON'] = str(<PROJECT_ROOT> / '.venv' / 'bin' / 'python')
 ```
 
 - Make sure to add local source files as dependencies of the SparkContext; they must be sent to worker nodes, which are not in the drivers' (this) working directory.
