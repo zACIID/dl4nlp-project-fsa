@@ -247,7 +247,7 @@ class FineTunedFinBERT(L.LightningModule):
         self.log(
             name=f"{step_type}_loss",
             value=loss,
-            on_step=False,
+            on_step=True,
             on_epoch=True,
             prog_bar=True,
             logger=True
