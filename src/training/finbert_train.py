@@ -19,7 +19,8 @@ from lightning.pytorch.loggers import MLFlowLogger
 import mlflow.utils.autologging_utils
 from lightning.pytorch.profilers import SimpleProfiler
 
-from data.data_modules.train_val_data_module import TrainValDataModule
+import data.preprocessing.datasets.stocktwits_crypto as sc
+from data.data_modules.finbert_train_val_data_module import FinBERTTrainValDataModule
 from models.fine_tuned_finbert import FineTunedFinBERT
 from utils.io import PROJECT_ROOT
 
@@ -52,7 +53,8 @@ if __name__ == '__main__':
 
         L.seed_everything(42)
 
-        dm = TrainValDataModule(
+        dm = FinBERTTrainValDataModule(
+            dataset=sc.get_dataset(),
             train_batch_size=64,
             eval_batch_size=8,
             prefetch_factor=8,
