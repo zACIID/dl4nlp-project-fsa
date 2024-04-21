@@ -224,18 +224,26 @@ class FineTunedFinBERT(L.LightningModule):
             dataloader_idx: int = 0,
             step_type: str = None
     ) -> torch.Tensor:
-        outputs: MaskedLMOutput = self(**batch)
+        tokenizer_output, sentiment_score = batch
+        outputs: MaskedLMOutput = self(**tokenizer_output)
 
-        # TODO change loss function
-        # loss = F.cross_entropy(outputs.logits, labels)
-        loss = outputs.logits.mean()
+        # Classes are { 0: bearish, 1: neutral, 2: bullish } for the
+        #   ahmedrachid/FinancialBERT-Sentiment-Analysis model
+        # Transpose because it is a batch of 3-elements tensors
+        probabilities = F.softmax(outputs.logits, dim=0).T  # xxx # TODO sembra piantarsi qui da qualche parte
+        bearish_prob, bullish_prob = probabilities[0], probabilities[2]
+
+        # This is also how ProsusAI/finbert predicts sentiment score:
+        #   positive prob - negative prob, and then it uses MSE loss
+        pred_sentiment_score = bullish_prob - bearish_prob
+        loss = F.mse_loss(sentiment_score, pred_sentiment_score)
 
         # TODO define other metrics to log, e.g. taken by torchmetrics or HuggingFace's evaluate package
         self.log_dict(
             dictionary={
                 f"{step_type}_loss": loss,
             },
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             prog_bar=True
         )
