@@ -235,13 +235,22 @@ class FineTunedFinBERT(L.LightningModule):
         loss = F.mse_loss(sentiment_score, pred_sentiment_score)
 
         # TODO define other metrics to log, e.g. taken by torchmetrics or HuggingFace's evaluate package
-        self.log_dict(
-            dictionary={
-                f"{step_type}_loss": loss,
-            },
+        # self.log_dict( # TODO log_dict currently broken
+        #     dictionary={
+        #         f"{step_type}_loss": loss,
+        #     },
+        #     on_step=False,
+        #     on_epoch=True,
+        #     prog_bar=True,
+        #     logger=True
+        # )
+        self.log(
+            name=f"{step_type}_loss",
+            value=loss,
             on_step=False,
             on_epoch=True,
-            prog_bar=True
+            prog_bar=True,
+            logger=True
         )
 
         return loss
