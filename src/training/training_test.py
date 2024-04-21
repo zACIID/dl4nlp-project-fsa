@@ -17,6 +17,8 @@ import dotenv
 import lightning as L
 import lightning.pytorch.callbacks as cb
 from lightning.pytorch.loggers import MLFlowLogger
+import mlflow.utils.autologging_utils
+import mlflow.utils.autologging_utils.client
 from lightning.pytorch.profilers import SimpleProfiler
 
 import data.preprocessing.datasets.stocktwits_crypto as sc
