@@ -138,7 +138,7 @@ def _apply_tokenizer(
 
     @psqlf.udf(
         returnType=psqlt.StructType([
-            psqlt.StructField("token_ids", psqlt.ArrayType(psqlt.IntegerType())),
+            psqlt.StructField("input_ids", psqlt.ArrayType(psqlt.IntegerType())),
             psqlt.StructField("attention_mask", psqlt.ArrayType(psqlt.IntegerType()))
         ])
     )
@@ -154,11 +154,11 @@ def _apply_tokenizer(
             truncation=True,
             max_length=WORST_CASE_TOKENS
         )
-        token_ids, attention_mask = batch['input_ids'], batch['attention_mask']
-        token_ids = token_ids.squeeze()
+        input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
+        input_ids = input_ids.squeeze()
         attention_mask = attention_mask.squeeze()
 
-        return token_ids.tolist(), attention_mask.tolist()
+        return input_ids.tolist(), attention_mask.tolist()
 
     with_tokens_df = df.withColumn(TOKENIZER_OUTPUT_COL, tokenize(psqlf.col(TEXT_COL)))
 
