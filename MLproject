@@ -1,0 +1,124 @@
+name: dl4nlp-project-fsa
+
+# TODO no env atm because run with --env-manager local
+#docker_env:
+#  image: mlflow-docker-example-environment
+#  volumes: ["/local/path:/container/mount/path"]
+#  environment: [["NEW_ENV_VAR", "new_var_value"], "VAR_TO_COPY_FROM_HOST_ENVIRONMENT"]
+
+entry_points:
+  hyperopt:
+    parameters:
+      # path to the python executable in the project's poetry env (i.e. inside .venv folder)
+      poetry_env:
+        type: string
+        default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
+
+      fail_on_error: {type: string, default: "true"} # anything different from "false" allows train run to fail without blocking the main hyperopt loop
+
+      #== Hyperopt hparams
+      algo: {type: string, default: "tpe.suggest"} # anything different results in usage of `rand.suggest`
+      max_runs: {type: float, default: 50} # maximum number of hyperopt runs to find the best hparams
+
+      #== Data module hparams
+      train_batch_size_min: {type: float, default: 1}
+      train_batch_size_max: {type: float, default: 64}
+
+      #== FinBERT hparams
+      one_cycle_max_lr_min: {type: float, default: 1e-5}
+      one_cycle_max_lr_max: {type: float, default: 1}
+      one_cycle_pct_start_min: {type: float, default: 0}
+      one_cycle_pct_start_max: {type: float, default: 1.0}
+      weight_decay_min: {type: float, default: 1e-4}
+      weight_decay_max: {type: float, default: 0.2}
+      lora_rank_min: {type: float, default: 1}
+      lora_rank_max: {type: float, default: 32}
+      lora_alpha_min: {type: float, default: 0.01}
+      lora_alpha_max: {type: float, default: 5}
+
+      #== Lightning Trainer hparams
+      max_epochs: {type: float, default: 250}
+      accumulate_grad_batches_min: {type: float, default: 1}
+      accumulate_grad_batches_max: {type: float, default: 9}
+      limit_batches: {type: float, default: 1.0}
+    command: "poetry env use {poetry_env} \
+            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt_train.py \
+               --algo {algo} \
+               --max-runs {max_runs} \
+               --train-batch-size-min {train_batch_size_min} \
+               --train-batch-size-max {train_batch_size_max} \
+               --one-cycle-pct-start-min {one_cycle_pct_start_min} \
+               --one-cycle-pct-start-max {one_cycle_pct_start_max} \
+               --one-cycle-max-lr-min {one_cycle_max_lr_min} \
+               --one-cycle-max-lr-max {one_cycle_max_lr_max} \
+               --weight-decay-min {weight_decay_min} \
+               --weight-decay-max {weight_decay_max} \
+               --lora-rank-min {lora_rank_min} \
+               --lora-rank-max {lora_rank_max} \
+               --lora-alpha-min {lora_alpha_min} \
+               --lora-alpha-max {lora_alpha_max} \
+               --max-epochs {max_epochs} \
+               --accumulate-grad-batches-min {accumulate_grad_batches_min} \
+               --accumulate-grad-batches-max {accumulate_grad_batches_max} \
+               --limit-batches {limit_batches} \
+               "
+  train:
+    parameters:
+      # path to the python executable in the project's poetry env (i.e. inside .venv folder)
+      poetry_env:
+        type: string
+        default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
+
+      #== Data module hparams
+      train_batch_size: {type: float, default: 32}
+      eval_batch_size: {type: float, default: 32}
+      train_split_size: {type: float, default: 0.8}
+      prefetch_factor: {type: float, default: 16}
+      num_workers: {type: float, default: 12}
+
+      #== FinBERT hparams
+      one_cycle_max_lr: {type: float, default: 0.1} # max OneCycle scheduler LR
+      one_cycle_pct_start: {type: float, default: 0.3} # fraction of cycle spent increasing LR to max
+      weight_decay: {type: float, default: 1e-2}
+      lora_rank: {type: float, default: 8}
+      lora_alpha: {type: float, default: 1}
+
+      #== Lightning Trainer hparams
+      max_epochs: {type: float, default: 250} # pass -1 for infinite epochs, useful when combined with early stopping
+      # Optimizer.step is executed every batch_size X acc_grad_batches,
+      #   meaning that this number is effectively a multiplier of batch size
+      accumulate_grad_batches: {type: float, default: 4}
+      # Fractions of training/val batches to run
+      #   Useful if we do not want to try full dataset
+      limit_batches: {type: float, default: 1.0}
+
+      #== EarlyStopping hparams
+      es_monitor: {type: string, default: "val_loss"} # this is the key of a value that is manually logged inside the LightningModule
+      es_min_delta: {type: float, default: 0.001}
+      es_patience: {type: float, default: 5} # if loss improvement < min_delta after this number of epochs, training stops
+
+      #== ModelCheckpoint hparams
+      ckpt_monitor: {type: string, default: "val_loss"} # this is the key of a value that is manually logged inside the LightningModule
+      ckpt_save_top_k: {type: float, default: 10}
+    command: "poetry env use {poetry_env} \
+            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/finbert_train.py \
+               --train-batch-size {train_batch_size} \
+               --eval-batch-size {eval_batch_size} \
+               --train-split-size {train_split_size} \
+               --prefetch-factor {prefetch_factor} \
+               --num-workers {num_workers} \
+               --one-cycle-max-lr {one_cycle_max_lr} \
+               --one-cycle-pct-start {one_cycle_pct_start} \
+               --weight-decay {weight_decay} \
+               --lora-rank {lora_rank} \
+               --lora-alpha {lora_alpha} \
+               --max-epochs {max_epochs} \
+               --accumulate-grad-batches {accumulate_grad_batches} \
+               --limit-batches {limit_batches} \
+               --es-monitor {es_monitor} \
+               --es-min-delta {es_min_delta} \
+               --es-patience {es_patience} \
+               --ckpt-monitor {ckpt_monitor} \
+               --ckpt-save-top-k {ckpt_save_top_k} \
+               "
+
