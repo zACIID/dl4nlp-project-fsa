@@ -9,7 +9,7 @@ from transformers import (
 )
 from transformers.modeling_outputs import MaskedLMOutput
 from transformers.tokenization_utils_base import BatchEncoding
-from torch.optim import AdamW
+from torch.optim import AdamW, Adam
 from torch.optim.lr_scheduler import OneCycleLR
 
 import models.modules.lora as lora
@@ -28,16 +28,17 @@ class FineTunedFinBERT(L.LightningModule):
     def __init__(
             self,
             lora_rank: int,
+            # TODO Might hardcode this since we are dependent on its implementation (how last layer distributes class labels)
             model_name_or_path: str = "ahmedrachid/FinancialBERT-Sentiment-Analysis",
-            max_lr: float = 2e-5,
+            one_cycle_max_lr: float = 2e-5,
             weight_decay: float = 0.0,
+            lora_alpha: float = 1,
             W_q: bool = True,
             W_v: bool = True,
             W_k: bool = True,
             W_o: bool = True,
             update_bias: bool = True,
-            alpha: float = 1,
-            enable_gradient_checkpointing: bool = False,
+            one_cycle_pct_start: float = 0.3,
             **kwargs,
     ):
         """
@@ -60,11 +61,8 @@ class FineTunedFinBERT(L.LightningModule):
         :param update_bias: if true, model bias parameters will require gradient, meaning that they will
             be updated during backpropagation. This was mentioned in the LoRA paper to be empirically effective,
             although they (if I recall correctly) said that their study on biases wasn't rigorous
-        :param alpha: LoRA hyperparameter that weighs the gradient update matrices
-        :param enable_gradient_checkpointing: 
-            TODO implement - idea is maybe to pass something like `checkpoint_every_n_segments`
-                param that will be forwarded to checkpoint_sequential, but I am not sure that checkpointing will even be needed with LoRA
-        :param kwargs: 
+        :param lora_alpha: LoRA hyperparameter that weighs the gradient update matrices
+        :param kwargs:
         """
 
         super().__init__()
@@ -73,7 +71,10 @@ class FineTunedFinBERT(L.LightningModule):
         #   For this reason, do not delete the parameters even if they seem unused
         self.save_hyperparameters(logger=True)
 
-        self.model: BertForSequenceClassification = BertForSequenceClassification.from_pretrained(model_name_or_path, num_labels=3)
+        self.model: BertForSequenceClassification = BertForSequenceClassification.from_pretrained(
+            model_name_or_path,
+            num_labels=3
+        )
 
         self._loRA_layers: dict[lora.HeadType, list[lora.LoRABundle]] = {
             key: [] for key in lora.HeadType
@@ -86,13 +87,8 @@ class FineTunedFinBERT(L.LightningModule):
             raise ValueError('lora_rank must be greater than or equal to 0')
 
         self._setup_LoRA_layers(
-            rank=lora_rank, alpha=alpha, W_q=W_q, W_v=W_v, W_k=W_k, W_o=W_o
-            )
-
-        if enable_gradient_checkpointing:
-            self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={
-                "use_reentrant": False
-            })
+            rank=lora_rank, alpha=lora_alpha, W_q=W_q, W_v=W_v, W_k=W_k, W_o=W_o
+        )
 
     # NOTES ON LOGGING:
     # - PyTorch Lightning already logs useful stuff to the console
@@ -230,7 +226,7 @@ class FineTunedFinBERT(L.LightningModule):
         # Classes are { 0: bearish, 1: neutral, 2: bullish } for the
         #   ahmedrachid/FinancialBERT-Sentiment-Analysis model
         # Transpose because it is a batch of 3-elements tensors
-        probabilities = F.softmax(outputs.logits, dim=0).T  # xxx # TODO sembra piantarsi qui da qualche parte
+        probabilities = F.softmax(outputs.logits, dim=0).T
         bearish_prob, bullish_prob = probabilities[0], probabilities[2]
 
         # This is also how ProsusAI/finbert predicts sentiment score:
@@ -291,8 +287,9 @@ class FineTunedFinBERT(L.LightningModule):
 
         scheduler = OneCycleLR(
             optimizer,
-            max_lr=self.hparams.max_lr,
-            total_steps=self.trainer.estimated_stepping_batches
+            max_lr=self.hparams.one_cycle_max_lr,
+            total_steps=self.trainer.estimated_stepping_batches,
+            pct_start=self.hparams.one_cycle_pct_start
         )
 
         # Docs on return values and scheduler config dictionary:
