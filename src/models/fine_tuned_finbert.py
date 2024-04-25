@@ -226,7 +226,7 @@ class FineTunedFinBERT(L.LightningModule):
         # Classes are { 0: bearish, 1: neutral, 2: bullish } for the
         #   ahmedrachid/FinancialBERT-Sentiment-Analysis model
         # Transpose because it is a batch of 3-elements tensors
-        probabilities = F.softmax(outputs.logits, dim=0).T
+        probabilities = F.softmax(outputs.logits, dim=1).T
         bearish_prob, bullish_prob = probabilities[0], probabilities[2]
 
         # This is also how ProsusAI/finbert predicts sentiment score:
