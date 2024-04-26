@@ -25,27 +25,28 @@ RUN_NAME_PREFIX = 'finbert'  # TODO parameterize based on model type?
 #  Since each model/data module has (must havae) a **kwargs argument, I can directly pass everything and parameters
 #   that a model doesn't care about will be auto ignored
 #   (self.save_hparams I think has an option to ignore stuff, there I can ignore "**kwargs:
+# NOTE: these defaults are for debug purposes
 @click.command(
     help="Fine-tune FinBERT model"
 )
-@click.option("--train-batch-size", type=click.INT)
-@click.option("--eval-batch-size", type=click.INT)
-@click.option("--train-split-size", type=click.FLOAT)
-@click.option("--prefetch-factor", type=click.INT)
-@click.option("--num-workers", type=click.INT)
-@click.option("--one-cycle-max-lr", type=click.FLOAT)
-@click.option("--one-cycle-pct-start", type=click.FLOAT)
-@click.option("--weight-decay", type=click.FLOAT)
-@click.option("--lora-rank", type=click.INT)
-@click.option("--lora-alpha", type=click.FLOAT)
-@click.option("--max-epochs", type=click.INT)
-@click.option("--accumulate-grad-batches", type=click.INT)
-@click.option("--limit-batches", type=click.FLOAT)
-@click.option("--es-monitor", type=click.STRING)
-@click.option("--es-min-delta", type=click.FLOAT)
-@click.option("--es-patience", type=click.INT)
-@click.option("--ckpt-monitor", type=click.STRING)
-@click.option("--ckpt-save-top-k", type=click.INT)
+@click.option("--train-batch-size", default=32, type=click.INT)
+@click.option("--eval-batch-size", default=16, type=click.INT)
+@click.option("--train-split-size", default=0.8, type=click.FLOAT)
+@click.option("--prefetch-factor", default=16, type=click.INT)
+@click.option("--num-workers", default=10, type=click.INT)
+@click.option("--one-cycle-max-lr", default=1e-4, type=click.FLOAT)
+@click.option("--one-cycle-pct-start", default=0.0, type=click.FLOAT)
+@click.option("--weight-decay", default=1e-2, type=click.FLOAT)
+@click.option("--lora-rank", default=64, type=click.INT)
+@click.option("--lora-alpha", default=1.5, type=click.FLOAT)
+@click.option("--max-epochs", default=100, type=click.INT)
+@click.option("--accumulate-grad-batches", default=4, type=click.INT)
+@click.option("--limit-batches", default=0.05, type=click.FLOAT)
+@click.option("--es-monitor", default='val_loss', type=click.STRING)
+@click.option("--es-min-delta", default=1e-3, type=click.FLOAT)
+@click.option("--es-patience", default=500, type=click.INT)
+@click.option("--ckpt-monitor", default='val_loss', type=click.STRING)
+@click.option("--ckpt-save-top-k", default=10, type=click.INT)
 def run(
         train_batch_size,
         eval_batch_size,
@@ -67,7 +68,8 @@ def run(
         ckpt_save_top_k
 ):
     # configure logging at the root level of Lightning
-    logging.getLogger("lightning.pytorch").setLevel(logging.INFO)
+    pytorch_logger = logging.getLogger("lightning.pytorch")
+    pytorch_logger.setLevel(logging.INFO)
 
     dotenv.load_dotenv(dotenv_path=os.path.join(PROJECT_ROOT, 'mlflow.env'))
 
@@ -161,6 +163,7 @@ def run(
         #     ckpt_callback.best_model_path,
         #     "ElasticNetWineModel"
         # )
+
 
 def _get_name_from_hparams(**hparams: dict) -> str:
     return "-".join([f"{k}={v}" for k, v in hparams.items()])
