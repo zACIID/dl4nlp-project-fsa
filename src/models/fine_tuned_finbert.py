@@ -169,7 +169,6 @@ class FineTunedFinBERT(L.LightningModule):
                 rank=rank,
                 alpha=alpha
             )
-            # xxx # TODO implement on BertPooler (what is that?) and final class. layer maybe
 
     def _set_layer(
             self,
