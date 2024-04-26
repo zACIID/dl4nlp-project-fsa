@@ -76,7 +76,7 @@ class LitWrapper(L.LightningModule):
         x = batch  # x is a dictionary with input_ids, attention_mask, etc.
         preds = self.model(**x)
         loss = F.cross_entropy(preds.logits, x["input_ids"])
-        self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True) 
+        self.log("train_loss_epoch", loss, on_step=False, on_epoch=True, prog_bar=True) 
         
         return loss
     
@@ -89,7 +89,7 @@ class LitWrapper(L.LightningModule):
         x = batch  # x is a dictionary with input_ids, attention_mask, etc.
         preds = self.model(**x)
         loss = F.cross_entropy(preds.logits, x["input_ids"])
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_loss_epoch", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
 

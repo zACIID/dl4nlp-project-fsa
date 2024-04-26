@@ -14,11 +14,13 @@ entry_points:
         type: string
         default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
 
-      fail_on_error: {type: string, default: "true"} # anything different from "false" allows train run to fail without blocking the main hyperopt loop
+      fail_on_error: {type: string, default: "false"} # anything different from "false" allows train run to fail without blocking the main hyperopt loop
 
       #== Hyperopt hparams
       algo: {type: string, default: "tpe.suggest"} # anything different results in usage of `rand.suggest`
-      max_runs: {type: float, default: 50} # maximum number of hyperopt runs to find the best hparams
+      # maximum number of hyperopt runs to find the best hparams
+      # Rule of thumb apparently is 10-20x #hyperparameters
+      max_runs: {type: float, default: 75}
 
       #== Data module hparams
       train_batch_size_min: {type: float, default: 1}
@@ -61,6 +63,7 @@ entry_points:
                --accumulate-grad-batches-min {accumulate_grad_batches_min} \
                --accumulate-grad-batches-max {accumulate_grad_batches_max} \
                --limit-batches {limit_batches} \
+               --fail-on-error {fail_on_error} \
                "
   train:
     parameters:
@@ -93,13 +96,13 @@ entry_points:
       limit_batches: {type: float, default: 1.0}
 
       #== EarlyStopping hparams
-      es_monitor: {type: string, default: "val_loss"} # this is the key of a value that is manually logged inside the LightningModule
-      es_min_delta: {type: float, default: 0.001}
-      es_patience: {type: float, default: 5} # if loss improvement < min_delta after this number of epochs, training stops
+      es_monitor: {type: string, default: "val_loss_epoch"} # this is the key of a value that is manually logged inside the LightningModule
+      es_min_delta: {type: float, default: 0.0025}
+      es_patience: {type: float, default: 10} # if loss improvement < min_delta after this number of epochs, training stops
 
       #== ModelCheckpoint hparams
-      ckpt_monitor: {type: string, default: "val_loss"} # this is the key of a value that is manually logged inside the LightningModule
-      ckpt_save_top_k: {type: float, default: 10}
+      ckpt_monitor: {type: string, default: "val_loss_epoch"} # this is the key of a value that is manually logged inside the LightningModule
+      ckpt_save_top_k: {type: float, default: 1}
     command: "poetry env use {poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/finbert_train.py \
                --train-batch-size {train_batch_size} \

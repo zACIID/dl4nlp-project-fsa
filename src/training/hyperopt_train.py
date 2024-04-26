@@ -5,7 +5,6 @@ https://github.dev/mlflow/mlflow/blob/master/examples/hyperparam/search_hyperopt
 import datetime
 import math
 import os
-import sys
 import typing
 
 import click
@@ -16,6 +15,7 @@ from hyperopt import fmin, hp, rand, tpe, Trials
 from hyperopt.pyll import scope
 
 import mlflow.projects
+from mlflow.entities import RunStatus
 from mlflow.tracking import MlflowClient
 
 import utils.io as io_
@@ -80,21 +80,21 @@ def new_eval(experiment_id, max_epochs, limit_batches, fail_on_error: bool):
 
             # cap the loss at the loss of the null model
             # TODO why is null_loss needed?
-            # train_loss = min(np.nan, metrics[f"train_loss"])
-            # valid_loss = min(null_valid_loss, metrics[f"val_loss"])
+            # train_loss = min(np.nan, metrics[f"train_loss_epoch"])
+            # valid_loss = min(null_valid_loss, metrics[f"val_loss_epoch"])
             # test_loss = min(null_test_loss, metrics[f"test_loss"])
-            train_loss = metrics[f"train_loss"]
-            val_loss = metrics[f"val_loss"]
+            train_loss = metrics[f"train_loss_epoch"]
+            val_loss = metrics[f"val_loss_epoch"]
         else:
             # run failed => return null loss
-            tracking_client.set_terminated(p.run_id, "FAILED")
+            tracking_client.set_terminated(run_id=p.run_id, status=RunStatus.to_string(RunStatus.FAILED))
             train_loss = np.nan
             val_loss = np.nan
 
         mlflow.log_metrics(
             {
-                f"train_loss": train_loss,
-                f"val_loss": val_loss,
+                f"train_loss_epoch": train_loss,
+                f"val_loss_epoch": val_loss,
             }
         )
 
@@ -208,15 +208,15 @@ def train(
         best_val_valid = _inf
         best_run = None
         for r in runs:
-            if r.data.metrics["val_loss"] < best_val_valid:
+            if r.data.metrics["val_loss_epoch"] < best_val_valid:
                 best_run = r
-                best_val_train = r.data.metrics["train_loss"]
-                best_val_valid = r.data.metrics["val_loss"]
+                best_val_train = r.data.metrics["train_loss_epoch"]
+                best_val_valid = r.data.metrics["val_loss_epoch"]
         mlflow.set_tag("best_run", best_run.info.run_id) # TODO I could use run name here maybe?
         mlflow.log_metrics(
             {
-                f"train_loss": best_val_train,
-                f"val_loss": best_val_valid,
+                f"train_loss_epoch": best_val_train,
+                f"val_loss_epoch": best_val_valid,
             }
         )
 
