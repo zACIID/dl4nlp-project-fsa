@@ -1,43 +1,13 @@
 import typing
-from enum import Enum
 
 import torch
 import torch.nn as nn
-
-
-class HeadType(Enum):
-    W_q = 1
-    W_k = 2
-    W_v = 3
-    W_o = 4
-
-
-# TODO at the end we might not need the bundle because we probably won't ever swap LoRAs
-#   maybe remove?
-class LoRABundle:
-    def __init__(
-            self,
-            A: nn.Parameter,
-            B: nn.Parameter,
-            bias: nn.Parameter,
-            layer: int,
-            alpha: float,
-            head_type: HeadType
-    ) -> None:
-        self.A = A
-        self.B = B
-        self.bias = bias
-        self.layer = layer
-        self.alpha = alpha
-        self.head_type = head_type
 
 
 class CustomLoRA(nn.Module):
     def __init__(
             self,
             old_linear: nn.Linear,
-            layer: int = None,
-            head_type: HeadType = None,
             rank: int = 1,
             alpha: float = 1,
             update_bias: bool = True,
@@ -55,8 +25,6 @@ class CustomLoRA(nn.Module):
             self.old_linear.bias.requires_grad = False
 
         self.alpha: float = alpha
-        self.layer: int = layer
-        self.head_type: HeadType = head_type
         self.dropout: nn.Module | None = None if dropout is None else nn.Dropout(p=dropout)
 
         std_dev: float = 1 / torch.sqrt(torch.tensor(rank).float()) # TODO chiedere a biango perche stdev viene calcolata cosi'
@@ -76,16 +44,6 @@ class CustomLoRA(nn.Module):
         new_pass: torch.Tensor = self.alpha * (x_batch @ self.lora_A @ self.lora_B)
 
         return old_pass + new_pass
-
-    def get_LoRA_bundle(self) -> LoRABundle:
-        return LoRABundle(
-            A=self.lora_A,
-            B=self.lora_B,
-            bias=self.old_linear.bias,
-            layer=self.layer,
-            alpha=self.alpha,
-            head_type=self.head_type
-        )
 
     def get_old_linear(self) -> nn.Linear:
         og_linear_layer: nn.Linear = nn.Linear(

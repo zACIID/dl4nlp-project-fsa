@@ -165,13 +165,8 @@ class FineTunedFinBERT(L.LightningModule):
             rank: int,
             alpha: float
     ) -> lora.CustomLoRA:
-        if not isinstance(layer, nn.Linear):
-            layer = layer.get_old_linear()
-
         temp_layer: lora.CustomLoRA = lora.CustomLoRA(
             old_linear=layer,
-            layer=depth,
-            head_type=head_type,
             rank=rank,
             alpha=alpha,
             update_bias=self._update_bias
