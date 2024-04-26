@@ -9,7 +9,7 @@ from transformers import (
 )
 from transformers.modeling_outputs import MaskedLMOutput
 from transformers.tokenization_utils_base import BatchEncoding
-from torch.optim import AdamW, Adam
+from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 
 import models.modules.lora as lora
@@ -37,6 +37,8 @@ class FineTunedFinBERT(L.LightningModule):
             W_v: bool = True,
             W_k: bool = True,
             W_o: bool = True,
+            W_pooler: bool = True,
+            W_classifier: bool = True,
             update_bias: bool = True,
             one_cycle_pct_start: float = 0.3,
             **kwargs,
@@ -84,7 +86,14 @@ class FineTunedFinBERT(L.LightningModule):
             raise ValueError('lora_rank must be greater than or equal to 0')
 
         self._setup_lora_layers(
-            rank=lora_rank, alpha=lora_alpha, W_q=W_q, W_v=W_v, W_k=W_k, W_o=W_o
+            rank=lora_rank,
+            alpha=lora_alpha,
+            W_q=W_q,
+            W_v=W_v,
+            W_k=W_k,
+            W_o=W_o,
+            W_pooler=W_pooler,
+            W_classifier=W_classifier
         )
 
     # NOTES ON LOGGING:
@@ -107,10 +116,6 @@ class FineTunedFinBERT(L.LightningModule):
     def forward(self, **inputs) -> MaskedLMOutput:
         return self.model(**inputs)
 
-    def get_lora_layers(self) -> dict[lora.HeadType, list[lora.LoRABundle]]:
-        """Collection of """
-        return self._lora_layers
-
     def _setup_lora_layers(
             self,
             rank: int,
@@ -118,14 +123,14 @@ class FineTunedFinBERT(L.LightningModule):
             W_q: bool,
             W_v: bool,
             W_k: bool,
-            W_o: bool
+            W_o: bool,
+            W_pooler: bool,
+            W_classifier: bool
     ) -> None:
-        for depth, layer in enumerate(self.model.bert.encoder.layer):
+        for layer in self.model.bert.encoder.layer:
             if W_q:
                 layer.attention.self.query = self._set_layer(
                     layer=layer.attention.self.query,
-                    head_type=lora.HeadType.W_q,
-                    depth=depth,
                     rank=rank,
                     alpha=alpha
                 )
@@ -133,8 +138,6 @@ class FineTunedFinBERT(L.LightningModule):
             if W_v:
                 layer.attention.self.value = self._set_layer(
                     layer=layer.attention.self.value,
-                    head_type=lora.HeadType.W_v,
-                    depth=depth,
                     rank=rank,
                     alpha=alpha
                 )
@@ -142,8 +145,6 @@ class FineTunedFinBERT(L.LightningModule):
             if W_k:
                 layer.attention.self.key = self._set_layer(
                     layer=layer.attention.self.key,
-                    head_type=lora.HeadType.W_k,
-                    depth=depth,
                     rank=rank,
                     alpha=alpha
                 )
@@ -151,17 +152,28 @@ class FineTunedFinBERT(L.LightningModule):
             if W_o:
                 layer.attention.output.dense = self._set_layer(
                     layer=layer.attention.output.dense,
-                    head_type=lora.HeadType.W_o,
-                    depth=depth,
                     rank=rank,
                     alpha=alpha
                 )
 
+        if W_pooler:
+            self.model.bert.pooler.dense = self._set_layer(
+                layer=self.model.bert.pooler.dense,
+                rank=rank,
+                alpha=alpha
+            )
+
+        if W_classifier:
+            self.model.bert.classifier = self._set_layer(
+                layer=self.model.classifier,
+                rank=rank,
+                alpha=alpha
+            )
+            # xxx # TODO implement on BertPooler (what is that?) and final class. layer maybe
+
     def _set_layer(
             self,
-            layer: nn.Module,
-            head_type: lora.HeadType,
-            depth: int,
+            layer: nn.Linear,
             rank: int,
             alpha: float
     ) -> lora.CustomLoRA:
