@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Mapping
 
 import lightning as L
 import torch
@@ -292,7 +292,7 @@ class FineTunedFinBERT(L.LightningModule):
         # REFERENCES: why AdamW + OneCycleLR scheduler?
         # 1. https://www.fast.ai/posts/2018-07-02-adam-weight-decay.html
         # 2. https://residentmario.github.io/pytorch-training-performance-guide/lr-sched-and-optim.html
-        optimizer = AdamW(optimizer_grouped_parameters, lr=1)
+        optimizer = AdamW(optimizer_grouped_parameters, lr=1e-3, weight_decay=self.hparams.weight_decay)
 
         scheduler = OneCycleLR(
             optimizer,
@@ -304,5 +304,17 @@ class FineTunedFinBERT(L.LightningModule):
         # Docs on return values and scheduler config dictionary:
         # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.LightningModule.html#lightning.pytorch.core.LightningModule.configure_optimizers
         # As said above, OneCycleLR should be stepped after each optimizer step
-        scheduler = {"name": OneCycleLR.__name__, "scheduler": scheduler, "interval": "step", "frequency": 1}
+        # scheduler = {"name": OneCycleLR.__name__, "scheduler": scheduler, "interval": "step", "frequency": 1}
         return [optimizer], [scheduler]
+
+    def state_dict(self, *args, destination=None, prefix='', keep_vars=False):
+        # NOTE: by overriding this, lightning's Trainer automatic checkpointing stores only the lora stuff,
+        #   meaning that checkpoint size is greatly reduced
+        # To use these checkpoints, the model has to first be normally instantiated
+        return lora.lora_state_dict(self.model, include_biases=self._update_bias)
+
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = False):
+        # Needed to apply the state_dict to the actual model
+        # NOTE: if the state dict is the lora_state_dict, a warning about "missing keys" will be raised by lightning:
+        #   we can safely ignore it, because we are on purpose not saving the original parameters
+        return self.model.load_state_dict(state_dict, strict=strict, assign=assign)
