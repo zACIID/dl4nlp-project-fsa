@@ -76,9 +76,6 @@ class FineTunedFinBERT(L.LightningModule):
             num_labels=3
         )
 
-        self._loRA_layers: dict[lora.HeadType, list[lora.LoRABundle]] = {
-            key: [] for key in lora.HeadType
-        }
         self._update_bias: bool = update_bias
 
         self._freeze_net()
@@ -86,7 +83,7 @@ class FineTunedFinBERT(L.LightningModule):
         if lora_rank is None or lora_rank < 0:
             raise ValueError('lora_rank must be greater than or equal to 0')
 
-        self._setup_LoRA_layers(
+        self._setup_lora_layers(
             rank=lora_rank, alpha=lora_alpha, W_q=W_q, W_v=W_v, W_k=W_k, W_o=W_o
         )
 
@@ -110,11 +107,11 @@ class FineTunedFinBERT(L.LightningModule):
     def forward(self, **inputs) -> MaskedLMOutput:
         return self.model(**inputs)
 
-    def get_LoRA_layers(self) -> dict[lora.HeadType, list[lora.LoRABundle]]:
+    def get_lora_layers(self) -> dict[lora.HeadType, list[lora.LoRABundle]]:
         """Collection of """
-        return self._loRA_layers
+        return self._lora_layers
 
-    def _setup_LoRA_layers(
+    def _setup_lora_layers(
             self,
             rank: int,
             alpha: float,
@@ -179,8 +176,6 @@ class FineTunedFinBERT(L.LightningModule):
             alpha=alpha,
             update_bias=self._update_bias
         )
-
-        self._loRA_layers[head_type].append(temp_layer.get_LoRA_bundle())
 
         return temp_layer
 
