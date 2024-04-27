@@ -3,53 +3,59 @@ import typing
 import urllib.request
 from pathlib import Path
 
+import click
 import datasets
 import pandas as pd
 import pyspark.sql as psql
-import torch
 from loguru import logger
 from pyspark.sql import types as psqlt, functions as psqlf
 from transformers import AutoTokenizer, BatchEncoding
 
-import data.preprocessing.spark as S
+import models.fine_tuned_finbert as ft
+import data.spark as S
+import data.stocktwits_crypto_dataset as sc
 import utils.io as io_
 
-_DOWNLOAD_URL = 'https://huggingface.co/datasets/ElKulako/stocktwits-crypto/resolve/main/st-data-full.xlsx?download=true'
-_TOKENIZER_PATH = 'ahmedrachid/FinancialBERT-Sentiment-Analysis'  # TODO this should not be hardcoded, especially if we decide to use different pre-trained models
 
-# This is the maximum number of characters of the texts in the final test dataset (SemEval)
-# Assuming one token per character, we have a maximum of 160 tokens,
-#   meaning that I'd throw away the remaining characters/tokens
-#   so that memory and training times do not explode
-WORST_CASE_TOKENS = 160
+_MODEL_NAME = 'finbert'
+_SPARK_APP_NAME = f'{_MODEL_NAME} Preprocessing'
 
-TEXT_COL = "text"
-LABEL_COL = "label"
-
-_RAW_CORPUS_SCHEMA: psqlt.StructType = (
-    psqlt.StructType()
-    .add(TEXT_COL, psqlt.StringType(), nullable=False)
-    .add(LABEL_COL, psqlt.IntegerType(), nullable=False)
-)
+_TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
 
 TOKENIZER_OUTPUT_COL = "tokenizer"
 SENTIMENT_SCORE_COL = "sentiment_score"
 
 DATASET_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
-    .add(TEXT_COL, psqlt.StringType(), nullable=False)
-    .add(LABEL_COL, psqlt.IntegerType(), nullable=False)
+    .add(sc.TEXT_COL, psqlt.StringType(), nullable=False)
+    .add(sc.LABEL_COL, psqlt.IntegerType(), nullable=False)
     .add(TOKENIZER_OUTPUT_COL, psqlt.ArrayType(psqlt.IntegerType()), nullable=False)
     .add(SENTIMENT_SCORE_COL, psqlt.FloatType(), nullable=False)
 )
 
-DATASET_PATH = io_.DATA_DIR / 'stocktwits-crypto.parquet'
+WITH_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}-with-neutrals.parquet'
+WITHOUT_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}-without-neutrals.parquet'
+#
+# # TODO one path for dataset with neutral labels and one without
+# # TODO add click.options to the main method so that script can be run with the --include-neutral-label boolean flag
+# # TODO add a parameter in get_dataset that chooses which dataset to load
+# # TODO in the datamodule, add a parameter that chooses which dataset to use
+#
+#
+# def get_dataset(drop_neutral_samples: bool) -> datasets.Dataset:
+    # dataset_path = WITH_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITHOUT_NEUTRALS_DATASET_PATH
+    # if not os.path.exists(dataset_path):
+    #     raise FileNotFoundError('Dataset not found. Make sure to run this script to execute '
+    #                             'the preprocessing pipeline for this dataset')
+    #
+    # # Have to load the actual .parquet files inside the dataset folder
+    # return datasets.Dataset.from_parquet(str(dataset_path / "*.parquet"))
 
+# TODO change what is below last so interface doesn't brake while training still running
+
+DATASET_PATH = io_.DATA_DIR / 'stocktwits-crypto.parquet' # TODO rename so that it differs from other datasets
 
 def get_dataset() -> datasets.Dataset:
-    # TODO maybe put this inside a class with a common interface? maybe not necessary because I will
-    #   call this function from each training script so I won't use the interface effectively
-    # TODO 2: this should preprocess the dataset
     if not os.path.exists(DATASET_PATH):
         raise FileNotFoundError('Dataset not found. Make sure to run this script to execute '
                                 'the preprocessing pipeline for this dataset')
@@ -58,37 +64,11 @@ def get_dataset() -> datasets.Dataset:
     return datasets.Dataset.from_parquet(str(DATASET_PATH / "*.parquet"))
 
 
-def _download_dataset(url: str) -> Path:
-    raw_xlsx_path = io_.RAW_DATASET_DIR / 'stocktwits-crypto.xlsx'
-    raw_csv_path = io_.RAW_DATASET_DIR / 'stocktwits-crypto.csv'
-
-    if not os.path.exists(raw_xlsx_path) or not os.path.exists(raw_csv_path):
-        logger.info('Downloading stocktwits-crypto dataset from {}'.format(url))
-        with io_.DownloadProgressBar(
-                unit='B',
-                unit_scale=True,
-                miniters=1,
-                desc=url.split('/')[-1]
-        ) as t:
-            urllib.request.urlretrieve(url, filename=raw_xlsx_path, reporthook=t.update_to)
-
-        logger.info('Converting from .xlsx to .csv')
-        # There is also this Spark plugin to directly handle .xlsx in Spark,
-        #   but I do not want to set it up and check how it works:
-        #   https://github.com/crealytics/spark-excel
-        df = pd.read_excel(raw_xlsx_path, sheet_name=[0, 1])  # there are two sheets in that xlsx file
-        merged = pd.concat(df.values(), axis='rows')
-        merged.to_csv(raw_csv_path, encoding='utf-8', index=False)
-    else:
-        logger.info('Dataset already downloaded')
-
-    return raw_csv_path
-
-
 def _get_document_features(
         spark: psql.SparkSession,
         corpus_csv_path: Path,
-        corpus_schema: psqlt.StructType
+        corpus_schema: psqlt.StructType,
+        drop_neutral_samples: bool
 ) -> psql.DataFrame:
     logger.info("Loading corpus...")
     raw_df: psql.DataFrame = _read_corpus(
@@ -104,7 +84,8 @@ def _get_document_features(
         logger.debug(f"Repartitioning RDD to {S.EXECUTORS_AVAILABLE_CORES}")
         raw_df = raw_df.repartition(numPartitions=S.EXECUTORS_AVAILABLE_CORES)
 
-    with_na_filled = _fillna(raw_df=raw_df)
+    logger.info("Cleaning data...")
+    with_na_filled = _clean(raw_df=raw_df, drop_neutral_samples=drop_neutral_samples)
 
     logger.debug("Applying tokenizer...")
     with_tokens = _apply_tokenizer(df=with_na_filled)
@@ -112,7 +93,7 @@ def _get_document_features(
     logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
     with_scores_df = _convert_labels_to_sentiment_scores(df=with_tokens)
 
-    logger.debug("Corpus successfully preprocessed")
+    logger.debug("Preprocessing implemented")
     return with_scores_df
 
 
@@ -126,14 +107,22 @@ def _read_corpus(
     return raw_docs_df
 
 
-def _fillna(raw_df: psql.DataFrame) -> psql.DataFrame:
-    return raw_df.fillna({TEXT_COL: "", LABEL_COL: 1})  # 1 is neutral label in raw dataset
+def _clean(raw_df: psql.DataFrame, drop_neutral_samples: bool) -> psql.DataFrame:
+    raw_df = raw_df.fillna({sc.TEXT_COL: "", sc.LABEL_COL: 1})  # 1 is neutral label in raw dataset
+
+    if drop_neutral_samples:
+        # Drop neutral labels because they add noise:
+        #   the absence of label is what defines them as neutral,
+        #   meaning that they could in actuality express positive or negative.
+        # Neutral label may hence prove misleading
+        raw_df = raw_df.filter(f"{sc.LABEL_COL} <> 1")
+
+    return raw_df
 
 
 def _apply_tokenizer(
         df: psql.DataFrame
 ) -> psql.DataFrame:
-    # TODO I do not know if it is efficient to use tokenizers like this and if use_fast here raises the TOKENIZER_PARALLELISM problem
     tokenizer = AutoTokenizer.from_pretrained(_TOKENIZER_PATH, use_fast=True)
 
     @psqlf.udf(
@@ -152,7 +141,7 @@ def _apply_tokenizer(
             return_attention_mask=True,
             padding='max_length',
             truncation=True,
-            max_length=WORST_CASE_TOKENS
+            max_length=sc.WORST_CASE_TOKENS
         )
         input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
         input_ids = input_ids.squeeze()
@@ -160,7 +149,7 @@ def _apply_tokenizer(
 
         return input_ids.tolist(), attention_mask.tolist()
 
-    with_tokens_df = df.withColumn(TOKENIZER_OUTPUT_COL, tokenize(psqlf.col(TEXT_COL)))
+    with_tokens_df = df.withColumn(TOKENIZER_OUTPUT_COL, tokenize(psqlf.col(sc.TEXT_COL)))
 
     return with_tokens_df
 
@@ -176,26 +165,33 @@ def _convert_labels_to_sentiment_scores(
             case 2.0: return 1.0
             case _: raise ValueError(f'Unknown label {label}')
 
-    with_sent_score_df = df.withColumn(SENTIMENT_SCORE_COL, convert_label(psqlf.col(LABEL_COL)))
+    with_sent_score_df = df.withColumn(SENTIMENT_SCORE_COL, convert_label(psqlf.col(sc.LABEL_COL)))
 
     return with_sent_score_df
 
 
-def _main():
-    # TODO maybe when I'll have implemented all the other pre processing pipelines I'll have a better idea on how
-    #   to make a better CLI and dataset interface for all the scripts
-    raw_csv_path = _download_dataset(url=_DOWNLOAD_URL)
+@click.command(
+    help="Preprocess FinBERT fine-tuning dataset"
+)
+@click.option("--drop-neutral-samples", '-d', is_flag=True, type=click.BOOL)
+def _main(drop_neutral_samples: bool):
+    raw_csv_path = sc.download_dataset()
 
     spark = S.create_spark_session(
-        app_name=f"[Dataset Preprocessing] {_DOWNLOAD_URL}",
+        app_name=_SPARK_APP_NAME,
     )
 
     df = _get_document_features(
         spark=spark,
         corpus_csv_path=raw_csv_path,
-        corpus_schema=_RAW_CORPUS_SCHEMA
+        corpus_schema=sc.SCHEMA,
+        drop_neutral_samples=drop_neutral_samples
     )
-    df.write.parquet(str(DATASET_PATH), mode='overwrite')
+
+    dataset_path = WITH_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITHOUT_NEUTRALS_DATASET_PATH
+    logger.info("Preprocessing dataset...")
+    df.write.parquet(str(dataset_path), mode='overwrite')
+    logger.info("Preprocessing finished")
 
 
 if __name__ == "__main__":

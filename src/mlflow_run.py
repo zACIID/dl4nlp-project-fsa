@@ -15,6 +15,6 @@ mlflow.projects.run(
     entry_point='hyperopt',
     env_manager='local',
     experiment_id=experiment.experiment_id,
-    run_name=f"{datetime.date.today().isoformat()}-'hyperopt",
+    run_name=f"{datetime.date.today().isoformat()}-hyperopt",
     synchronous=True
 )

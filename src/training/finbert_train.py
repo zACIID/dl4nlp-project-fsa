@@ -11,8 +11,7 @@ import lightning.pytorch.callbacks as cb
 from lightning.pytorch.loggers import MLFlowLogger
 from lightning.pytorch.profilers import SimpleProfiler
 
-import data.preprocessing.datasets.stocktwits_crypto as sc
-from data.data_modules.finbert_train_val_data_module import FinBERTTrainValDataModule
+import data.fine_tuned_finbert.stocktwits_crypto.data_module as dm
 from models.fine_tuned_finbert import FineTunedFinBERT
 from utils.io import PROJECT_ROOT
 from utils.random import RND_SEED
@@ -33,15 +32,15 @@ RUN_NAME_PREFIX = 'finbert'  # TODO parameterize based on model type?
 @click.option("--eval-batch-size", default=16, type=click.INT)
 @click.option("--train-split-size", default=0.8, type=click.FLOAT)
 @click.option("--prefetch-factor", default=16, type=click.INT)
-@click.option("--num-workers", default=10, type=click.INT)
-@click.option("--one-cycle-max-lr", default=1e-4, type=click.FLOAT)
-@click.option("--one-cycle-pct-start", default=0.0, type=click.FLOAT)
+@click.option("--num-workers", default=8, type=click.INT)
+@click.option("--one-cycle-max-lr", default=1e-3, type=click.FLOAT)
+@click.option("--one-cycle-pct-start", default=0.3, type=click.FLOAT)
 @click.option("--weight-decay", default=1e-2, type=click.FLOAT)
-@click.option("--lora-rank", default=64, type=click.INT)
-@click.option("--lora-alpha", default=1.5, type=click.FLOAT)
-@click.option("--max-epochs", default=100, type=click.INT)
-@click.option("--accumulate-grad-batches", default=4, type=click.INT)
-@click.option("--limit-batches", default=0.05, type=click.FLOAT)
+@click.option("--lora-rank", default=150, type=click.INT)
+@click.option("--lora-alpha", default=1.25, type=click.FLOAT)
+@click.option("--max-epochs", default=25, type=click.INT)
+@click.option("--accumulate-grad-batches", default=6, type=click.INT)
+@click.option("--limit-batches", default=0.005, type=click.FLOAT)
 @click.option("--es-monitor", default='val_loss', type=click.STRING)
 @click.option("--es-min-delta", default=1e-3, type=click.FLOAT)
 @click.option("--es-patience", default=500, type=click.INT)
@@ -100,8 +99,7 @@ def run(
 
         L.seed_everything(RND_SEED)
 
-        dm = FinBERTTrainValDataModule(
-            dataset=sc.get_dataset(),
+        data_module = dm.FinBERTTrainVal(
             train_batch_size=train_batch_size,
             eval_batch_size=eval_batch_size,
             train_split_size=train_split_size,
@@ -155,7 +153,7 @@ def run(
             ],
         )
 
-        trainer.fit(model, datamodule=dm)
+        trainer.fit(model, datamodule=data_module)
 
         # TODO do something with best model? maybe register to mlflow model registry??
         # ckpt_callback.best_model_path

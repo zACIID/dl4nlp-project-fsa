@@ -15,21 +15,22 @@ from torch.optim.lr_scheduler import OneCycleLR
 import models.modules.lora as lora
 
 
+PRE_TRAINED_MODEL_PATH = "ahmedrachid/FinancialBERT-Sentiment-Analysis"
+
+
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
 class FineTunedFinBERT(L.LightningModule):
     """
-    Class that represents a model (currently "ahmedrachid/FinancialBERT-Sentiment-Analysis" from HuggingFace) combined with
-    a custom implemented LoRA fine-tuning infrastructure.
-    The caller can choose where to apply LoRA layers (query, key, value, output projection matrices of transformer layers)
-    The parameters option should contain the following keys with a valid bool value:
+    Class that represents a pre-trained model (currently "ahmedrachid/FinancialBERT-Sentiment-Analysis"
+        from HuggingFace) combined with a custom implemented LoRA fine-tuning infrastructure.
+    The caller can choose where to apply LoRA layers
+        (query, key, value, output projection matrices of transformer layers)
     """
 
     def __init__(
             self,
             lora_rank: int,
-            # TODO Might hardcode this since we are dependent on its implementation (how last layer distributes class labels)
-            model_name_or_path: str = "ahmedrachid/FinancialBERT-Sentiment-Analysis",
             one_cycle_max_lr: float = 2e-5,
             weight_decay: float = 0.0,
             lora_alpha: float = 1,
@@ -74,7 +75,7 @@ class FineTunedFinBERT(L.LightningModule):
         self.save_hyperparameters(logger=True)
 
         self.model: BertForSequenceClassification = BertForSequenceClassification.from_pretrained(
-            model_name_or_path,
+            PRE_TRAINED_MODEL_PATH,
             num_labels=3
         )
 
@@ -305,7 +306,7 @@ class FineTunedFinBERT(L.LightningModule):
         # Docs on return values and scheduler config dictionary:
         # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.LightningModule.html#lightning.pytorch.core.LightningModule.configure_optimizers
         # As said above, OneCycleLR should be stepped after each optimizer step
-        # scheduler = {"name": OneCycleLR.__name__, "scheduler": scheduler, "interval": "step", "frequency": 1}
+        scheduler = {"name": OneCycleLR.__name__, "scheduler": scheduler, "interval": "step", "frequency": 1}
         return [optimizer], [scheduler]
 
     def state_dict(self, *args, destination=None, prefix='', keep_vars=False):
