@@ -72,8 +72,7 @@ def create_spark_session(app_name: str) -> psql.SparkSession:
 
 def _ensure_src_dir_is_zipped() -> Path:
     src_zip_path = io_.PROJECT_ROOT / 'spark' / 'src.zip'
-    if not os.path.exists(src_zip_path):
-        logger.debug(f"Zipping `{io_.SRC_DIR}` directory to {src_zip_path}")
-        shutil.make_archive(io_.PROJECT_ROOT / 'spark' / 'src', 'zip', root_dir=io_.SRC_DIR, base_dir=io_.SRC_DIR, verbose=True)
+    logger.debug(f"Zipping `{io_.SRC_DIR}` directory to {src_zip_path}")
+    shutil.make_archive(io_.PROJECT_ROOT / 'spark' / 'src', 'zip', root_dir=io_.SRC_DIR, base_dir=io_.SRC_DIR, verbose=True)
 
     return src_zip_path
