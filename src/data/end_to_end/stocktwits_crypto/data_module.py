@@ -11,12 +11,14 @@ import data.hand_engineered_mlp.stocktwits_crypto.preprocessing as mlp_pp
 import data.fine_tuned_finbert.stocktwits_crypto.preprocessing as ft_pp
 from utils.random import RND_SEED
 
+raise NotImplementedError('Try to mimic the data.<model>.data_modules package structure that is present in the other modules. '
+                          'Before deleting everything, see the TODOs about merging the datasets below')
 
 class EndToEndTrainVal(L.LightningDataModule):
     def __init__(
             self,
             train_batch_size: int = 64,
-            eval_batch_size: int = 8,
+            eval_batch_size: int = 32,
             train_split_size: float = 0.8,
             with_neutral_samples: bool = True,
             pin_memory: bool = False,

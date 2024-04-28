@@ -1,15 +1,17 @@
 import os
-import urllib.request
+import typing
 from pathlib import Path
+import subprocess
 
-import pandas as pd
+import pyspark.sql as psql
 from loguru import logger
-from pyspark.sql import types as psqlt
+from pyspark.sql import types as psqlt, functions as psqlf
 
 import utils.io as io_
 
 
-_DOWNLOAD_URL = 'https://huggingface.co/datasets/ElKulako/stocktwits-crypto/resolve/main/st-data-full.xlsx?download=true'
+_DOWNLOAD_DIR = io_.RAW_DATASET_DIR / 'semeval2017'
+_DOWNLOAD_BASH_COMMAND = f"git clone git@bitbucket.org:ssix-project/semeval-2017-task-5-subtask-1.git {_DOWNLOAD_DIR}"
 
 # This is the maximum number of characters of the texts in the final test dataset (SemEval)
 # Assuming one token per character, we have a maximum of 160 tokens,
@@ -17,46 +19,62 @@ _DOWNLOAD_URL = 'https://huggingface.co/datasets/ElKulako/stocktwits-crypto/reso
 #   so that memory and training times do not explode
 WORST_CASE_TOKENS = 160
 
-TEXT_COL = "text"
-LABEL_COL = "label"
+SOURCE_COL = "source"
+CASHTAG_COL = "cashtag"
+LABEL_COL = "sentiment score"
+ID_COL = "id"
+TEXT_COL = "spans"
 
-SCHEMA: psqlt.StructType = (
+RAW_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
-    .add(TEXT_COL, psqlt.StringType(), nullable=False)
-    .add(LABEL_COL, psqlt.IntegerType(), nullable=False)
+    .add(TEXT_COL, psqlt.ArrayType(psqlt.StringType()), nullable=False)
+    .add(LABEL_COL, psqlt.StringType(), nullable=False)
+    .add(SOURCE_COL, psqlt.StringType(), nullable=False)
+    .add(ID_COL, psqlt.StringType(), nullable=False)
+    .add(CASHTAG_COL, psqlt.StringType(), nullable=False)
 )
+"""
+JSON dataset schema, without *any* form of preprocessing. 
+Schema may very well very after preprocessing.
+"""
 
 
-def download_dataset() -> Path:
-    # TODO retrieve dataset from semeval2017 repo
-    # TODO create preprocessing and datamodules for each model under a "semeval_2017" module
-    # TODO gather the common preprocessing logic into a preprocessing_base.py script that is outside the dataset-specific modules
-    #   TODO maybe even make a data/preprocessing_common module where I put every utils function that may be needed during cleaning by other preprocessing modules
-    # TODO parameterize such logic so that different datasets can work on it: I just need to know the name of the text and label columns at the end of the day
-    raise NotImplementedError('TODO')
-
-    raw_xlsx_path = io_.RAW_DATASET_DIR / 'stocktwits-crypto.xlsx'
-    raw_csv_path = io_.RAW_DATASET_DIR / 'stocktwits-crypto.csv'
-
-    if not os.path.exists(raw_xlsx_path) or not os.path.exists(raw_csv_path):
-        url = _DOWNLOAD_URL
-        logger.info('Downloading stocktwits-crypto dataset from {}'.format(url))
-        with io_.DownloadProgressBar(
-                unit='B',
-                unit_scale=True,
-                miniters=1,
-                desc=url.split('/')[-1]
-        ) as t:
-            urllib.request.urlretrieve(url, filename=raw_xlsx_path, reporthook=t.update_to)
-
-        logger.info('Converting from .xlsx to .csv')
-        # There is also this Spark plugin to directly handle .xlsx in Spark,
-        #   but I do not want to set it up and check how it works:
-        #   https://github.com/crealytics/spark-excel
-        df = pd.read_excel(raw_xlsx_path, sheet_name=[0, 1])  # there are two sheets in that xlsx file
-        merged = pd.concat(df.values(), axis='rows')
-        merged.to_csv(raw_csv_path, encoding='utf-8', index=False)
+def download_dataset(return_train_dataset: bool) -> Path:
+    train_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trainingdata.json'
+    test_dataset_path = _DOWNLOAD_DIR / 'Microblog_Testdata.json'
+    dataset_path = train_dataset_path if return_train_dataset else test_dataset_path
+    if not os.path.exists(dataset_path):
+        logger.info('Downloading dataset...')
+        subprocess.Popen(_DOWNLOAD_BASH_COMMAND, stdout=subprocess.PIPE, shell=True, executable="/bin/bash").communicate()
     else:
         logger.info('Dataset already downloaded')
 
-    return raw_csv_path
+    return dataset_path
+
+
+def read_dataset(
+        spark: psql.SparkSession,
+        path: Path,
+) -> psql.DataFrame:
+    df = spark.read.option("multiline", True).json(str(path))
+
+    return df
+
+
+def clean_dataset(df: psql.DataFrame) -> psql.DataFrame:
+    df = df.fillna({TEXT_COL: "", LABEL_COL: 1})  # 1 is neutral label in raw dataset
+
+    # sentiment score column is string but we want float
+    df = df.withColumn(LABEL_COL, psqlf.col(LABEL_COL).cast(psqlt.FloatType()))
+
+    # Merge all spans into one text string
+    @psqlf.udf(returnType=psqlt.StringType())
+    def join_spans(spans: typing.List[str]) -> str:
+        return " ".join(spans)
+
+    df = df.withColumn(TEXT_COL, join_spans(psqlf.col(TEXT_COL)))
+
+    # Drop useless cols
+    df = df.drop(SOURCE_COL, CASHTAG_COL)
+
+    return df

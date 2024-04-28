@@ -1,19 +1,21 @@
-import typing
-
 import datasets
 import lightning as L
 import numpy as np
+import sklearn.model_selection as sel
+import torch
 from torch.utils.data import DataLoader, Subset
 
-import data.hand_engineered_mlp.stocktwits_crypto.preprocessing as pp
+import data.fine_tuned_finbert.stocktwits_crypto.preprocessing as pp
 from utils.random import RND_SEED
 
 
-class HandEngineeredMLPTrainVal(L.LightningDataModule):
+# Initial reference:
+# https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
+class StocktwitsCryptoTrainVal(L.LightningDataModule):
     def __init__(
             self,
             train_batch_size: int = 64,
-            eval_batch_size: int = 8,
+            eval_batch_size: int = 32,
             train_split_size: float = 0.8,
             with_neutral_samples: bool = True,
             pin_memory: bool = False,
@@ -34,7 +36,8 @@ class HandEngineeredMLPTrainVal(L.LightningDataModule):
 
         super().__init__()
 
-        self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples)
+        self.dataset: datasets.Dataset = pp.get_dataset()
+        # self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples) # TODO uncomment later
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
@@ -49,18 +52,16 @@ class HandEngineeredMLPTrainVal(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        # TODO example
-        # self.dataset.set_format(type='torch', columns=[pp.TOKENIZER_OUTPUT_COL, pp.SENTIMENT_SCORE_COL])
-        # index = np.arange(len(self.dataset))
-        # train_split_idxs, val_split_idxs = sel.train_test_split(
-        #     index,
-        #     stratify=self.dataset.with_format(type='pandas')[pp.SENTIMENT_SCORE_COL].to_numpy(),
-        #     random_state=self.rnd_seed
-        # )
-        #
-        # self.train_idxs = train_split_idxs
-        # self.val_idxs = val_split_idxs
-        raise NotImplementedError('TODO') # TODO apply train+split and any other kind of dataset setup
+        self.dataset.set_format(type='torch', columns=[pp.TOKENIZER_OUTPUT_COL, pp.SENTIMENT_SCORE_COL])
+        index = np.arange(len(self.dataset))
+        train_split_idxs, val_split_idxs = sel.train_test_split(
+            index,
+            stratify=self.dataset.with_format(type='pandas')[pp.SENTIMENT_SCORE_COL].to_numpy(),
+            random_state=self.rnd_seed
+        )
+
+        self.train_idxs = train_split_idxs
+        self.val_idxs = val_split_idxs
 
     def train_dataloader(self):
         return DataLoader(
@@ -76,7 +77,7 @@ class HandEngineeredMLPTrainVal(L.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(
             dataset=Subset(self.dataset, self.val_idxs),
-            batch_size=self.train_batch_size,
+            batch_size=self.eval_batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
             persistent_workers=True,
@@ -91,17 +92,15 @@ class HandEngineeredMLPTrainVal(L.LightningDataModule):
         raise NotImplementedError("This data module is only for training and validation datasets")
 
 
-def _collate_fn(raw_samples: typing.List[typing.Any]):
-    # TODO example - the purpose of this function is transform each row of the dataset into an actual batch
-    #   notice how below a tuple of tensors is returned, each of which is a batch of model inputs and labels basically
-    # tokenizer_outputs = [item[pp.TOKENIZER_OUTPUT_COL] for item in raw_samples]
-    # scores = [item[pp.SENTIMENT_SCORE_COL] for item in raw_samples]
-    #
-    # input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
-    # att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))
-    # tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
-    #
-    # scores = torch.tensor(scores)
-    #
-    # return tensorized_tokenizer_output, scores
-    raise NotImplementedError('TODO') # TODO
+def _collate_fn(raw_samples):
+    tokenizer_outputs = [item[pp.TOKENIZER_OUTPUT_COL] for item in raw_samples]
+    scores = [item[pp.SENTIMENT_SCORE_COL] for item in raw_samples]
+
+    input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
+    att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))
+    tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
+
+    scores = torch.tensor(scores)
+
+    return tensorized_tokenizer_output, scores
+

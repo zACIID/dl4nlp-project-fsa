@@ -9,11 +9,12 @@ import data.spark as S
 import data.stocktwits_crypto_dataset as sc
 import utils.io as io_
 
-_MODEL_NAME = 'hand_eng_mlp'
-_SPARK_APP_NAME = f'{_MODEL_NAME} Preprocessing'
+_MODEL_NAME = 'hand_engineered_mlp'
+_DATASET_NAME = 'stocktwits-crypto'
+_SPARK_APP_NAME = f'{_MODEL_NAME}|{_DATASET_NAME} Preprocessing'
 
-WITH_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}-with-neutrals.parquet'
-WITHOUT_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}-without-neutrals.parquet'
+WITH_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-with-neutrals.parquet'
+WITHOUT_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-without-neutrals.parquet'
 
 
 def get_dataset(drop_neutral_samples: bool) -> datasets.Dataset:

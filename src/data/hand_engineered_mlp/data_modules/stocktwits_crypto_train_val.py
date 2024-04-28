@@ -5,13 +5,13 @@ import sklearn.model_selection as sel
 import torch
 from torch.utils.data import DataLoader, Subset
 
-import data.fine_tuned_finbert.stocktwits_crypto.preprocessing as pp
+import data.hand_engineered_mlp.stocktwits_crypto.preprocessing as pp
 from utils.random import RND_SEED
 
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
-class FinBERTTrainVal(L.LightningDataModule):
+class StocktwitsCryptoTrainVal(L.LightningDataModule):
     def __init__(
             self,
             train_batch_size: int = 64,
@@ -52,16 +52,17 @@ class FinBERTTrainVal(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        self.dataset.set_format(type='torch', columns=[pp.TOKENIZER_OUTPUT_COL, pp.SENTIMENT_SCORE_COL])
-        index = np.arange(len(self.dataset))
-        train_split_idxs, val_split_idxs = sel.train_test_split(
-            index,
-            stratify=self.dataset.with_format(type='pandas')[pp.SENTIMENT_SCORE_COL].to_numpy(),
-            random_state=self.rnd_seed
-        )
-
-        self.train_idxs = train_split_idxs
-        self.val_idxs = val_split_idxs
+        raise NotImplementedError()
+        # self.dataset.set_format(type='torch', columns=[pp.TOKENIZER_OUTPUT_COL, pp.SENTIMENT_SCORE_COL])
+        # index = np.arange(len(self.dataset))
+        # train_split_idxs, val_split_idxs = sel.train_test_split(
+        #     index,
+        #     stratify=self.dataset.with_format(type='pandas')[pp.SENTIMENT_SCORE_COL].to_numpy(),
+        #     random_state=self.rnd_seed
+        # )
+        #
+        # self.train_idxs = train_split_idxs
+        # self.val_idxs = val_split_idxs
 
     def train_dataloader(self):
         return DataLoader(
@@ -77,7 +78,7 @@ class FinBERTTrainVal(L.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(
             dataset=Subset(self.dataset, self.val_idxs),
-            batch_size=self.train_batch_size,
+            batch_size=self.eval_batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
             persistent_workers=True,

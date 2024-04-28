@@ -7,12 +7,12 @@ from pyspark.sql import types as psqlt
 
 import data.fine_tuned_finbert.preprocessing_base as ppb
 import data.spark as S
-import data.stocktwits_crypto_dataset as sc
+import data.semeval_2017_dataset as sem
 import models.fine_tuned_finbert as ft
 import utils.io as io_
 
 _MODEL_NAME = 'finbert'
-_DATASET_NAME = 'stocktwits-crypto'
+_DATASET_NAME = 'semeval2017'
 _SPARK_APP_NAME = f'{_MODEL_NAME}|{_DATASET_NAME} Preprocessing'
 
 _TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
@@ -20,12 +20,17 @@ _TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
 TOKENIZER_OUTPUT_COL = "tokenizer"
 SENTIMENT_SCORE_COL = "sentiment_score"
 
-WITH_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-with-neutrals.parquet'
-WITHOUT_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-without-neutrals.parquet'
+TRAIN_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-val.parquet'
+VAL_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-test.parquet'
 
 
-def get_dataset(drop_neutral_samples: bool) -> datasets.Dataset:
-    dataset_path = WITH_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITHOUT_NEUTRALS_DATASET_PATH
+def get_dataset(train_dataset: bool) -> datasets.Dataset:
+    """
+    :param train_dataset: if True, returns train dataset, else test dataset
+    :return:
+    """
+
+    dataset_path = TRAIN_DATASET_PATH if train_dataset else VAL_DATASET_PATH
     if not os.path.exists(dataset_path):
         raise FileNotFoundError('Dataset not found. Make sure to run this script to execute '
                                 'the preprocessing pipeline for this dataset')
@@ -35,25 +40,25 @@ def get_dataset(drop_neutral_samples: bool) -> datasets.Dataset:
 
 
 @click.command(
-    help=f"Preprocess {_MODEL_NAME} fine-tuning dataset"
+    help=f"Preprocess {_MODEL_NAME} dataset"
 )
-@click.option("--drop-neutral-samples", '-d', is_flag=True, type=click.BOOL)
-def _main(drop_neutral_samples: bool):
-    raw_csv_path = sc.download_dataset()
+@click.option("--get-train-dataset", '-d', is_flag=True, type=click.BOOL)
+def _main(get_train_dataset: bool):
+    raw_df_path = sem.download_dataset(return_train_dataset=get_train_dataset)
 
     spark = S.create_spark_session(
         app_name=_SPARK_APP_NAME,
     )
-    raw_df = sc.read_dataset(spark=spark, path=raw_csv_path)
+    raw_df = sem.read_dataset(spark=spark, path=raw_df_path)
 
     df = ppb.preprocess_dataset(
         raw_df=raw_df,
-        drop_neutral_samples=drop_neutral_samples,
-        text_col=sc.TEXT_COL,
-        label_col=sc.LABEL_COL
+        drop_neutral_samples=False,  # NOTE: false in this case because labels are continuously-valued sentiment scores
+        text_col=sem.TEXT_COL,
+        label_col=sem.LABEL_COL
     )
 
-    dataset_path = WITH_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITHOUT_NEUTRALS_DATASET_PATH
+    dataset_path = TRAIN_DATASET_PATH if get_train_dataset else VAL_DATASET_PATH
     logger.info("Preprocessing dataset...")
     df.write.parquet(str(dataset_path), mode='overwrite')
     logger.info("Preprocessing finished")

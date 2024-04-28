@@ -5,18 +5,18 @@ import sklearn.model_selection as sel
 import torch
 from torch.utils.data import DataLoader, Subset
 
-import data.fine_tuned_finbert.stocktwits_crypto.preprocessing as pp
+import data.fine_tuned_finbert.stocktwits_crypto.preprocessing as sc_pp
+import data.fine_tuned_finbert.semeval_2017.preprocessing as sem_pp
 from utils.random import RND_SEED
 
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
-class FinBERTTrainVal(L.LightningDataModule):
+class StocktwitsCryptoTrainSemEval2017Val(L.LightningDataModule):
     def __init__(
             self,
             train_batch_size: int = 64,
             eval_batch_size: int = 32,
-            train_split_size: float = 0.8,
             with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
@@ -36,53 +36,43 @@ class FinBERTTrainVal(L.LightningDataModule):
 
         super().__init__()
 
-        self.dataset: datasets.Dataset = pp.get_dataset()
-        # self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples) # TODO uncomment later
+        self.train_dataset: datasets.Dataset = sc_pp.get_dataset(drop_neutral_samples=with_neutral_samples)
+        self.val_dataset: datasets.Dataset = sem_pp.get_dataset(train_dataset=True)  # use train dataset as eval dataset
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
         self.prefetch_factor = prefetch_factor
         self.num_workers = num_workers
         self.rnd_seed = rnd_seed
-        self.train_idxs: np.ndarray | None = None
-        self.val_idxs: np.ndarray | None = None
 
     def prepare_data(self):
         # Nothing to do here since the dataset is provided from the outside
         pass
 
     def setup(self, stage: str = None):
-        self.dataset.set_format(type='torch', columns=[pp.TOKENIZER_OUTPUT_COL, pp.SENTIMENT_SCORE_COL])
-        index = np.arange(len(self.dataset))
-        train_split_idxs, val_split_idxs = sel.train_test_split(
-            index,
-            stratify=self.dataset.with_format(type='pandas')[pp.SENTIMENT_SCORE_COL].to_numpy(),
-            random_state=self.rnd_seed
-        )
-
-        self.train_idxs = train_split_idxs
-        self.val_idxs = val_split_idxs
+        self.train_dataset.set_format(type='torch', columns=[sc_pp.TOKENIZER_OUTPUT_COL, sc_pp.SENTIMENT_SCORE_COL])
+        self.train_dataset.set_format(type='torch', columns=[sem_pp.TOKENIZER_OUTPUT_COL, sem_pp.SENTIMENT_SCORE_COL])
 
     def train_dataloader(self):
         return DataLoader(
-            dataset=Subset(self.dataset, self.train_idxs),
+            dataset=self.train_dataset,
             batch_size=self.train_batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
             persistent_workers=True,
             shuffle=True,
-            collate_fn=_collate_fn
+            collate_fn=_train_collate_fn
         )
 
     def val_dataloader(self):
         return DataLoader(
-            dataset=Subset(self.dataset, self.val_idxs),
-            batch_size=self.train_batch_size,
+            dataset=self.val_dataset,
+            batch_size=self.eval_batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
             persistent_workers=True,
             shuffle=False,
-            collate_fn=_collate_fn
+            collate_fn=_val_collate_fn
         )
 
     def test_dataloader(self):
@@ -92,9 +82,9 @@ class FinBERTTrainVal(L.LightningDataModule):
         raise NotImplementedError("This data module is only for training and validation datasets")
 
 
-def _collate_fn(raw_samples):
-    tokenizer_outputs = [item[pp.TOKENIZER_OUTPUT_COL] for item in raw_samples]
-    scores = [item[pp.SENTIMENT_SCORE_COL] for item in raw_samples]
+def _collate_fn(raw_samples, sentiment_score_col: str, tokenizer_col: str):
+    tokenizer_outputs = [item[tokenizer_col] for item in raw_samples]
+    scores = [item[sentiment_score_col] for item in raw_samples]
 
     input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
     att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))
@@ -104,3 +94,10 @@ def _collate_fn(raw_samples):
 
     return tensorized_tokenizer_output, scores
 
+
+def _train_collate_fn(raw_samples):
+    return _collate_fn(raw_samples, sc_pp.SENTIMENT_SCORE_COL, sc_pp.TOKENIZER_OUTPUT_COL)
+
+
+def _val_collate_fn(raw_samples):
+    return _collate_fn(raw_samples, sem_pp.SENTIMENT_SCORE_COL, sem_pp.TOKENIZER_OUTPUT_COL)
