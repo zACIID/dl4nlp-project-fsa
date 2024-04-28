@@ -1,11 +1,9 @@
 import os
 import typing
-import urllib.request
 from pathlib import Path
 
 import click
 import datasets
-import pandas as pd
 import pyspark.sql as psql
 from loguru import logger
 from pyspark.sql import types as psqlt, functions as psqlf
@@ -35,12 +33,7 @@ DATASET_SCHEMA: psqlt.StructType = (
 
 WITH_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}-with-neutrals.parquet'
 WITHOUT_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}-without-neutrals.parquet'
-#
-# # TODO one path for dataset with neutral labels and one without
-# # TODO add click.options to the main method so that script can be run with the --include-neutral-label boolean flag
-# # TODO add a parameter in get_dataset that chooses which dataset to load
-# # TODO in the datamodule, add a parameter that chooses which dataset to use
-#
+
 #
 # def get_dataset(drop_neutral_samples: bool) -> datasets.Dataset:
     # dataset_path = WITH_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITHOUT_NEUTRALS_DATASET_PATH
@@ -53,7 +46,7 @@ WITHOUT_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}
 
 # TODO change what is below last so interface doesn't brake while training still running
 
-DATASET_PATH = io_.DATA_DIR / 'stocktwits-crypto.parquet' # TODO rename so that it differs from other datasets
+DATASET_PATH = io_.DATA_DIR / 'stocktwits-crypto.parquet' # TODO remove after uncommenting above
 
 def get_dataset() -> datasets.Dataset:
     if not os.path.exists(DATASET_PATH):
@@ -64,17 +57,16 @@ def get_dataset() -> datasets.Dataset:
     return datasets.Dataset.from_parquet(str(DATASET_PATH / "*.parquet"))
 
 
-def _get_document_features(
+# TODO this should be made generic: accept a dataset or a read_dataset callable or an enum that allows choice
+def _preprocess_dataset(
         spark: psql.SparkSession,
-        corpus_csv_path: Path,
-        corpus_schema: psqlt.StructType,
+        dataset_path: Path,
         drop_neutral_samples: bool
 ) -> psql.DataFrame:
     logger.info("Loading corpus...")
-    raw_df: psql.DataFrame = _read_corpus(
+    raw_df: psql.DataFrame = sc.read_dataset(
         spark=spark,
-        corpus_csv_path=corpus_csv_path,
-        corpus_schema=corpus_schema
+        path=dataset_path,
     )
 
     # Make sure the number of partitions is correct
@@ -85,7 +77,7 @@ def _get_document_features(
         raw_df = raw_df.repartition(numPartitions=S.EXECUTORS_AVAILABLE_CORES)
 
     logger.info("Cleaning data...")
-    with_na_filled = _clean(raw_df=raw_df, drop_neutral_samples=drop_neutral_samples)
+    with_na_filled = sc.clean(raw_df=raw_df, drop_neutral_samples=drop_neutral_samples)
 
     logger.debug("Applying tokenizer...")
     with_tokens = _apply_tokenizer(df=with_na_filled)
@@ -95,29 +87,6 @@ def _get_document_features(
 
     logger.debug("Preprocessing implemented")
     return with_scores_df
-
-
-def _read_corpus(
-        spark: psql.SparkSession,
-        corpus_csv_path: Path,
-        corpus_schema: psqlt.StructType
-) -> psql.DataFrame:
-    raw_docs_df: psql.DataFrame = spark.read.csv(str(corpus_csv_path), header=True, schema=corpus_schema)
-
-    return raw_docs_df
-
-
-def _clean(raw_df: psql.DataFrame, drop_neutral_samples: bool) -> psql.DataFrame:
-    raw_df = raw_df.fillna({sc.TEXT_COL: "", sc.LABEL_COL: 1})  # 1 is neutral label in raw dataset
-
-    if drop_neutral_samples:
-        # Drop neutral labels because they add noise:
-        #   the absence of label is what defines them as neutral,
-        #   meaning that they could in actuality express positive or negative.
-        # Neutral label may hence prove misleading
-        raw_df = raw_df.filter(f"{sc.LABEL_COL} <> 1")
-
-    return raw_df
 
 
 def _apply_tokenizer(
@@ -181,10 +150,9 @@ def _main(drop_neutral_samples: bool):
         app_name=_SPARK_APP_NAME,
     )
 
-    df = _get_document_features(
+    df = _preprocess_dataset(
         spark=spark,
-        corpus_csv_path=raw_csv_path,
-        corpus_schema=sc.SCHEMA,
+        dataset_path=raw_csv_path,
         drop_neutral_samples=drop_neutral_samples
     )
 

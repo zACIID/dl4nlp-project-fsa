@@ -3,20 +3,19 @@ import typing
 import datasets
 import lightning as L
 import numpy as np
-import sklearn.model_selection as sel
-import torch
 from torch.utils.data import DataLoader, Subset
 
-import data.hand_engineered_mlp.preprocessing as pp
+import data.hand_engineered_mlp.stocktwits_crypto.preprocessing as pp
 from utils.random import RND_SEED
 
 
-class EndToEndTrainVal(L.LightningDataModule):
+class HandEngineeredMLPTrainVal(L.LightningDataModule):
     def __init__(
             self,
             train_batch_size: int = 64,
             eval_batch_size: int = 8,
             train_split_size: float = 0.8,
+            with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
             num_workers: int = 0,
@@ -29,12 +28,13 @@ class EndToEndTrainVal(L.LightningDataModule):
         :param eval_batch_size: val/test/predict batch size
         :param train_split_size: fraction of data used for training.
             The remaining fraction of data will be used for validation
+        :param with_neutral_samples: whether to load the dataset containing neutrally-labelled samples
         :param kwargs:
         """
 
         super().__init__()
 
-        self.dataset: datasets.Dataset = pp.get_dataset()
+        self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples)
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
@@ -60,7 +60,7 @@ class EndToEndTrainVal(L.LightningDataModule):
         #
         # self.train_idxs = train_split_idxs
         # self.val_idxs = val_split_idxs
-        raise NotImplementedError('TODO') # TODO
+        raise NotImplementedError('TODO') # TODO apply train+split and any other kind of dataset setup
 
     def train_dataloader(self):
         return DataLoader(

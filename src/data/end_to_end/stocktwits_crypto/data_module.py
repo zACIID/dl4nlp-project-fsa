@@ -18,6 +18,7 @@ class EndToEndTrainVal(L.LightningDataModule):
             train_batch_size: int = 64,
             eval_batch_size: int = 8,
             train_split_size: float = 0.8,
+            with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
             num_workers: int = 0,
@@ -30,12 +31,15 @@ class EndToEndTrainVal(L.LightningDataModule):
         :param eval_batch_size: val/test/predict batch size
         :param train_split_size: fraction of data used for training.
             The remaining fraction of data will be used for validation
+        :param with_neutral_samples: whether to load the dataset containing neutrally-labelled samples
         :param kwargs:
         """
 
         super().__init__()
 
-        self.dataset: datasets.Dataset = pp.get_dataset()
+        self.mlp_dataset: datasets.Dataset = mlp_pp.get_dataset(drop_neutral_samples=with_neutral_samples)
+        self.ft_dataset: datasets.Dataset = ft_pp.get_dataset(drop_neutral_samples=with_neutral_samples)
+        self.full_dataset: datasets.Dataset | None = None # TODO assigned inside the setup function
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
@@ -62,8 +66,9 @@ class EndToEndTrainVal(L.LightningDataModule):
         # self.train_idxs = train_split_idxs
         # self.val_idxs = val_split_idxs
         # TODO maybe here there is a way to combine these two into one
-        d1 = mlp_pp.get_dataset(True)
-        d2 = ft_pp.get_dataset(True)
+        # TODO maybe we need to add IDs even if fictitious to the texts so we are sure we are merging correctly
+        self.mlp_dataset
+        self.ft_dataset
         raise NotImplementedError('TODO') # TODO
 
     def train_dataloader(self):

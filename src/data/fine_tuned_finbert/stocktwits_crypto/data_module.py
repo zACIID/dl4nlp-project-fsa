@@ -17,6 +17,7 @@ class FinBERTTrainVal(L.LightningDataModule):
             train_batch_size: int = 64,
             eval_batch_size: int = 8,
             train_split_size: float = 0.8,
+            with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
             num_workers: int = 0,
@@ -29,12 +30,14 @@ class FinBERTTrainVal(L.LightningDataModule):
         :param eval_batch_size: val/test/predict batch size
         :param train_split_size: fraction of data used for training.
             The remaining fraction of data will be used for validation
+        :param with_neutral_samples: whether to load the dataset containing neutrally-labelled samples
         :param kwargs:
         """
 
         super().__init__()
 
         self.dataset: datasets.Dataset = pp.get_dataset()
+        # self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples) # TODO uncomment later
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory

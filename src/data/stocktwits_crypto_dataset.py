@@ -3,8 +3,9 @@ import urllib.request
 from pathlib import Path
 
 import pandas as pd
+import pyspark.sql as psql
 from loguru import logger
-from pyspark.sql import types as psqlt
+from pyspark.sql import types as psqlt, functions as psqlf
 
 import utils.io as io_
 
@@ -20,7 +21,7 @@ WORST_CASE_TOKENS = 160
 TEXT_COL = "text"
 LABEL_COL = "label"
 
-SCHEMA: psqlt.StructType = (
+RAW_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
     .add(TEXT_COL, psqlt.StringType(), nullable=False)
     .add(LABEL_COL, psqlt.IntegerType(), nullable=False)
@@ -53,3 +54,42 @@ def download_dataset() -> Path:
         logger.info('Dataset already downloaded')
 
     return raw_csv_path
+
+
+def read_dataset(
+        spark: psql.SparkSession,
+        path: Path,
+) -> psql.DataFrame:
+    raw_docs_df: psql.DataFrame = spark.read.csv(str(path), header=True, schema=RAW_SCHEMA)
+
+    return raw_docs_df
+
+
+def clean(raw_df: psql.DataFrame, drop_neutral_samples: bool) -> psql.DataFrame:
+    raw_df = raw_df.fillna({TEXT_COL: "", LABEL_COL: 1})  # 1 is neutral label in raw dataset
+
+    if drop_neutral_samples:
+        # Drop neutral labels because they add noise:
+        #   the absence of label is what defines them as neutral,
+        #   meaning that they could in actuality express positive or negative.
+        # Neutral label may hence prove misleading
+        raw_df = raw_df.filter(f"{LABEL_COL} <> 1")
+
+    return raw_df
+
+
+def convert_labels_to_sentiment_scores(
+        df: psql.DataFrame,
+        label_col: str = LABEL_COL
+) -> psql.DataFrame:
+    @psqlf.udf(returnType=psqlt.FloatType())
+    def convert_label(label: int) -> float:
+        match label:
+            case 0.0: return -1.0
+            case 1.0: return 0.0
+            case 2.0: return 1.0
+            case _: raise ValueError(f'Unknown label {label}')
+
+    with_sent_score_df = df.withColumn(label_col, convert_label(psqlf.col(label_col)))
+
+    return with_sent_score_df

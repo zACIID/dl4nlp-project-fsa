@@ -3,14 +3,29 @@ import os
 import click
 import datasets
 from loguru import logger
+from pyspark.sql import types as psqlt
 
-import data.hand_engineered_mlp.preprocessing_base as ppb
+import data.fine_tuned_finbert.preprocessing_base as ppb
 import data.spark as S
 import data.stocktwits_crypto_dataset as sc
+import models.fine_tuned_finbert as ft
 import utils.io as io_
 
-_MODEL_NAME = 'hand_eng_mlp'
+_MODEL_NAME = 'finbert'
 _SPARK_APP_NAME = f'{_MODEL_NAME} Preprocessing'
+
+_TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
+
+TOKENIZER_OUTPUT_COL = "tokenizer"
+SENTIMENT_SCORE_COL = "sentiment_score"
+
+DATASET_SCHEMA: psqlt.StructType = (
+    psqlt.StructType()
+    .add(sc.TEXT_COL, psqlt.StringType(), nullable=False)
+    .add(sc.LABEL_COL, psqlt.IntegerType(), nullable=False)
+    .add(TOKENIZER_OUTPUT_COL, psqlt.ArrayType(psqlt.IntegerType()), nullable=False)
+    .add(SENTIMENT_SCORE_COL, psqlt.FloatType(), nullable=False)
+)
 
 WITH_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}-with-neutrals.parquet'
 WITHOUT_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'stocktwits-crypto-{_MODEL_NAME}-without-neutrals.parquet'
