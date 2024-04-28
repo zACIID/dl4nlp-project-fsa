@@ -23,26 +23,26 @@ entry_points:
       max_runs: {type: float, default: 75}
 
       #== Data module hparams
-      train_batch_size_min: {type: float, default: 1}
-      train_batch_size_max: {type: float, default: 64}
+      train_batch_size_min: {type: float, default: 16}
+      train_batch_size_max: {type: float, default: 32}
 
       #== FinBERT hparams
       one_cycle_max_lr_min: {type: float, default: 1e-5}
-      one_cycle_max_lr_max: {type: float, default: 1}
-      one_cycle_pct_start_min: {type: float, default: 0}
-      one_cycle_pct_start_max: {type: float, default: 1.0}
-      weight_decay_min: {type: float, default: 1e-4}
-      weight_decay_max: {type: float, default: 0.2}
-      lora_rank_min: {type: float, default: 1}
-      lora_rank_max: {type: float, default: 32}
-      lora_alpha_min: {type: float, default: 0.01}
-      lora_alpha_max: {type: float, default: 5}
+      one_cycle_max_lr_max: {type: float, default: 5e-4}
+      one_cycle_pct_start_min: {type: float, default: 0.01}
+      one_cycle_pct_start_max: {type: float, default: 0.5}
+      weight_decay_min: {type: float, default: 1e-5}
+      weight_decay_max: {type: float, default: 5e-4}
+      lora_rank_min: {type: float, default: 128}
+      lora_rank_max: {type: float, default: 224}
+      lora_alpha_min: {type: float, default: 0.3}
+      lora_alpha_max: {type: float, default: 2.5}
 
       #== Lightning Trainer hparams
       max_epochs: {type: float, default: 250}
-      accumulate_grad_batches_min: {type: float, default: 1}
-      accumulate_grad_batches_max: {type: float, default: 9}
-      limit_batches: {type: float, default: 1.0}
+      accumulate_grad_batches_min: {type: float, default: 8}
+      accumulate_grad_batches_max: {type: float, default: 12}
+      limit_batches: {type: float, default: 0.0035}
     command: "poetry env use {poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt_train.py \
                --algo {algo} \
@@ -75,15 +75,17 @@ entry_points:
       #== Data module hparams
       train_batch_size: {type: float, default: 32}
       eval_batch_size: {type: float, default: 32}
-      train_split_size: {type: float, default: 0.8}
+      train_split_size: {type: float, default: 0.9}
       prefetch_factor: {type: float, default: 16}
       num_workers: {type: float, default: 12}
 
-      #== FinBERT hparams
+      #== MODEL HPARAMS
       one_cycle_max_lr: {type: float, default: 0.1} # max OneCycle scheduler LR
       one_cycle_pct_start: {type: float, default: 0.3} # fraction of cycle spent increasing LR to max
       weight_decay: {type: float, default: 1e-2}
-      lora_rank: {type: float, default: 8}
+
+      #======= FinBERT specific hparams
+      lora_rank: {type: float, default: 128}
       lora_alpha: {type: float, default: 1}
 
       #== Lightning Trainer hparams
@@ -97,7 +99,7 @@ entry_points:
 
       #== EarlyStopping hparams
       es_monitor: {type: string, default: "val_loss_epoch"} # this is the key of a value that is manually logged inside the LightningModule
-      es_min_delta: {type: float, default: 0.0025}
+      es_min_delta: {type: float, default: 0.001}
       es_patience: {type: float, default: 10} # if loss improvement < min_delta after this number of epochs, training stops
 
       #== ModelCheckpoint hparams
