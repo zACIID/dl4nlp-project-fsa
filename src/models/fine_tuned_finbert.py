@@ -234,9 +234,13 @@ class FineTunedFinBERT(L.LightningModule):
         # This is also how ProsusAI/finbert predicts sentiment score:
         #   positive prob - negative prob, and then it uses MSE loss
         pred_sentiment_score = bullish_prob - bearish_prob
-        loss = F.mse_loss(sentiment_score, pred_sentiment_score)
+        mse = F.mse_loss(sentiment_score, pred_sentiment_score)
+        mae = F.l1_loss(sentiment_score, pred_sentiment_score)
+        is_sign_correct = torch.sum(
+            ((pred_sentiment_score >= 0) & (sentiment_score >= 0))
+            | ((pred_sentiment_score < 0) & (sentiment_score < 0))
+        ) / len(sentiment_score)
 
-        # TODO define other metrics to log, e.g. taken by torchmetrics or HuggingFace's evaluate package
         # self.log_dict( # TODO log_dict currently broken
         #     dictionary={
         #         f"{step_type}_loss": loss,
@@ -246,9 +250,34 @@ class FineTunedFinBERT(L.LightningModule):
         #     prog_bar=True,
         #     logger=True
         # )
+        loss = mse
         self.log(
             name=f"{step_type}_loss",
             value=loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True
+        )
+        self.log(
+            name=f"{step_type}_mse",
+            value=mse,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True
+        )
+        self.log(
+            name=f"{step_type}_mae",
+            value=mae,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True
+        )
+        self.log(
+            name=f"{step_type}_sign_accuracy",
+            value=is_sign_correct,
             on_step=True,
             on_epoch=True,
             prog_bar=True,
