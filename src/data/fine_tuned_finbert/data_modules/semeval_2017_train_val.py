@@ -56,7 +56,7 @@ class Semeval2017TrainVal(L.LightningDataModule):
         index = np.arange(len(self.dataset))
         train_split_idxs, val_split_idxs = sel.train_test_split(
             index,
-            stratify=self.dataset.with_format(type='pandas')[ppb.LABEL_COL].to_numpy(),
+            stratify=(self.dataset.with_format(type='pandas')[ppb.LABEL_COL].to_numpy() >= 0).astype(int),
             random_state=self.rnd_seed
         )
 
