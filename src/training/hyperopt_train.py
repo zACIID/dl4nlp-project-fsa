@@ -129,7 +129,7 @@ def new_eval(
     help="Perform hyperparameter search with Hyperopt library"
 )
 @click.option("--model-choice", default=loader.Model.FINBERT.value, type=click.STRING)
-@click.option("--dataset-choice", default=loader.Dataset.SC_TRAIN_SEMEVAL_VAL.value, type=click.STRING)
+@click.option("--dataset-choice", default=loader.Dataset.SEMEVAL_TRAIN_VAL.value, type=click.STRING)
 @click.option("--with-neutral-samples", default="false", type=click.STRING)
 @click.option("--algo", default='tpe.suggest', type=click.STRING)
 @click.option("--max-runs", default=10, type=click.INT)

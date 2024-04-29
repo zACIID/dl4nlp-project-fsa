@@ -23,7 +23,7 @@ RUN_NAME_PREFIX = 'finbert'
 @click.command(
     help="Fine-tune FinBERT model"
 )
-@click.option("--train-batch-size", default=32, type=click.INT)
+@click.option("--train-batch-size", default=1, type=click.INT)
 @click.option("--eval-batch-size", default=16, type=click.INT)
 @click.option("--train-split-size", default=0.8, type=click.FLOAT)
 @click.option("--prefetch-factor", default=16, type=click.INT)

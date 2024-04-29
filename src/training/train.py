@@ -21,7 +21,7 @@ from utils.random import RND_SEED
     help="Fine-tune FinBERT model"
 )
 @click.option("--model-choice", default=loader.Model.FINBERT.value, type=click.STRING)
-@click.option("--dataset-choice", default=loader.Dataset.SC_TRAIN_SEMEVAL_VAL.value, type=click.STRING)
+@click.option("--dataset-choice", default=loader.Dataset.SEMEVAL_TRAIN_VAL.value, type=click.STRING)
 @click.option("--with-neutral-samples", default='true', type=click.STRING)
 @click.option("--train-batch-size", default=32, type=click.INT)
 @click.option("--eval-batch-size", default=16, type=click.INT)
@@ -35,7 +35,7 @@ from utils.random import RND_SEED
 @click.option("--lora-alpha", default=1.25, type=click.FLOAT)
 @click.option("--max-epochs", default=25, type=click.INT)
 @click.option("--accumulate-grad-batches", default=6, type=click.INT)
-@click.option("--limit-batches", default=0.005, type=click.FLOAT)
+@click.option("--limit-batches", default=0.1, type=click.FLOAT)
 @click.option("--es-monitor", default='val_loss', type=click.STRING)
 @click.option("--es-min-delta", default=1e-3, type=click.FLOAT)
 @click.option("--es-patience", default=500, type=click.INT)
@@ -138,7 +138,7 @@ def run(
 
             limit_train_batches=limit_batches,
             # Do not limit val batches if val dataset is small
-            limit_val_batches=limit_batches if len(data_module.val_dataloader()) > 60 else 1.0,
+            limit_val_batches=limit_batches,
             precision='16-mixed',
             callbacks=[
                 ckpt_callback,

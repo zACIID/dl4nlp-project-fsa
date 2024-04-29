@@ -18,10 +18,10 @@ entry_points:
 
       # Check src/training/loader.py for the possible values
       model_choice: { type: string, default: "FINBERT" }
-      dataset_choice: { type: string, default: "SC_TRAIN_SEMEVAL_VAL" }
+      dataset_choice: { type: string, default: "SEMEVAL_TRAIN_VAL" }
 
       #== Stocktwits-crypto specific
-      with_neutral_samples: { type: string, default: "false" } # anything different from 'true' will result in a False boolean value
+      with_neutral_samples: { type: string, default: "true" } # anything different from 'true' will result in a False boolean value
 
       #== Hyperopt hparams
       algo: {type: string, default: "tpe.suggest"} # anything different results in usage of `rand.suggest`
@@ -45,7 +45,7 @@ entry_points:
       max_epochs: {type: float, default: 250}
       accumulate_grad_batches_min: {type: float, default: 8}
       accumulate_grad_batches_max: {type: float, default: 12}
-      limit_batches: {type: float, default: 0.0035}
+      limit_batches: {type: float, default: 1.0}
     command: "poetry env use {poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt_train.py \
                --model-choice {model_choice} \
