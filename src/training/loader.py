@@ -1,4 +1,3 @@
-# TODO enums and functions such as the following
 import enum
 import typing
 

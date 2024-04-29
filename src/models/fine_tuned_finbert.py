@@ -287,11 +287,6 @@ class FineTunedFinBERT(L.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        # TODO "manual optimization is required [meaning that I have to manually call zero_grad, step, etc. on the optimizer | ndr]
-        #   when working with multiple optimizers https://lightning.ai/docs/pytorch/stable/common/optimization.html#automatic-optimization
-        #   This is important for the idea of class "WithClassificationLayers" that accepts as input one PyTorchLightning module
-        #       and will extract the optimizers from it
-
         # Why no decay for bias and LayerNorm parameters?
         # Possible explanation:
         # https://stats.stackexchange.com/questions/576463/why-not-perform-weight-decay-on-layernorm-embedding

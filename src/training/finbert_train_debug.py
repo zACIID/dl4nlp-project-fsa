@@ -17,13 +17,8 @@ from utils.io import PROJECT_ROOT
 from utils.random import RND_SEED
 
 
-RUN_NAME_PREFIX = 'finbert'  # TODO parameterize based on model type?
+RUN_NAME_PREFIX = 'finbert'
 
-# TODO this script could be generalized with a parameter "model-type" and a little switch that
-#  chooses the classes of model, data module to instantiate.
-#  Since each model/data module has (must havae) a **kwargs argument, I can directly pass everything and parameters
-#   that a model doesn't care about will be auto ignored
-#   (self.save_hparams I think has an option to ignore stuff, there I can ignore "**kwargs:
 # NOTE: these defaults are for debug purposes
 @click.command(
     help="Fine-tune FinBERT model"
@@ -72,7 +67,7 @@ def run(
 
     dotenv.load_dotenv(dotenv_path=os.path.join(PROJECT_ROOT, 'mlflow.env'))
 
-    # TODO commenting because it hangs at the beginning of training due to some bug when logging hparams
+    # NOTE commenting because it hangs at the beginning of training due to some bug when logging hparams
     #   also, for the same reason (endpoint log-batch broken of mlflow rest API), self.log_dict does not log anything
     # mlflow.pytorch.autolog()
     hparams_string = _get_name_from_hparams(**{
@@ -154,13 +149,6 @@ def run(
         )
 
         trainer.fit(model, datamodule=data_module)
-
-        # TODO do something with best model? maybe register to mlflow model registry??
-        # ckpt_callback.best_model_path
-        # result = mlflow.register_model(
-        #     ckpt_callback.best_model_path,
-        #     "ElasticNetWineModel"
-        # )
 
 
 def _get_name_from_hparams(**hparams: dict) -> str:

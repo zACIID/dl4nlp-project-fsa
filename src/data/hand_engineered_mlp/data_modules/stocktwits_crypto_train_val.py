@@ -36,8 +36,7 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
 
         super().__init__()
 
-        self.dataset: datasets.Dataset = pp.get_dataset()
-        # self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples) # TODO uncomment later
+        self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples)
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
