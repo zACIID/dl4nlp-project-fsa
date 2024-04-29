@@ -14,9 +14,9 @@ from utils.random import RND_SEED
 class StocktwitsCryptoTrainVal(L.LightningDataModule):
     def __init__(
             self,
-            train_batch_size: int = 64,
+            train_batch_size: int = 32,
             eval_batch_size: int = 32,
-            train_split_size: float = 0.8,
+            train_split_size: float = 0.9,
             with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
@@ -36,8 +36,7 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
 
         super().__init__()
 
-        self.dataset: datasets.Dataset = pp.get_dataset()
-        # self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples) # TODO uncomment later
+        self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples)
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory

@@ -41,7 +41,11 @@ Schema may very well very after preprocessing.
 
 def download_dataset(return_train_dataset: bool) -> Path:
     train_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trainingdata.json'
-    test_dataset_path = _DOWNLOAD_DIR / 'Microblog_Testdata.json'
+    # test_dataset_path = _DOWNLOAD_DIR / 'Microblogs_Testdata.json' # TODO does not contain scores, need the GS dataset (check emails)
+    # TODO the trial dataset contains just 10 entries. If the GS can't be retrieved,
+    #  consider merging the two dataset and taking like 20-30% samples to use as test.
+    #  In the challenge they had something like 400 test samples
+    test_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trialdata.json'
     dataset_path = train_dataset_path if return_train_dataset else test_dataset_path
     if not os.path.exists(dataset_path):
         logger.info('Downloading dataset...')
@@ -62,7 +66,7 @@ def read_dataset(
 
 
 def clean_dataset(df: psql.DataFrame) -> psql.DataFrame:
-    df = df.fillna({TEXT_COL: "", LABEL_COL: 1})  # 1 is neutral label in raw dataset
+    # df = df.fillna({TEXT_COL: [""], LABEL_COL: 0})  # 0 is neutral score # TODO no missing values in data
 
     # sentiment score column is string but we want float
     df = df.withColumn(LABEL_COL, psqlf.col(LABEL_COL).cast(psqlt.FloatType()))

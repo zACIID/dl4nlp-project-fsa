@@ -46,11 +46,8 @@ def preprocess_dataset(
         logger.debug(f"Repartitioning RDD to {S.EXECUTORS_AVAILABLE_CORES}")
         raw_df = raw_df.repartition(numPartitions=S.EXECUTORS_AVAILABLE_CORES)
 
-    logger.info("Cleaning data...")
-    df = sc.clean(raw_df=raw_df, drop_neutral_samples=drop_neutral_samples)
-
     logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
-    df = sc.convert_labels_to_sentiment_scores(df=df, label_col=label_col)
+    df = sc.convert_labels_to_sentiment_scores(df=raw_df, label_col=label_col)
 
     # TODO do something here with the text: craft the custom features
     raise NotImplementedError('TODO')

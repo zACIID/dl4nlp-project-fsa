@@ -46,17 +46,11 @@ def preprocess_dataset(
         logger.debug(f"Repartitioning RDD to {S.EXECUTORS_AVAILABLE_CORES}")
         raw_df = raw_df.repartition(numPartitions=S.EXECUTORS_AVAILABLE_CORES)
 
-    logger.info("Cleaning data...")
-    with_na_filled = sc.clean(raw_df=raw_df, drop_neutral_samples=drop_neutral_samples)
-
     logger.debug("Applying tokenizer...")
-    with_tokens = _apply_tokenizer(df=with_na_filled, text_col=text_col)
-
-    logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
-    with_scores_df = sc.convert_labels_to_sentiment_scores(df=with_tokens, label_col=label_col)
+    with_tokens = _apply_tokenizer(df=raw_df, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
-    return with_scores_df
+    return with_tokens
 
 
 def _apply_tokenizer(

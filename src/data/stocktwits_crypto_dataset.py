@@ -65,15 +65,20 @@ def read_dataset(
     return raw_docs_df
 
 
-def clean(raw_df: psql.DataFrame, drop_neutral_samples: bool) -> psql.DataFrame:
-    raw_df = raw_df.fillna({TEXT_COL: "", LABEL_COL: 1})  # 1 is neutral label in raw dataset
+def clean(
+        raw_df: psql.DataFrame,
+        drop_neutral_samples: bool,
+        text_col: str,
+        label_col: str
+) -> psql.DataFrame:
+    raw_df = raw_df.fillna({text_col: "", label_col: 1})  # 1 is neutral label in raw dataset
 
     if drop_neutral_samples:
         # Drop neutral labels because they add noise:
         #   the absence of label is what defines them as neutral,
         #   meaning that they could in actuality express positive or negative.
         # Neutral label may hence prove misleading
-        raw_df = raw_df.filter(f"{LABEL_COL} <> 1")
+        raw_df = raw_df.filter(f"{label_col} <> 1")
 
     return raw_df
 

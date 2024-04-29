@@ -39,8 +39,16 @@ def _main(drop_neutral_samples: bool):
     )
     raw_df = sc.read_dataset(spark=spark, path=raw_csv_path)
 
-    df = ppb.preprocess_dataset(
+    logger.info("Cleaning dataset...")
+    df = sc.clean(
         raw_df=raw_df,
+        drop_neutral_samples=drop_neutral_samples,
+        text_col=sc.TEXT_COL,
+        label_col=sc.LABEL_COL
+    )
+
+    df = ppb.preprocess_dataset(
+        raw_df=df,
         drop_neutral_samples=drop_neutral_samples,
         text_col=sc.TEXT_COL,
         label_col=sc.LABEL_COL
