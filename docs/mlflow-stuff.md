@@ -22,13 +22,19 @@ Usually created inside the code via [mlflow.start_run](https://mlflow.org/docs/l
 Argument `nested=true` makes runs nested under a parent run, I think useful so that the parent run represents a script launch, and the children runs represent each individual model run inside the script.
 
 
-## How to log? TODO
+## How to log?
 
-#todo check how to log via pytorchlightning and in general. Need to log:
-- models
-- parameters
+There is an easy to use api provided in both vanilla mlflow and Lightning, the latter of which logs to the tracking server if an instance of `MLflowLogger` is provided to the `Trainer`.
+The call `mlflow.pytorch.autolog()` should do magic stuff by autologging everything, but apparently it is broken as the tracking server seems to hang whenever `log_dict` or, equivalently, the log_batch endpoint is called.
+Therefore, it is better to log manually until this is fixed.
 
-#todo check how to retrieve best models from model registry and see if they are compatible out of the box with pytorch lightning
+### Logging Datasets
+
+It seems that mlflow allows to log inputs so that they are available for other runs (apparently for automatic evaluation handled via the tracking server).
+- if the dataset is computed and stored locally, as in this project, it seems to me that the best idea is to log it as a [pandas dataset](https://mlflow.org/docs/latest/python_api/mlflow.data.html#pandas) 
+  - this is although I am not sure if the artifact gets replicated for every run, which would be bad with heavy datasets
+- One good idea would be to add the dataset to a remote storage such as Huggingface, S3 bucket, etc. so that I can just log the url and the tracking server fetches the dataset when it needs to use it, so definitely no duplication and easier versioning
+
 
 
 ## MLflow Projects
