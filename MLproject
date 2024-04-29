@@ -16,15 +16,18 @@ entry_points:
 
       fail_on_error: {type: string, default: "false"} # anything different from "false" allows train run to fail without blocking the main hyperopt loop
 
+      # Check src/training/loader.py for the possible values
+      model_choice: { type: string, default: "FINBERT" }
+      dataset_choice: { type: string, default: "SC_TRAIN_SEMEVAL_VAL" }
+
+      #== Stocktwits-crypto specific
+      with_neutral_samples: { type: string, default: "false" } # anything different from 'true' will result in a False boolean value
+
       #== Hyperopt hparams
       algo: {type: string, default: "tpe.suggest"} # anything different results in usage of `rand.suggest`
       # maximum number of hyperopt runs to find the best hparams
       # Rule of thumb apparently is 10-20x #hyperparameters
       max_runs: {type: float, default: 75}
-
-      #== Data module hparams
-      train_batch_size_min: {type: float, default: 16}
-      train_batch_size_max: {type: float, default: 32}
 
       #== FinBERT hparams
       one_cycle_max_lr_min: {type: float, default: 1e-5}
@@ -45,10 +48,11 @@ entry_points:
       limit_batches: {type: float, default: 0.0035}
     command: "poetry env use {poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt_train.py \
+               --model-choice {model_choice} \
+               --dataset-choice {dataset_choice} \
+               --with-neutral-samples {with_neutral_samples} \
                --algo {algo} \
                --max-runs {max_runs} \
-               --train-batch-size-min {train_batch_size_min} \
-               --train-batch-size-max {train_batch_size_max} \
                --one-cycle-pct-start-min {one_cycle_pct_start_min} \
                --one-cycle-pct-start-max {one_cycle_pct_start_max} \
                --one-cycle-max-lr-min {one_cycle_max_lr_min} \
@@ -72,12 +76,19 @@ entry_points:
         type: string
         default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
 
+      # Check src/training/loader.py for the possible values
+      model_choice: {type: string, default: 'FINBERT'}
+      dataset_choice: {type: string, default: 'SC_TRAIN_SEMEVAL_VAL'}
+
       #== Data module hparams
       train_batch_size: {type: float, default: 32}
       eval_batch_size: {type: float, default: 32}
       train_split_size: {type: float, default: 0.9}
       prefetch_factor: {type: float, default: 16}
-      num_workers: {type: float, default: 12}
+      num_workers: {type: float, default: 8}
+
+      #==== Stocktwits-crypto specific
+      with_neutral_samples: { type: string, default: "false" } # anything different from 'true' will result in a False boolean value
 
       #== MODEL HPARAMS
       one_cycle_max_lr: {type: float, default: 0.1} # max OneCycle scheduler LR
@@ -100,13 +111,16 @@ entry_points:
       #== EarlyStopping hparams
       es_monitor: {type: string, default: "val_loss_epoch"} # this is the key of a value that is manually logged inside the LightningModule
       es_min_delta: {type: float, default: 0.001}
-      es_patience: {type: float, default: 10} # if loss improvement < min_delta after this number of epochs, training stops
+      es_patience: {type: float, default: 20} # if loss improvement < min_delta after this number of epochs, training stops
 
       #== ModelCheckpoint hparams
       ckpt_monitor: {type: string, default: "val_loss_epoch"} # this is the key of a value that is manually logged inside the LightningModule
       ckpt_save_top_k: {type: float, default: 1}
     command: "poetry env use {poetry_env} \
-            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/finbert_train.py \
+            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/train.py \
+               --model-choice {model_choice} \
+               --dataset-choice {dataset_choice} \
+               --with-neutral-samples {with_neutral_samples} \
                --train-batch-size {train_batch_size} \
                --eval-batch-size {eval_batch_size} \
                --train-split-size {train_split_size} \
