@@ -16,9 +16,6 @@ _SPARK_APP_NAME = f'{_MODEL_NAME}|{_DATASET_NAME} Preprocessing'
 
 _TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
 
-TOKENIZER_OUTPUT_COL = "tokenizer"
-SENTIMENT_SCORE_COL = "sentiment_score"
-
 TRAIN_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-val.parquet'
 VAL_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-test.parquet'
 
@@ -55,11 +52,11 @@ def _main(get_train_dataset: bool):
         df=raw_df,
     )
 
+    df = df.withColumnRenamed(sem.SENTIMENT_SCORE_COL, ppb.LABEL_COL)
+
     df = ppb.preprocess_dataset(
         raw_df=df,
-        drop_neutral_samples=False,  # NOTE: false in this case because labels are continuously-valued sentiment scores
         text_col=sem.TEXT_COL,
-        label_col=sem.LABEL_COL
     )
 
     dataset_path = TRAIN_DATASET_PATH if get_train_dataset else VAL_DATASET_PATH

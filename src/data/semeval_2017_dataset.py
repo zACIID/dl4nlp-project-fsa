@@ -21,14 +21,14 @@ WORST_CASE_TOKENS = 160
 
 SOURCE_COL = "source"
 CASHTAG_COL = "cashtag"
-LABEL_COL = "sentiment score"
+SENTIMENT_SCORE_COL = "sentiment score"
 ID_COL = "id"
 TEXT_COL = "spans"
 
 RAW_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
     .add(TEXT_COL, psqlt.ArrayType(psqlt.StringType()), nullable=False)
-    .add(LABEL_COL, psqlt.StringType(), nullable=False)
+    .add(SENTIMENT_SCORE_COL, psqlt.StringType(), nullable=False)
     .add(SOURCE_COL, psqlt.StringType(), nullable=False)
     .add(ID_COL, psqlt.StringType(), nullable=False)
     .add(CASHTAG_COL, psqlt.StringType(), nullable=False)
@@ -66,10 +66,8 @@ def read_dataset(
 
 
 def clean_dataset(df: psql.DataFrame) -> psql.DataFrame:
-    # df = df.fillna({TEXT_COL: [""], LABEL_COL: 0})  # 0 is neutral score # TODO no missing values in data
-
     # sentiment score column is string but we want float
-    df = df.withColumn(LABEL_COL, psqlf.col(LABEL_COL).cast(psqlt.FloatType()))
+    df = df.withColumn(SENTIMENT_SCORE_COL, psqlf.col(SENTIMENT_SCORE_COL).cast(psqlt.FloatType()))
 
     # Merge all spans into one text string
     @psqlf.udf(returnType=psqlt.StringType())

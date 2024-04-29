@@ -3,7 +3,6 @@ import os
 import click
 import datasets
 from loguru import logger
-from pyspark.sql import types as psqlt
 
 import data.fine_tuned_finbert.preprocessing_base as ppb
 import data.spark as S
@@ -16,9 +15,6 @@ _DATASET_NAME = 'stocktwits-crypto'
 _SPARK_APP_NAME = f'{_MODEL_NAME}|{_DATASET_NAME} Preprocessing'
 
 _TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
-
-TOKENIZER_OUTPUT_COL = "tokenizer"
-SENTIMENT_SCORE_COL = "sentiment_score"
 
 WITH_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-with-neutrals.parquet'
 WITHOUT_NEUTRALS_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-without-neutrals.parquet'
@@ -56,15 +52,13 @@ def _main(drop_neutral_samples: bool):
 
     df = ppb.preprocess_dataset(
         raw_df=df,
-        drop_neutral_samples=drop_neutral_samples,
         text_col=sc.TEXT_COL,
-        label_col=sc.LABEL_COL
     )
 
     logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
     df = sc.convert_labels_to_sentiment_scores(df=df, label_col=sc.LABEL_COL)
 
-    dataset_path = WITH_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITHOUT_NEUTRALS_DATASET_PATH
+    dataset_path = WITHOUT_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITH_NEUTRALS_DATASET_PATH
     logger.info("Preprocessing dataset...")
     df.write.parquet(str(dataset_path), mode='overwrite')
     logger.info("Preprocessing finished")

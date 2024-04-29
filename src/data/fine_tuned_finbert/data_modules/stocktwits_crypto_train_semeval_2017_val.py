@@ -1,12 +1,11 @@
 import datasets
 import lightning as L
-import numpy as np
-import sklearn.model_selection as sel
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 
-import data.fine_tuned_finbert.stocktwits_crypto.preprocessing as sc_pp
+import data.fine_tuned_finbert.preprocessing_base as ppb
 import data.fine_tuned_finbert.semeval_2017.preprocessing as sem_pp
+import data.fine_tuned_finbert.stocktwits_crypto.preprocessing as sc_pp
 from utils.random import RND_SEED
 
 
@@ -50,8 +49,8 @@ class StocktwitsCryptoTrainSemEval2017Val(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        self.train_dataset.set_format(type='torch', columns=[sc_pp.TOKENIZER_OUTPUT_COL, sc_pp.SENTIMENT_SCORE_COL])
-        self.train_dataset.set_format(type='torch', columns=[sem_pp.TOKENIZER_OUTPUT_COL, sem_pp.SENTIMENT_SCORE_COL])
+        self.train_dataset.set_format(type='torch', columns=[ppb.TOKENIZER_OUTPUT_COL, ppb.LABEL_COL])
+        self.val_dataset.set_format(type='torch', columns=[ppb.TOKENIZER_OUTPUT_COL, ppb.LABEL_COL])
 
     def train_dataloader(self):
         return DataLoader(
@@ -96,8 +95,8 @@ def _collate_fn(raw_samples, sentiment_score_col: str, tokenizer_col: str):
 
 
 def _train_collate_fn(raw_samples):
-    return _collate_fn(raw_samples, sc_pp.SENTIMENT_SCORE_COL, sc_pp.TOKENIZER_OUTPUT_COL)
+    return _collate_fn(raw_samples, ppb.LABEL_COL, ppb.TOKENIZER_OUTPUT_COL)
 
 
 def _val_collate_fn(raw_samples):
-    return _collate_fn(raw_samples, sem_pp.SENTIMENT_SCORE_COL, sem_pp.TOKENIZER_OUTPUT_COL)
+    return _collate_fn(raw_samples, ppb.LABEL_COL, ppb.TOKENIZER_OUTPUT_COL)

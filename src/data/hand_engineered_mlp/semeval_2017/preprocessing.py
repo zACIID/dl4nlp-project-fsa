@@ -48,12 +48,14 @@ def _main(get_train_dataset: bool):
     logger.info("Cleaning data...")
     df = sem.clean_dataset(df=raw_df)
 
+    df = df.withColumnRenamed(sem.SENTIMENT_SCORE_COL, ppb.LABEL_COL)
     df = ppb.preprocess_dataset(
         raw_df=df,
         drop_neutral_samples=False,  # NOTE: false in this case because labels are continuously-valued sentiment scores
         text_col=sem.TEXT_COL,
-        label_col=sem.LABEL_COL
+        label_col=sem.SENTIMENT_SCORE_COL
     )
+
 
     dataset_path = TRAIN_DATASET_PATH if get_train_dataset else VAL_DATASET_PATH
     logger.info("Preprocessing dataset...")

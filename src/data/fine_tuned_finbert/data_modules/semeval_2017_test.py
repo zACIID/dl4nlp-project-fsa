@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import data.fine_tuned_finbert.semeval_2017.preprocessing as sem_pp
+import data.fine_tuned_finbert.preprocessing_base as ppb
 from utils.random import RND_SEED
 
 
@@ -43,7 +44,7 @@ class SemEval2017Test(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        self.dataset.set_format(type='torch', columns=[sem_pp.TOKENIZER_OUTPUT_COL, sem_pp.SENTIMENT_SCORE_COL])
+        self.dataset.set_format(type='torch', columns=[ppb.TOKENIZER_OUTPUT_COL, ppb.LABEL_COL])
 
     def train_dataloader(self):
         raise NotImplementedError("This data module is only for test datasets")
@@ -67,8 +68,8 @@ class SemEval2017Test(L.LightningDataModule):
 
 
 def _collate_fn(raw_samples):
-    tokenizer_outputs = [item[sem_pp.TOKENIZER_OUTPUT_COL] for item in raw_samples]
-    scores = [item[sem_pp.SENTIMENT_SCORE_COL] for item in raw_samples]
+    tokenizer_outputs = [item[ppb.TOKENIZER_OUTPUT_COL] for item in raw_samples]
+    scores = [item[ppb.LABEL_COL] for item in raw_samples]
 
     input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
     att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))

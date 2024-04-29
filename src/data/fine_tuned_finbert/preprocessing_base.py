@@ -14,27 +14,21 @@ _TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
 TEXT_COL = sc.TEXT_COL
 LABEL_COL = sc.LABEL_COL
 TOKENIZER_OUTPUT_COL = "tokenizer"
-SENTIMENT_SCORE_COL = "sentiment_score"
 
 PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
     .add(TEXT_COL, psqlt.StringType(), nullable=False)
     .add(LABEL_COL, psqlt.IntegerType(), nullable=False)
     .add(TOKENIZER_OUTPUT_COL, psqlt.ArrayType(psqlt.IntegerType()), nullable=False)
-    .add(SENTIMENT_SCORE_COL, psqlt.FloatType(), nullable=False)
 )
 
 
 def preprocess_dataset(
         raw_df: psql.DataFrame,
-        drop_neutral_samples: bool,
         text_col: str,
-        label_col: str
 ) -> psql.DataFrame:
     """
     :param raw_df: just read, no preprocessing, raw dataset
-    :param drop_neutral_samples: true if neutrally labelled samples should be dropped
-    :param label_col: name of column in raw_df
     :param text_col: name of column in raw_df
     :return:
     """
