@@ -28,6 +28,9 @@ _inf = np.finfo(np.float64).max
 EXPERIMENT_NAME_PREFIX = 'Hyperopt'
 MLFLOW_TRAIN_ENTRYPOINT = 'train'
 
+VAL_METRIC_KEY = 'val_loss'
+TRAIN_METRIC_KEY = 'train_loss'
+
 
 def _update_best_metrics(experiment_id, parent_run):
     # find the best run, log its metrics as the final metrics of this run
@@ -39,17 +42,17 @@ def _update_best_metrics(experiment_id, parent_run):
     best_val_valid = _inf
     best_run = None
     for r in runs:
-        metric_key = "val_loss_epoch"
+        metric_key = VAL_METRIC_KEY
         if r.data.metrics.__contains__(metric_key) and r.data.metrics[metric_key] < best_val_valid:
             best_run = r
-            best_val_train = r.data.metrics["train_loss_epoch"]
-            best_val_valid = r.data.metrics["val_loss_epoch"]
+            best_val_train = r.data.metrics[TRAIN_METRIC_KEY]
+            best_val_valid = r.data.metrics[VAL_METRIC_KEY]
 
     if best_run is not None:
         mlflow.set_tag("Best Run", best_run.info.run_id)
         metrics = {
-            f"train_loss_epoch": best_val_train,
-            f"val_loss_epoch": best_val_valid,
+            TRAIN_METRIC_KEY: best_val_train,
+            VAL_METRIC_KEY: best_val_valid,
         }
 
         for k, v in metrics.items():
@@ -81,10 +84,8 @@ def new_eval(
         params["dataset_choice"] = dataset_choice
         params["with_neutral_samples"] = with_neutral_samples
 
-        # hparams_suffix = '-'.join([f"{k}={v}" for k,v in params.items()])
         with mlflow.start_run(
                 nested=True,
-                # run_name=f"{datetime.date.today().isoformat()}-train-{hparams_suffix}" # TODO let's try without hparams because too long
                 run_name=f"{datetime.date.today().isoformat()}-train"
         ) as child_run:
             p = mlflow.projects.run(
@@ -105,7 +106,7 @@ def new_eval(
             training_run = tracking_client.get_run(p.run_id)
             metrics = training_run.data.metrics
 
-            val_loss = metrics[f"val_loss_epoch"]
+            val_loss = metrics[VAL_METRIC_KEY]
             status = hyperopt.STATUS_OK
         else:
             # run failed => return null loss
@@ -201,7 +202,6 @@ def train(
     }
 
     mlflow.set_tracking_uri(uri=os.environ["MLFLOW_TRACKING_URI"])
-    # experiment = mlflow.set_experiment(experiment_name=f"{EXPERIMENT_NAME_PREFIX} | {dataset_choice} | {model_choice}")
     with mlflow.start_run(
         log_system_metrics=True,
         run_name=f"{datetime.date.today().isoformat()}",

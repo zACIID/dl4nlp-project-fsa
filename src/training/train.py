@@ -75,29 +75,15 @@ def run(
 
     dotenv.load_dotenv(dotenv_path=os.path.join(PROJECT_ROOT, 'mlflow.env'))
 
-    # TODO commenting because it hangs at the beginning of training due to some bug when logging hparams
-    #   also, for the same reason (endpoint log-batch broken of mlflow rest API), self.log_dict does not log anything
-    # mlflow.pytorch.autolog()
-
     model_choice: loader.Model = loader.Model(model_choice)
     dataset_choice: loader.Dataset = loader.Dataset(dataset_choice)
     if dataset_choice == loader.Dataset.SEMEVAL_TEST:
         raise ValueError(f'{dataset_choice} is not a valid dataset choice for training/validation')
 
+    mlflow.pytorch.autolog()
     run_name_prefix = f"{model_choice}_{dataset_choice}"
-    # hparams_string = _get_name_from_hparams(**{
-    #     "dataset_frac": limit_batches,
-    #     "batch_size": train_batch_size,
-    #     "grad_acc": accumulate_grad_batches,
-    #     "oc_max_lr": one_cycle_max_lr,
-    #     "oc_pct_start": one_cycle_pct_start,
-    #     "wd": weight_decay,
-    #     "lora_rank": lora_rank,
-    #     "lora_alpha": lora_alpha,
-    # })
     with mlflow.start_run(
             log_system_metrics=True,
-            # run_name=f"{datetime.date.today().isoformat()}-{run_name_prefix}-{hparams_string}" # TODO see how it goes without hparams string, because very long
             run_name=f"{datetime.date.today().isoformat()}-{run_name_prefix}"
     ) as run:
         mlflow_logger = MLFlowLogger(
@@ -158,9 +144,10 @@ def run(
 
         # TODO do something with best model? maybe register to mlflow model registry??
         # ckpt_callback.best_model_path
+        # mlflow.pytorch.log_model()
         # result = mlflow.register_model(
         #     ckpt_callback.best_model_path,
-        #     "ElasticNetWineModel"
+        #     "registration-test"
         # )
 
 

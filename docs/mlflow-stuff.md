@@ -22,6 +22,7 @@ Usually created inside the code via [mlflow.start_run](https://mlflow.org/docs/l
 Argument `nested=true` makes runs nested under a parent run, I think useful so that the parent run represents a script launch, and the children runs represent each individual model run inside the script.
 
 
+
 ## How to log?
 
 There is an easy to use api provided in both vanilla mlflow and Lightning, the latter of which logs to the tracking server if an instance of `MLflowLogger` is provided to the `Trainer`.
@@ -34,6 +35,14 @@ It seems that mlflow allows to log inputs so that they are available for other r
 - if the dataset is computed and stored locally, as in this project, it seems to me that the best idea is to log it as a [pandas dataset](https://mlflow.org/docs/latest/python_api/mlflow.data.html#pandas) 
   - this is although I am not sure if the artifact gets replicated for every run, which would be bad with heavy datasets
 - One good idea would be to add the dataset to a remote storage such as Huggingface, S3 bucket, etc. so that I can just log the url and the tracking server fetches the dataset when it needs to use it, so definitely no duplication and easier versioning
+
+### IMPORTANT: WHY DID IT HANG?
+
+It happened to me that enabling `mlflow.pytorch.autolog` caused the training process to hang and finally fail any logging (log-batch) requests.
+Turns out, it was because it was calling `mlflow.log_params(params)` inside my hparam tuning script, which apparently conflicted with the autologging. The REST API apparently states that logging the same keys with different values resulted in an error. 
+Now, I don't think it was the case, but removing the manual logging enabled the autologger to work again 
+
+
 
 
 
@@ -107,6 +116,11 @@ If this is the unfortunate case, then I have to resort to hydra and manually set
 **UPDATE2: IT MAY BE PARTIALLY IT**: 
 - I think this is useful for scripts that do not involve changing parameters, because parameter tuning algos must be able to pass stuff directly to the classes called
 - I can still use LightningCLI inside a script and call it via an MLflow project entry point, so that via code I can use `mlflow.projects.run(...)` and invoke the entry points with the parameters that I need
+
+
+
+
+
 
 ## Other Stuff
 

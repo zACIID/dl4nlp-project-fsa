@@ -33,7 +33,7 @@ class FineTunedFinBERT(L.LightningModule):
 
     def __init__(
             self,
-            lora_rank: int,
+            lora_rank: int = 64,
             one_cycle_max_lr: float = 2e-5,
             weight_decay: float = 0.0,
             lora_alpha: float = 1,
@@ -247,44 +247,18 @@ class FineTunedFinBERT(L.LightningModule):
         ) / len(sentiment_score)
         loss = loss_functions.custom_regression_loss(sentiment_score, pred_sentiment_score, C=self.hparams.C)
 
-        # self.log_dict( # TODO log_dict currently broken
-        #     dictionary={
-        #         f"{step_type}_loss": loss,
-        #     },
-        #     on_step=False,
-        #     on_epoch=True,
-        #     prog_bar=True,
-        #     logger=True
-        # )
-        loss = mse
-        self.log(
-            name=f"{step_type}_loss",
-            value=loss,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True
-        )
-        self.log(
-            name=f"{step_type}_mse",
-            value=mse,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True
-        )
-        self.log(
-            name=f"{step_type}_mae",
-            value=mae,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True
-        )
-        self.log(
-            name=f"{step_type}_sign_accuracy",
-            value=is_sign_correct,
-            on_step=True,
+        if step_type == 'val':
+            self._val_predictions.append(pred_sentiment_score)
+            self._val_targets.append(batch[1])
+
+        self.log_dict( # TODO log_dict currently broken
+            dictionary={
+                f"{step_type}_loss": loss,
+                f"{step_type}_mse": mse,
+                f"{step_type}_mae": mae,
+                f"{step_type}_sign_accuracy": is_sign_correct,
+            },
+            on_step=False,
             on_epoch=True,
             prog_bar=True,
             logger=True
