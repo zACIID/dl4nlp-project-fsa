@@ -7,12 +7,13 @@ from transformers import AutoTokenizer, BatchEncoding
 
 import data.spark as S
 import data.stocktwits_crypto_dataset as sc
+import data.common as common
 import models.fine_tuned_finbert as ft
 
 _TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
 
 TEXT_COL = sc.TEXT_COL
-LABEL_COL = sc.LABEL_COL
+LABEL_COL = common.LABEL_COL
 TOKENIZER_OUTPUT_COL = "tokenizer"
 
 PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
