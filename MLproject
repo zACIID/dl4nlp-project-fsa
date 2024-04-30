@@ -14,7 +14,7 @@ entry_points:
         type: string
         default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
 
-      fail_on_error: {type: string, default: "false"} # anything different from "false" allows train run to fail without blocking the main hyperopt loop
+      fail_on_error: {type: string, default: "true"} # anything different from "false" allows train run to fail without blocking the main hyperopt loop
 
       # Check src/training/loader.py for the possible values
       model_choice: { type: string, default: "FINBERT" }
@@ -39,11 +39,13 @@ entry_points:
       lora_rank_min: {type: float, default: 128}
       lora_rank_max: {type: float, default: 224}
       lora_alpha_min: {type: float, default: 0.3}
-      lora_alpha_max: {type: float, default: 2.5}
+      lora_alpha_max: {type: float, default: 3.5}
+      C_min: {type: float, default: 0}
+      C_max: {type: float, default: 3}
 
       #== Lightning Trainer hparams
-      max_epochs: {type: float, default: 250}
-      accumulate_grad_batches_min: {type: float, default: 8}
+      max_epochs: {type: float, default: 50}
+      accumulate_grad_batches_min: {type: float, default: 2}
       accumulate_grad_batches_max: {type: float, default: 12}
       limit_batches: {type: float, default: 1.0}
     command: "poetry env use {poetry_env} \
@@ -63,6 +65,8 @@ entry_points:
                --lora-rank-max {lora_rank_max} \
                --lora-alpha-min {lora_alpha_min} \
                --lora-alpha-max {lora_alpha_max} \
+               --C-min {C_min} \
+               --C-max {C_max} \
                --max-epochs {max_epochs} \
                --accumulate-grad-batches-min {accumulate_grad_batches_min} \
                --accumulate-grad-batches-max {accumulate_grad_batches_max} \
@@ -98,6 +102,7 @@ entry_points:
       #======= FinBERT specific hparams
       lora_rank: {type: float, default: 128}
       lora_alpha: {type: float, default: 1}
+      C: {type: float, default: 1}
 
       #== Lightning Trainer hparams
       max_epochs: {type: float, default: 250} # pass -1 for infinite epochs, useful when combined with early stopping
@@ -131,6 +136,7 @@ entry_points:
                --weight-decay {weight_decay} \
                --lora-rank {lora_rank} \
                --lora-alpha {lora_alpha} \
+               --C {C} \
                --max-epochs {max_epochs} \
                --accumulate-grad-batches {accumulate_grad_batches} \
                --limit-batches {limit_batches} \

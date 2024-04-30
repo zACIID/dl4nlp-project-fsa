@@ -33,6 +33,7 @@ from utils.random import RND_SEED
 @click.option("--weight-decay", default=1e-2, type=click.FLOAT)
 @click.option("--lora-rank", default=150, type=click.INT)
 @click.option("--lora-alpha", default=1.25, type=click.FLOAT)
+@click.option("--C", "C", default=1, type=click.FLOAT)
 @click.option("--max-epochs", default=25, type=click.INT)
 @click.option("--accumulate-grad-batches", default=6, type=click.INT)
 @click.option("--limit-batches", default=0.1, type=click.FLOAT)
@@ -55,6 +56,7 @@ def run(
         weight_decay,
         lora_rank,
         lora_alpha,
+        C,
         max_epochs,
         accumulate_grad_batches,
         limit_batches,

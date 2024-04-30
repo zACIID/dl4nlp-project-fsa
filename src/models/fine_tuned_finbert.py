@@ -1,3 +1,4 @@
+import typing
 from typing import Any, Mapping
 
 import lightning as L
@@ -5,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import (
-    BertForSequenceClassification,
+    BertForSequenceClassification, AutoModelForSequenceClassification,
 )
 from transformers.modeling_outputs import MaskedLMOutput
 from transformers.tokenization_utils_base import BatchEncoding
@@ -13,17 +14,19 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 
 import models.modules.lora as lora
+import models.loss_functions as loss_functions
 
 
-PRE_TRAINED_MODEL_PATH = "ahmedrachid/FinancialBERT-Sentiment-Analysis"
+# PRE_TRAINED_MODEL_PATH = "ahmedrachid/FinancialBERT-Sentiment-Analysis" # TODO trying to change
+PRE_TRAINED_MODEL_PATH = "ipuneetrathore/bert-base-cased-finetuned-finBERT"
 
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
 class FineTunedFinBERT(L.LightningModule):
     """
-    Class that represents a pre-trained model (currently "ahmedrachid/FinancialBERT-Sentiment-Analysis"
-        from HuggingFace) combined with a custom implemented LoRA fine-tuning infrastructure.
+    Class that represents a pre-trained sequence classification model `from combined
+        with a custom implemented LoRA fine-tuning infrastructure.
     The caller can choose where to apply LoRA layers
         (query, key, value, output projection matrices of transformer layers)
     """
@@ -41,6 +44,7 @@ class FineTunedFinBERT(L.LightningModule):
             W_pooler: bool = True,
             W_classifier: bool = True,
             update_bias: bool = True,
+            C: float = 1.0,
             one_cycle_pct_start: float = 0.3,
             **kwargs,
     ):
@@ -74,12 +78,14 @@ class FineTunedFinBERT(L.LightningModule):
         #   For this reason, do not delete the parameters even if they seem unused
         self.save_hyperparameters(logger=True)
 
-        self.model: BertForSequenceClassification = BertForSequenceClassification.from_pretrained(
-            PRE_TRAINED_MODEL_PATH,
-            num_labels=3
-        )
-
+        # self.model: BertForSequenceClassification = BertForSequenceClassification.from_pretrained(
+        #     PRE_TRAINED_MODEL_PATH,
+        #     num_labels=3
+        # ) # TODO trying other model
+        self.model = AutoModelForSequenceClassification.from_pretrained(PRE_TRAINED_MODEL_PATH)
         self._update_bias: bool = update_bias
+        self._val_predictions: typing.List[torch.Tensor] = []
+        self._val_targets: typing.List[torch.Tensor] = []
 
         self._freeze_net()
 
@@ -237,9 +243,9 @@ class FineTunedFinBERT(L.LightningModule):
         mse = F.mse_loss(sentiment_score, pred_sentiment_score)
         mae = F.l1_loss(sentiment_score, pred_sentiment_score)
         is_sign_correct = torch.sum(
-            ((pred_sentiment_score >= 0) & (sentiment_score >= 0))
-            | ((pred_sentiment_score < 0) & (sentiment_score < 0))
+            loss_functions.sign_accuracy_mask(sentiment_score, pred_sentiment_score)
         ) / len(sentiment_score)
+        loss = loss_functions.custom_regression_loss(sentiment_score, pred_sentiment_score, C=self.hparams.C)
 
         # self.log_dict( # TODO log_dict currently broken
         #     dictionary={
@@ -285,6 +291,24 @@ class FineTunedFinBERT(L.LightningModule):
         )
 
         return loss
+
+    def on_validation_epoch_end(self) -> None:
+        predictions = torch.concatenate(self._val_predictions, dim=0).flatten()
+        targets = torch.concatenate(self._val_targets, dim=0).flatten()
+
+        # NOTE: SemEval2017 Task 5 uses weighted cosine similarity to account for
+        #   teams that chose not to predict the whole test set.
+        #   The weight is 1 if an attempt to predict the whole test set is made, so,
+        #       in our case, weight calculation can be omitted
+        cosine_similarity = F.cosine_similarity(predictions, targets, dim=0)
+        self.log(
+            name=f"val_cosine_similarity",
+            value=cosine_similarity,
+            on_step=False,  # True raises error because we are on epoch end
+            on_epoch=True,
+            prog_bar=True,
+            logger=True
+        )
 
     def configure_optimizers(self):
         # Why no decay for bias and LayerNorm parameters?

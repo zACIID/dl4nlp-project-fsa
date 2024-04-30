@@ -143,6 +143,8 @@ def new_eval(
 @click.option("--lora-alpha-max", default=3, type=click.FLOAT)
 @click.option("--lora-rank-min", default=64, type=click.INT)
 @click.option("--lora-rank-max", default=256, type=click.INT)
+@click.option("--C-min", "C_min", default=0, type=click.FLOAT)
+@click.option("--C-max", "C_max", default=3, type=click.FLOAT)
 @click.option("--max-epochs", default=10, type=click.INT)
 @click.option("--accumulate-grad-batches-min", default=4, type=click.INT)
 @click.option("--accumulate-grad-batches-max", default=15, type=click.INT)
@@ -164,6 +166,8 @@ def train(
         lora_alpha_max,
         lora_rank_min,
         lora_rank_max,
+        C_min,
+        C_max,
         max_epochs,
         accumulate_grad_batches_min,
         accumulate_grad_batches_max,
@@ -190,6 +194,7 @@ def train(
         ),
         "lora_rank": scope.int(hp.quniform("lora_rank", lora_rank_min, lora_rank_max, 1)),
         "lora_alpha": hp.uniform("lora_alpha", lora_alpha_min, lora_alpha_max),
+        "C": hp.uniform("C", C_min, C_max),
         "accumulate_grad_batches": scope.int(hp.quniform(
             "accumulate_grad_batches", accumulate_grad_batches_min, accumulate_grad_batches_max, 1
         )),
@@ -222,7 +227,7 @@ def train(
             max_evals=max_runs,
             trials=trials
         )
-        mlflow.set_tag("Best Params", str(best))
+        mlflow.set_tag("best_params", str(best))
 
 
 if __name__ == "__main__":
