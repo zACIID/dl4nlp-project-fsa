@@ -78,15 +78,14 @@ def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
         )
         client.set_registered_model_alias(
             name=model_name,
-            alias=env.BEST_REGISTERED_MODEL_ALIAS,
+            alias=env.BEST_TUNED_MODEL_ALIAS,
             version=version.version
         )
         client.set_registered_model_alias(
             name=model_name,
-            alias=env.get_dataset_specific_best_model_alias(dataset=env.get_dataset_choice()),
+            alias=env.get_dataset_specific_best_model_alias(dataset=env.get_dataset_choice(), tuning=True),
             version=version.version
         )
-
 
 
 def new_eval(

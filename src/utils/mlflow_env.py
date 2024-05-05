@@ -9,7 +9,11 @@ MLFLOW_TRACKING_URI = 'http://0.0.0.0:5000'
 Host and port that the tracking server is started with in mlflow_server.sh
 """
 
-BEST_REGISTERED_MODEL_ALIAS = 'champion'
+BEST_FULL_TRAINED_MODEL_ALIAS = 'champion'
+"""Used for fully trained (i.e. on train + val dataset) models"""
+
+BEST_TUNED_MODEL_ALIAS = 'tuning-champion'
+"""Used for best model produced by hparam tuning"""
 
 EVALUATION_EXPERIMENT_NAME = 'Evaluation'
 
@@ -54,8 +58,8 @@ def get_registered_model_name(model_choice: loader.Model):
     return f"{get_registered_model_name_prefix()}-{model_choice.value}"
 
 
-def get_dataset_specific_best_model_alias(dataset: loader.Dataset) -> str:
-    return f"{BEST_REGISTERED_MODEL_ALIAS}-{dataset.value}"
+def get_dataset_specific_best_model_alias(dataset: loader.Dataset, tuning: bool = False) -> str:
+    return f"{BEST_FULL_TRAINED_MODEL_ALIAS if not tuning else BEST_TUNED_MODEL_ALIAS}-{dataset.value}"
 
 
 # Kind of dirty way of setting tags for every run

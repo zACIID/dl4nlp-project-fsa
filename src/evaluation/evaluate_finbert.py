@@ -28,11 +28,10 @@ def _main():
 
     model_name = env.get_registered_model_name(loader.Model.FINBERT)
     client = mlflow.tracking.MlflowClient()
-    registered_model = client.get_registered_model(model_name)
-    latest: ModelVersion = registered_model.latest_versions[-1]
+    best_version: ModelVersion = client.get_model_version_by_alias(name=model_name, alias=env.BEST_FULL_TRAINED_MODEL_ALIAS)
 
     model: lightning.LightningModule = mlflow.pytorch.load_checkpoint(
-        ft.FineTunedFinBERT, latest.run_id,
+        ft.FineTunedFinBERT, best_version.run_id,
         kwargs={
             'strict': False,  # Needed because LoRA checkpoint do not include all model parameters
             'log_hparams': True
