@@ -37,6 +37,7 @@ pyspark = "^3.5.1"
 scikit-learn = "^1.4.2"
 click = "^8.1.7"
 hyperopt = "^0.2.7"
+shap = "^0.45.0"
 
 
 [[tool.poetry.source]]
