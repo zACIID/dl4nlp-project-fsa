@@ -48,7 +48,7 @@ entry_points:
       limit_batches: {type: float, default: 0.005}
 #      limit_batches: {type: float, default: 1.0}
     command: "poetry env use {poetry_env} \
-            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt_train.py \
+            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt.py \
                --with-neutral-samples {with_neutral_samples} \
                --algo {algo} \
                --max-runs {max_runs} \
