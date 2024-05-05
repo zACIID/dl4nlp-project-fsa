@@ -83,7 +83,7 @@ def train(
         # Even if there are two SC_TRAIN_* datasets, I am using just the one that uses the SEMEVAL_VAL
         #   because its loss is more interpretable in terms of likelihood of performing well with SEMEVAL_TRAIN_VAL
         model_name = env.get_registered_model_name(env.get_model_choice())
-        alias = env.get_dataset_specific_best_model_alias(dataset=loader.Dataset.SC_TRAIN_SEMEVAL_VAL)
+        alias = env.get_dataset_specific_best_model_alias(dataset=loader.Dataset.SC_TRAIN_SEMEVAL_VAL, tuning=True)
 
         # If this fails then ok, a model must be trained on the above dataset
         #   for this 2nd order fine-tuning to make sense
