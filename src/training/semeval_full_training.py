@@ -24,23 +24,11 @@ from utils.random import RND_SEED
 @click.option("--model-alias", default=env.BEST_TUNED_MODEL_ALIAS, type=click.STRING)
 @click.option("--prefetch-factor", default=16, type=click.INT)
 @click.option("--num-workers", default=8, type=click.INT)
-@click.option("--max-epochs", default=150, type=click.INT)
-@click.option("--es-monitor", default='val_loss', type=click.STRING)
-@click.option("--es-min-delta", default=1e-3, type=click.FLOAT)
-@click.option("--es-patience", default=500, type=click.INT)
-@click.option("--ckpt-monitor", default='val_loss', type=click.STRING)
-@click.option("--ckpt-save-top-k", default=1, type=click.INT)
 def train(
         model_name,
         model_alias,
         prefetch_factor,
         num_workers,
-        max_epochs,
-        es_monitor,
-        es_min_delta,
-        es_patience,
-        ckpt_monitor,
-        ckpt_save_top_k
 ):
     function_call_kwargs = locals()
 
@@ -51,10 +39,11 @@ def train(
     client = mlflow.tracking.MlflowClient()
 
     mlflow.pytorch.autolog(
-        checkpoint_monitor=ckpt_monitor,
+        checkpoint_monitor='train_loss',  # I am ok with saving just the last epochs here
         checkpoint_mode='min',
         checkpoint_save_best_only=True,
-        checkpoint_save_weights_only=True,
+        # Since checkpointing here is purely save-to-resume-in-case-of-error, save everything
+        checkpoint_save_weights_only=False,
         checkpoint_save_freq='epoch'
     )
 
@@ -109,12 +98,12 @@ def train(
             }
         )
         best_params = best_model.hparams
-        del best_model  # Not needed anymore, just needed fine-tuned params
+        del best_model  # Not needed anymore, just needed tuned hparams
         virgin_model: L.LightningModule = virgin_model.__class__(**best_params)
 
         trainer = L.Trainer(
             default_root_dir=ARTIFACTS_DIR,
-            max_epochs=max_epochs,
+            max_epochs=int(model_run.data.params['epochs']),  # train for the exact number of epochs of the tuned model
             accelerator="gpu",
             devices=1,
             profiler=SimpleProfiler(filename='simple-profiler-logs'),
@@ -123,12 +112,6 @@ def train(
             limit_val_batches=0.0,  # Disable validation
             precision='16-mixed',
             callbacks=[
-                cb.EarlyStopping(
-                    monitor=es_monitor,
-                    min_delta=es_min_delta,
-                    patience=es_patience,
-                    strict=True
-                ),
                 cb.LearningRateMonitor(logging_interval='epoch'),
             ],
         )
