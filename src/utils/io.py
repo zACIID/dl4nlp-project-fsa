@@ -5,7 +5,7 @@ from tqdm import tqdm
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 SRC_DIR = PROJECT_ROOT / 'src'
-
+ARTIFACTS_DIR = PROJECT_ROOT / 'artifacts'
 DATA_DIR = PROJECT_ROOT / 'data'
 RAW_DATASET_DIR = DATA_DIR / 'raw'
 

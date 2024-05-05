@@ -6,12 +6,11 @@ import lightning as L
 import lightning.pytorch.callbacks as cb
 import mlflow
 import mlflow.utils.autologging_utils
-from lightning.pytorch.loggers import MLFlowLogger
 from lightning.pytorch.profilers import SimpleProfiler
 
 import training.loader as loader
 import utils.mlflow_env as env
-from utils.io import PROJECT_ROOT
+from utils.io import ARTIFACTS_DIR
 from utils.random import RND_SEED
 
 
@@ -41,7 +40,7 @@ from utils.random import RND_SEED
 @click.option("--es-patience", default=500, type=click.INT)
 @click.option("--ckpt-monitor", default='val_loss', type=click.STRING)
 @click.option("--ckpt-save-top-k", default=1, type=click.INT)
-def run(
+def train(
         with_neutral_samples,
         train_batch_size,
         eval_batch_size,
@@ -77,7 +76,7 @@ def run(
         raise ValueError(f'{env.get_dataset_choice()} is not a valid dataset choice for training/validation')
 
     mlflow.pytorch.autolog(
-        checkpoint_monitor='val_loss',
+        checkpoint_monitor=ckpt_monitor,
         checkpoint_mode='min',
         checkpoint_save_best_only=True,
         checkpoint_save_weights_only=True,
@@ -100,7 +99,7 @@ def run(
         )
 
         trainer = L.Trainer(
-            default_root_dir=os.path.join(PROJECT_ROOT, "artifacts"),
+            default_root_dir=ARTIFACTS_DIR,
             max_epochs=max_epochs,
             accelerator="gpu",
             devices=1,
@@ -124,4 +123,4 @@ def run(
 
 
 if __name__ == '__main__':
-    run()
+    train()
