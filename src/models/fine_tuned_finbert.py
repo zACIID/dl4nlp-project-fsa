@@ -50,7 +50,6 @@ class FineTunedFinBERT(L.LightningModule):
             W_pooler: bool = True,
             W_classifier: bool = True,
             update_bias: bool = True,
-            C: float = 1.0,
             one_cycle_pct_start: float = 0.3,
             log_hparams: bool = True,
             **kwargs,
@@ -275,10 +274,10 @@ class FineTunedFinBERT(L.LightningModule):
 
         mse = F.mse_loss(sentiment_score, pred_sentiment_score)
         mae = F.l1_loss(sentiment_score, pred_sentiment_score)
-        is_sign_correct = torch.sum(
+        sign_accuracy = torch.sum(
             loss_functions.sign_accuracy_mask(sentiment_score, pred_sentiment_score)
         ) / len(sentiment_score)
-        loss = loss_functions.custom_regression_loss(sentiment_score, pred_sentiment_score, C=self.hparams.C)
+        loss = loss_functions.custom_regression_loss(sentiment_score, pred_sentiment_score)
 
         if step_type == 'val':
             self._val_predictions.append(pred_sentiment_score)
@@ -289,7 +288,7 @@ class FineTunedFinBERT(L.LightningModule):
                 f"{step_type}_loss": loss,
                 f"{step_type}_mse": mse,
                 f"{step_type}_mae": mae,
-                f"{step_type}_sign_accuracy": is_sign_correct,
+                f"{step_type}_sign_accuracy": sign_accuracy,
                 f"{step_type}_positive_predictions": loss_functions.sign_accuracy_mask(
                     torch.ones(sentiment_score.shape, device=self.device), pred_sentiment_score
                 ).sum() / len(sentiment_score),

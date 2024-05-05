@@ -30,7 +30,6 @@ from utils.random import RND_SEED
 @click.option("--lora-rank", default=128, type=click.INT)
 @click.option("--lora-alpha", default=1, type=click.FLOAT)
 @click.option("--lora-dropout", default=0.1, type=click.FLOAT)
-@click.option("--C", "C", default=0.1, type=click.FLOAT)
 @click.option("--max-epochs", default=20, type=click.INT)
 @click.option("--accumulate-grad-batches", default=4, type=click.INT)
 # @click.option("--limit-batches", default=1, type=click.FLOAT)
@@ -53,7 +52,6 @@ def train(
         lora_rank,
         lora_alpha,
         lora_dropout,
-        C,
         max_epochs,
         accumulate_grad_batches,
         limit_batches,

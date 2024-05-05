@@ -160,8 +160,6 @@ def new_eval(
 @click.option("--lora-dropout-max", default=0.6, type=click.FLOAT)
 @click.option("--lora-rank-min", default=8, type=click.INT)
 @click.option("--lora-rank-max", default=256, type=click.INT)
-@click.option("--C-min", "C_min", default=0, type=click.FLOAT)
-@click.option("--C-max", "C_max", default=3, type=click.FLOAT)
 @click.option("--max-epochs", default=10, type=click.INT)
 @click.option("--accumulate-grad-batches-min", default=4, type=click.INT)
 @click.option("--accumulate-grad-batches-max", default=15, type=click.INT)
@@ -183,8 +181,6 @@ def tune(
         lora_dropout_max,
         lora_rank_min,
         lora_rank_max,
-        C_min,
-        C_max,
         max_epochs,
         accumulate_grad_batches_min,
         accumulate_grad_batches_max,
@@ -214,7 +210,6 @@ def tune(
         "lora_rank": scope.int(hp.quniform("lora_rank", lora_rank_min, lora_rank_max, 1)),
         "lora_alpha": hp.uniform("lora_alpha", lora_alpha_min, lora_alpha_max),
         "lora_dropout": hp.uniform("lora_dropout", lora_dropout_min, lora_dropout_max),
-        # "C": hp.uniform("C", C_min, C_max), # TODO debug
         "accumulate_grad_batches": scope.int(hp.quniform(
             "accumulate_grad_batches", accumulate_grad_batches_min, accumulate_grad_batches_max, 1
         )),
