@@ -35,7 +35,7 @@ def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
     client = MlflowClient()
 
     model_name = env.get_registered_model_name(env.get_model_choice())
-    results = client.search_registered_models(filter_string=f'name = {model_name}')
+    results = client.search_registered_models(filter_string=f"name = '{model_name}'")
     registered_model = client.get_registered_model(model_name) if len(results) > 0 else None
 
     if registered_model is not None:
@@ -44,7 +44,7 @@ def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
             experiment_ids=[experiment.experiment_id],
             # Filter string syntax reference:
             # https://mlflow.org/docs/latest/search-runs.html
-            filter_string=f'attributes.run_id = {current_best_model.run_id}'
+            filter_string=f"attributes.run_id = '{current_best_model.run_id}'"
         )[0]
 
         best_val_train = current_best_run.data.metrics[TRAIN_METRIC_KEY]
