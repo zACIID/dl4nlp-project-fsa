@@ -357,7 +357,9 @@ class FineTunedFinBERT(L.LightningModule):
         scheduler = OneCycleLR(
             optimizer,
             max_lr=self.hparams.one_cycle_max_lr,
-            total_steps=self.trainer.estimated_stepping_batches,
+            # I want the scheduler to act on just the first fraction of the learning epochs,
+            #   so that the last ones are done with a low LR
+            total_steps=self.trainer.estimated_stepping_batches // 4,
             pct_start=self.hparams.one_cycle_pct_start
         )
 
