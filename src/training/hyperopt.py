@@ -201,9 +201,9 @@ def tune(
         "one_cycle_max_lr": hp.loguniform(
             "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
         ),
-        # "one_cycle_pct_start": hp.uniform(
-        #     "one_cycle_pct_start", one_cycle_pct_start_min, one_cycle_pct_start_max
-        # ), # TDOO debug
+        "one_cycle_pct_start": hp.uniform(
+            "one_cycle_pct_start", one_cycle_pct_start_min, one_cycle_pct_start_max
+        ),
         "weight_decay": hp.loguniform(
             "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
         ),
