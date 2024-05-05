@@ -3,8 +3,8 @@ import typing
 
 from lightning import LightningModule, LightningDataModule
 
-import data.fine_tuned_finbert.data_modules as ft_dm
-from models.fine_tuned_finbert import FineTunedFinBERT
+import fine_tuned_finbert.datasets.data_modules as ft_dm
+from fine_tuned_finbert.models.fine_tuned_finbert import FineTunedFinBERT
 
 
 class Dataset(enum.StrEnum):
