@@ -21,7 +21,7 @@ class Semeval2017TrainVal(L.LightningDataModule):
             with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
-            num_workers: int = 0,
+            num_workers: int = 4,
             rnd_seed: int = RND_SEED,
             **kwargs,
     ):

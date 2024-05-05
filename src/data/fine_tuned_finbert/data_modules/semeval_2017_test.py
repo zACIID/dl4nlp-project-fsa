@@ -16,7 +16,7 @@ class SemEval2017Test(L.LightningDataModule):
             test_batch_size: int = 32,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
-            num_workers: int = 0,
+            num_workers: int = 4,
             rnd_seed: int = RND_SEED,
             **kwargs,
     ):
