@@ -1,4 +1,5 @@
 import typing
+import warnings
 from typing import Any, Mapping
 
 import lightning as L
@@ -136,6 +137,12 @@ class FineTunedFinBERT(L.LightningModule):
     def forward(self, **inputs) -> SequenceClassifierOutput:
         return self.model(**inputs)
 
+    def predict(self, **inputs) -> torch.Tensor:
+        self.eval()  # Call this explicitly because this is external to PytorchLightning
+        with torch.no_grad():
+            output = self.forward(**inputs)
+            return self._to_sentiment_score(output)
+
     def _to_sentiment_score(self, output: SequenceClassifierOutput) -> torch.Tensor:
         # NOTE:
         # Classes are { 0: bearish, 1: neutral, 2: bullish } for the
@@ -224,9 +231,11 @@ class FineTunedFinBERT(L.LightningModule):
         return temp_layer
 
     def predict_step(self, *args: Any, **kwargs: Any) -> Any:
-        # TODO might want to override this for example to return the sentiment score
-        # This function is called during Trainer.predict()
-        super().predict_step(args, kwargs)
+        if len(args) > 0:
+            warnings.warn(f"Args are ignored by {self.__class__.__name__}, "
+                          f"make sure to pass a pre-trained-BERT-compatible dictionary")
+
+        return self.predict(**kwargs)
 
     def training_step(
             self,
