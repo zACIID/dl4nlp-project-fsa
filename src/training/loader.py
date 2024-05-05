@@ -28,7 +28,7 @@ def get_model_and_data_module(
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
     match model_choice:
         case Model.FINBERT:
-            return _handle_finbert(model_init_args, dataset_choice, dm_init_args)
+            return load_finbert_model_and_data_module(model_init_args, dataset_choice, dm_init_args)
         case Model.HAND_ENG_MLP:
             raise NotImplementedError()  # TODO implement same function as above
         case Model.END_TO_END:
@@ -37,7 +37,7 @@ def get_model_and_data_module(
             raise ValueError(f'Unknown model {model_choice}')
 
 
-def _handle_finbert(
+def load_finbert_model_and_data_module(
         model_init_args: typing.Dict[str, typing.Any],
         dataset_choice: Dataset,
         dm_init_args: typing.Dict[str, typing.Any]
