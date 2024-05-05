@@ -15,7 +15,9 @@ BEST_FULL_TRAINED_MODEL_ALIAS = 'champion'
 BEST_TUNED_MODEL_ALIAS = 'tuning-champion'
 """Used for best model produced by hparam tuning"""
 
-EVALUATION_EXPERIMENT_NAME = 'Evaluation'
+EVALUATION_EXPERIMENT_NAME_PREFIX = 'Evaluation'
+HYPEROPT_EXPERIMENT_NAME_PREFIX = 'Hyperopt'
+FULL_TRAINING_EXPERIMENT_NAME_PREFIX = 'FullTraining'
 
 
 def get_experiment_name_prefix():

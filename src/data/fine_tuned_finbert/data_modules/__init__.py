@@ -1,5 +1,5 @@
 from .stocktwits_crypto_train_val import StocktwitsCryptoTrainVal
 from .stocktwits_crypto_train_semeval_2017_val import StocktwitsCryptoTrainSemEval2017Val
-from .semeval_2017_test import SemEval2017Test
+from .semeval_2017_train import Semeval2017Train
 from .semeval_2017_train_val import Semeval2017TrainVal
 from .semeval_2017_test import Semeval2017Test

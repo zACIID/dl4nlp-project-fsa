@@ -10,6 +10,7 @@ from models.fine_tuned_finbert import FineTunedFinBERT
 class Dataset(enum.StrEnum):
     SC_TRAIN_VAL = 'SC_TRAIN_VAL'
     SC_TRAIN_SEMEVAL_VAL = 'SC_TRAIN_SEMEVAL_VAL'
+    SEMEVAL_TRAIN = 'SEMEVAL_TRAIN'
     SEMEVAL_TRAIN_VAL = 'SEMEVAL_TRAIN_VAL'
     SEMEVAL_TEST = 'SEMEVAL_TEST'
 
@@ -48,6 +49,8 @@ def load_finbert_model_and_data_module(
             return model, ft_dm.StocktwitsCryptoTrainVal(**dm_init_args)
         case Dataset.SC_TRAIN_SEMEVAL_VAL:
             return model, ft_dm.StocktwitsCryptoTrainSemEval2017Val(**dm_init_args)
+        case Dataset.SEMEVAL_TRAIN:
+            return model, ft_dm.Semeval2017Train(**dm_init_args)
         case Dataset.SEMEVAL_TRAIN_VAL:
             return model, ft_dm.Semeval2017TrainVal(**dm_init_args)
         case Dataset.SEMEVAL_TEST:

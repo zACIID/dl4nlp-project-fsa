@@ -16,7 +16,7 @@ from utils.random import RND_SEED
 
 # NOTE: these defaults are for debug purposes
 @click.command(
-    help="Fine-tune FinBERT model"
+    help="Main training loop - model and dataset are specified via environment variables.",
 )
 @click.option("--with-neutral-samples", default='false', type=click.STRING)
 @click.option("--train-batch-size", default=32, type=click.INT)

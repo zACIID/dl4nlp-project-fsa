@@ -1,6 +1,5 @@
 import datetime
 import logging
-import os
 
 import click
 import lightning as L
@@ -11,17 +10,17 @@ from lightning.pytorch.profilers import SimpleProfiler
 
 import training.loader as loader
 import utils.mlflow_env as env
-from utils.io import PROJECT_ROOT, ARTIFACTS_DIR
+from utils.io import ARTIFACTS_DIR
 from utils.random import RND_SEED
 
 
 # NOTE: these defaults are for debug purposes
 @click.command(
-    help=f"Fine-tune model already trained on the {loader.Dataset.SC_TRAIN_SEMEVAL_VAL} dataset"
+    help=f"Train a specified model (by name, alias) on the full SemEval 2017 Task 5 SubTask 1 training dataset"
 )
+@click.option("--model-name", default=env.get_registered_model_name(loader.Model.FINBERT), type=click.STRING)
+@click.option("--model-alias", default=env.BEST_TUNED_MODEL_ALIAS, type=click.STRING)
 @click.option("--train-batch-size", default=16, type=click.INT)
-@click.option("--eval-batch-size", default=16, type=click.INT)
-@click.option("--train-split-size", default=0.9, type=click.FLOAT)
 @click.option("--prefetch-factor", default=16, type=click.INT)
 @click.option("--num-workers", default=8, type=click.INT)
 @click.option("--max-epochs", default=150, type=click.INT)
@@ -33,8 +32,9 @@ from utils.random import RND_SEED
 @click.option("--ckpt-monitor", default='val_loss', type=click.STRING)
 @click.option("--ckpt-save-top-k", default=1, type=click.INT)
 def train(
+        model_name,
+        model_alias,
         train_batch_size,
-        eval_batch_size,
         train_split_size,
         prefetch_factor,
         num_workers,
@@ -65,33 +65,27 @@ def train(
 
     with mlflow.start_run(
         log_system_metrics=True,
-        run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}-2nd-order-fine-tuning",
+        run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}-full-training",
         tags=env.get_run_tags()
     ) as run:
         L.seed_everything(RND_SEED)
-
-        dataset_choice = loader.Dataset.SEMEVAL_TRAIN_VAL
-
         function_call_kwargs['rnd_seed'] = RND_SEED
+
+        semeval_train_dataset = loader.Dataset.SEMEVAL_TRAIN
         virgin_model, data_module = loader.get_model_and_data_module(
             model_choice=env.get_model_choice(),
-            dataset_choice=dataset_choice,
+            dataset_choice=semeval_train_dataset,
             model_init_args={},  # ignored because the real model is instantiated later
             dm_init_args=function_call_kwargs
         )
-
-        # Even if there are two SC_TRAIN_* datasets, I am using just the one that uses the SEMEVAL_VAL
-        #   because its loss is more interpretable in terms of likelihood of performing well with SEMEVAL_TRAIN_VAL
-        model_name = env.get_registered_model_name(env.get_model_choice())
-        alias = env.get_dataset_specific_best_model_alias(dataset=loader.Dataset.SC_TRAIN_SEMEVAL_VAL, tuning=True)
 
         # If this fails then ok, a model must be trained on the above dataset
         #   for this 2nd order fine-tuning to make sense
         version = client.get_model_version_by_alias(
             name=model_name,
-            alias=alias
+            alias=model_alias
         )
-        logging.info(f"Found version for alias '{alias}': {version.version}")
+        logging.info(f"Found version for alias '{model_alias}': {version.version}")
 
         best_model = mlflow.pytorch.load_checkpoint(
             virgin_model.__class__,

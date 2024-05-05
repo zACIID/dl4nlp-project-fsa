@@ -23,7 +23,7 @@ entry_points:
       algo: {type: string, default: "tpe.suggest"} # anything different results in usage of `rand.suggest`
       # maximum number of hyperopt runs to find the best hparams
       # Rule of thumb apparently is 10-20x #hyperparameters
-      max_runs: {type: float, default: 75}
+      max_runs: {type: float, default: 50}
 
       #== FinBERT hparams
       one_cycle_max_lr_min: {type: float, default: 8e-5}
@@ -134,17 +134,18 @@ entry_points:
                --ckpt-monitor {ckpt_monitor} \
                --ckpt-save-top-k {ckpt_save_top_k} \
                "
-  second_order_fine_tuning:
+  semeval_full_training:
     parameters:
       # path to the python executable in the project's poetry env (i.e. inside .venv folder)
       poetry_env:
         type: string
         default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
 
+      model_name: {type: string, default: "best-FINBERT"}
+      model_alias: {type: string, default: "tuning-champion"}
+
       #== Data module hparams
       train_batch_size: {type: float, default: 32}
-      eval_batch_size: {type: float, default: 32}
-      train_split_size: {type: float, default: 0.9}
       prefetch_factor: {type: float, default: 16}
       num_workers: {type: float, default: 8}
 
@@ -163,10 +164,10 @@ entry_points:
       ckpt_monitor: {type: string, default: "val_loss"} # this is the key of a value that is manually logged inside the LightningModule
       ckpt_save_top_k: {type: float, default: 1}
     command: "poetry env use {poetry_env} \
-            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/second_order_fine_tuning.py \
+            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/semeval_full_training.py \
+               --model-name {model_name} \
+               --model-alias {model_alias} \
                --train-batch-size {train_batch_size} \
-               --eval-batch-size {eval_batch_size} \
-               --train-split-size {train_split_size} \
                --prefetch-factor {prefetch_factor} \
                --num-workers {num_workers} \
                --max-epochs {max_epochs} \
