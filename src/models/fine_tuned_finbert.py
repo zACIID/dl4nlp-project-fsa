@@ -7,9 +7,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import (
-    BertForSequenceClassification, AutoModelForSequenceClassification,
+    AutoModelForSequenceClassification
 )
-from transformers.modeling_outputs import MaskedLMOutput
+from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.tokenization_utils_base import BatchEncoding
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
@@ -18,8 +18,11 @@ import models.modules.lora as lora
 import models.loss_functions as loss_functions
 
 
+# fucking shit models
 # PRE_TRAINED_MODEL_PATH = "ahmedrachid/FinancialBERT-Sentiment-Analysis" # TODO trying to change
-PRE_TRAINED_MODEL_PATH = "ipuneetrathore/bert-base-cased-finetuned-finBERT"
+# PRE_TRAINED_MODEL_PATH = "ipuneetrathore/bert-base-cased-finetuned-finBERT"
+
+PRE_TRAINED_MODEL_PATH = "ProsusAI/finbert"
 
 
 # Initial reference:
@@ -130,8 +133,25 @@ class FineTunedFinBERT(L.LightningModule):
         for param in self.model.parameters():
             param.requires_grad = False
 
-    def forward(self, **inputs) -> MaskedLMOutput:
+    def forward(self, **inputs) -> SequenceClassifierOutput:
         return self.model(**inputs)
+
+    def _to_sentiment_score(self, output: SequenceClassifierOutput) -> torch.Tensor:
+        # NOTE:
+        # Classes are { 0: bearish, 1: neutral, 2: bullish } for the
+        #   ahmedrachid/FinancialBERT-Sentiment-Analysis model
+        # Classes are { 0: positive, 1: negative, 2: neutral } for the
+        #   ProsusAI/finbert model
+
+        # Transpose because it is a batch of 3-elements tensors
+        probabilities = F.softmax(output.logits, dim=1).T
+        # bearish_prob, bullish_prob = probabilities[0], probabilities[2] # TODO for ahmedrachid
+        bearish_prob, bullish_prob = probabilities[1], probabilities[0]
+
+        # This is also how ProsusAI/finbert predicts sentiment score:
+        #   positive prob - negative prob, and then it uses MSE loss
+        pred_sentiment_score = bullish_prob - bearish_prob
+        return pred_sentiment_score
 
     def _setup_lora_layers(
             self,
@@ -240,17 +260,10 @@ class FineTunedFinBERT(L.LightningModule):
             step_type: str = None
     ) -> torch.Tensor:
         tokenizer_output, sentiment_score = batch
-        outputs: MaskedLMOutput = self(**tokenizer_output)
 
-        # Classes are { 0: bearish, 1: neutral, 2: bullish } for the
-        #   ahmedrachid/FinancialBERT-Sentiment-Analysis model
-        # Transpose because it is a batch of 3-elements tensors
-        probabilities = F.softmax(outputs.logits, dim=1).T
-        bearish_prob, bullish_prob = probabilities[0], probabilities[2]
+        outputs = self.forward(**tokenizer_output)
+        pred_sentiment_score = self._to_sentiment_score(outputs)
 
-        # This is also how ProsusAI/finbert predicts sentiment score:
-        #   positive prob - negative prob, and then it uses MSE loss
-        pred_sentiment_score = bullish_prob - bearish_prob
         mse = F.mse_loss(sentiment_score, pred_sentiment_score)
         mae = F.l1_loss(sentiment_score, pred_sentiment_score)
         is_sign_correct = torch.sum(
@@ -262,12 +275,16 @@ class FineTunedFinBERT(L.LightningModule):
             self._val_predictions.append(pred_sentiment_score)
             self._val_targets.append(batch[1])
 
-        self.log_dict( # TODO log_dict currently broken
+        self.log_dict(
             dictionary={
                 f"{step_type}_loss": loss,
                 f"{step_type}_mse": mse,
                 f"{step_type}_mae": mae,
                 f"{step_type}_sign_accuracy": is_sign_correct,
+                f"{step_type}_positive_predictions": loss_functions.sign_accuracy_mask(
+                    torch.ones(sentiment_score.shape, device=self.device), pred_sentiment_score
+                ).sum() / len(sentiment_score),
+                f"{step_type}_mean_prediction": pred_sentiment_score.mean(),
             },
             on_step=False,
             on_epoch=True,
