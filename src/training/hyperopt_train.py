@@ -16,6 +16,7 @@ from hyperopt.pyll import scope
 import mlflow.projects
 from mlflow import ActiveRun
 from mlflow.entities import RunStatus, Experiment
+from mlflow.entities.model_registry import ModelVersion
 from mlflow.tracking import MlflowClient
 
 import utils.io as io_
@@ -30,41 +31,61 @@ VAL_METRIC_KEY = 'val_loss'
 TRAIN_METRIC_KEY = 'train_loss'
 
 
-def _update_best_model(experiment: Experiment, parent_run: ActiveRun):
+def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
     # find the best run, log its metrics as the final metrics of this run
     client = MlflowClient()
+
+    model_name = env.get_registered_model_name(env.get_model_choice())
+    results = client.search_registered_models(filter_string=f'name = {model_name}')
+    registered_model = client.get_registered_model(model_name) if len(results) > 0 else None
+
+    if registered_model is not None:
+        current_best_model: ModelVersion = registered_model.latest_versions[-1]
+        current_best_run = client.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            # Filter string syntax reference:
+            # https://mlflow.org/docs/latest/search-runs.html
+            filter_string=f'attributes.run_id = {current_best_model.run_id}'
+        )[0]
+
+        best_val_train = current_best_run.data.metrics[TRAIN_METRIC_KEY]
+        best_val_valid = current_best_run.data.metrics[VAL_METRIC_KEY]
+    else:
+        best_val_train = _inf
+        best_val_valid = _inf
+
     runs = client.search_runs(
-        [experiment.experiment_id], f"tags.mlflow.parentRunId = '{parent_run.info.run_id}' "
+        [experiment.experiment_id], f"attributes.run_id = '{eval_run.info.run_id}' "
     )
-    best_val_train = _inf
-    best_val_valid = _inf
     best_run = None
     for r in runs:
-        metric_key = VAL_METRIC_KEY
-        if r.data.metrics.__contains__(metric_key) and r.data.metrics[metric_key] < best_val_valid:
+        if r.data.metrics.__contains__(VAL_METRIC_KEY) and r.data.metrics[VAL_METRIC_KEY] < best_val_valid:
             best_run = r
             best_val_train = r.data.metrics[TRAIN_METRIC_KEY]
             best_val_valid = r.data.metrics[VAL_METRIC_KEY]
 
     if best_run is not None:
-        mlflow.set_tag("Best Run", best_run.info.run_id)
+        mlflow.set_tag("best_run", best_run.info.run_id)
         mlflow.log_metrics({
             TRAIN_METRIC_KEY: best_val_train,
             VAL_METRIC_KEY: best_val_valid,
         })
 
-        for k, v in metrics.items():
-            mlflow.log_metric(
-                key=k,
-                value=v,
-                step=len(runs),
-                run_id=parent_run.info.run_id
-            )
+        # Add (overwrite) best model to registry
+        version = mlflow.register_model(
+            model_uri=f"runs:/{best_run.info.run_id}/artifacts/model",
+            name=model_name,
+            tags=env.get_run_tags()
+        )
+        client.set_registered_model_alias(
+            name=model_name,
+            alias=env.BEST_REGISTERED_MODEL_ALIAS,
+            version=version.version
+        )
 
 
 def new_eval(
         experiment: Experiment,
-        parent_run: ActiveRun,
         max_epochs,
         limit_batches,
         with_neutral_samples: str,
@@ -109,7 +130,7 @@ def new_eval(
             val_loss = np.nan
             status = hyperopt.STATUS_FAIL
 
-        _update_best_model(experiment, parent_run)
+        _update_best_model(experiment, eval_run=eval_run)
 
         # Check here to see what should be returned:
         # https://hyperopt.github.io/hyperopt/getting-started/minimizing_functions/#attaching-extra-information-via-the-trials-object
@@ -214,7 +235,6 @@ def tune(
             fn=new_eval(
                 fail_on_error=fail_on_error != "false",
                 experiment=experiment,
-                parent_run=run,
                 max_epochs=max_epochs,
                 limit_batches=limit_batches,
                 with_neutral_samples=with_neutral_samples
