@@ -135,4 +135,46 @@ entry_points:
                --ckpt-monitor {ckpt_monitor} \
                --ckpt-save-top-k {ckpt_save_top_k} \
                "
+  second_order_fine_tuning:
+    parameters:
+      # path to the python executable in the project's poetry env (i.e. inside .venv folder)
+      poetry_env:
+        type: string
+        default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
 
+      #== Data module hparams
+      train_batch_size: {type: float, default: 32}
+      eval_batch_size: {type: float, default: 32}
+      train_split_size: {type: float, default: 0.9}
+      prefetch_factor: {type: float, default: 16}
+      num_workers: {type: float, default: 8}
+
+      #== Lightning Trainer hparams
+      max_epochs: {type: float, default: 150} # pass -1 for infinite epochs, useful when combined with early stopping
+      # Optimizer.step is executed every batch_size X acc_grad_batches,
+      #   meaning that this number is effectively a multiplier of batch size
+      accumulate_grad_batches: {type: float, default: 4}
+
+      #== EarlyStopping hparams
+      es_monitor: {type: string, default: "val_loss"} # this is the key of a value that is manually logged inside the LightningModule
+      es_min_delta: {type: float, default: 0.001}
+      es_patience: {type: float, default: 20} # if loss improvement < min_delta after this number of epochs, training stops
+
+      #== ModelCheckpoint hparams
+      ckpt_monitor: {type: string, default: "val_loss"} # this is the key of a value that is manually logged inside the LightningModule
+      ckpt_save_top_k: {type: float, default: 1}
+    command: "poetry env use {poetry_env} \
+            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/second_order_fine_tuning.py \
+               --train-batch-size {train_batch_size} \
+               --eval-batch-size {eval_batch_size} \
+               --train-split-size {train_split_size} \
+               --prefetch-factor {prefetch_factor} \
+               --num-workers {num_workers} \
+               --max-epochs {max_epochs} \
+               --accumulate-grad-batches {accumulate_grad_batches} \
+               --es-monitor {es_monitor} \
+               --es-min-delta {es_min_delta} \
+               --es-patience {es_patience} \
+               --ckpt-monitor {ckpt_monitor} \
+               --ckpt-save-top-k {ckpt_save_top_k} \
+               "
