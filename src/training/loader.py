@@ -51,6 +51,6 @@ def load_finbert_model_and_data_module(
         case Dataset.SEMEVAL_TRAIN_VAL:
             return model, ft_dm.Semeval2017TrainVal(**dm_init_args)
         case Dataset.SEMEVAL_TEST:
-            return model, ft_dm.SemEval2017Test(**dm_init_args)
+            return model, ft_dm.Semeval2017Test(**dm_init_args)
         case _:
             raise ValueError(f'Unknown dataset {dataset_choice}')

@@ -10,7 +10,7 @@ from utils.random import RND_SEED
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
-class SemEval2017Test(L.LightningDataModule):
+class Semeval2017Test(L.LightningDataModule):
     def __init__(
             self,
             test_batch_size: int = 32,

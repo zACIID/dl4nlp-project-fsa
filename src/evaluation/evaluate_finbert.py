@@ -80,7 +80,7 @@ def _main():
     #     eval_fn=eval_fn, greater_is_better=False, name="valid_python_code", version="v1"
     # )
 
-    test_dataset: datasets.Dataset = SemEval2017Test().dataset
+    test_dataset: datasets.Dataset = Semeval2017Test().dataset
     pandas_df = test_dataset.to_pandas()
 
     evaluate_results = mlflow.evaluate(
