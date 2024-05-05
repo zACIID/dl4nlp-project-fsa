@@ -359,7 +359,9 @@ class FineTunedFinBERT(L.LightningModule):
             max_lr=self.hparams.one_cycle_max_lr,
             # I want the scheduler to act on just the first fraction of the learning epochs,
             #   so that the last ones are done with a low LR
-            total_steps=self.trainer.estimated_stepping_batches // 4,
+            # TODO cannot do this as step is still called after the limit is reached - solution I can think of is to manually call step,
+            #   but it's a pain in the ass to manually implement the use of optimziers I think
+            total_steps=self.trainer.estimated_stepping_batches,
             pct_start=self.hparams.one_cycle_pct_start
         )
 
