@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 import datasets
@@ -16,19 +17,25 @@ import data.fine_tuned_finbert.preprocessing_base as ppb
 import models.fine_tuned_finbert as ft
 import training.loader as loader
 import utils.mlflow_env as env
-from data.fine_tuned_finbert.data_modules import SemEval2017Test
+from data.fine_tuned_finbert.data_modules import Semeval2017Test
 from utils.random import RND_SEED
 
 
 def _main():
     # shap.initjs() Needed only in notebook environment
 
-    # pytorch_logger = logging.getLogger("lightning.pytorch")
-    # pytorch_logger.setLevel(logging.DEBUG)
+    pytorch_logger = logging.getLogger("lightning.pytorch")
+    pytorch_logger.setLevel(logging.INFO)
 
     model_name = env.get_registered_model_name(loader.Model.FINBERT)
+    # alias = env.BEST_TUNED_MODEL_ALIAS
+    alias = env.BEST_FULL_TRAINED_MODEL_ALIAS
     client = mlflow.tracking.MlflowClient()
-    best_version: ModelVersion = client.get_model_version_by_alias(name=model_name, alias=env.BEST_FULL_TRAINED_MODEL_ALIAS)
+    best_version: ModelVersion = client.get_model_version_by_alias(name=model_name, alias=alias)
+
+    mlflow.set_tag(key='model_name', value=model_name)
+    mlflow.set_tag(key='model_alias', value=alias)
+    mlflow.set_tag(key='model_version', value=best_version.version)
 
     model: lightning.LightningModule = mlflow.pytorch.load_checkpoint(
         ft.FineTunedFinBERT, best_version.run_id,
@@ -201,7 +208,7 @@ def _main():
 
 if __name__ == '__main__':
     mlflow.set_tracking_uri(env.MLFLOW_TRACKING_URI)
-    mlflow.set_experiment(env.EVALUATION_EXPERIMENT_NAME)
+    mlflow.set_experiment(env.EVALUATION_EXPERIMENT_NAME_PREFIX)
     with mlflow.start_run(
             log_system_metrics=True,
             run_name=f"{datetime.now().isoformat(timespec='seconds')}-{loader.Model.FINBERT}-evaluation"
