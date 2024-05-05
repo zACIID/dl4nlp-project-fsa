@@ -2,6 +2,7 @@ import typing
 from typing import Any, Mapping
 
 import lightning as L
+import mlflow
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -47,6 +48,7 @@ class FineTunedFinBERT(L.LightningModule):
             update_bias: bool = True,
             C: float = 1.0,
             one_cycle_pct_start: float = 0.3,
+            log_hparams: bool = True,
             **kwargs,
     ):
         """
@@ -77,7 +79,14 @@ class FineTunedFinBERT(L.LightningModule):
 
         # NOTE: this call saves all the parameters passed to __init__ into self.hparams
         #   For this reason, do not delete the parameters even if they seem unused
-        self.save_hyperparameters(logger=True)
+        self.save_hyperparameters()
+
+        # NOTE: need to manually call log_params here because mlflow.pytorch.autolog() doesn't log them
+        #   and I am not using MLflowLogger because it apparently duplicates logging when autolog() is active
+        # NOTE2: synchronous false because this hangs if log_params has already been called for the current run
+        #   I would like it to fail silently instead of blocking my training until it reaches the timeout
+        if log_hparams:
+            mlflow.log_params(self.hparams, synchronous=False)
 
         # self.model: BertForSequenceClassification = BertForSequenceClassification.from_pretrained(
         #     PRE_TRAINED_MODEL_PATH,

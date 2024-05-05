@@ -8,14 +8,14 @@ import os
 import typing
 
 import click
-import dotenv
 import numpy as np
 import hyperopt
 from hyperopt import fmin, hp, rand, tpe, Trials
 from hyperopt.pyll import scope
 
 import mlflow.projects
-from mlflow.entities import RunStatus
+from mlflow import ActiveRun
+from mlflow.entities import RunStatus, Experiment
 from mlflow.tracking import MlflowClient
 
 import utils.io as io_
@@ -30,11 +30,11 @@ VAL_METRIC_KEY = 'val_loss'
 TRAIN_METRIC_KEY = 'train_loss'
 
 
-def _update_best_metrics(experiment_id, parent_run):
+def _update_best_model(experiment: Experiment, parent_run: ActiveRun):
     # find the best run, log its metrics as the final metrics of this run
     client = MlflowClient()
     runs = client.search_runs(
-        [experiment_id], f"tags.mlflow.parentRunId = '{parent_run.info.run_id}' "
+        [experiment.experiment_id], f"tags.mlflow.parentRunId = '{parent_run.info.run_id}' "
     )
     best_val_train = _inf
     best_val_valid = _inf
@@ -48,10 +48,10 @@ def _update_best_metrics(experiment_id, parent_run):
 
     if best_run is not None:
         mlflow.set_tag("Best Run", best_run.info.run_id)
-        metrics = {
+        mlflow.log_metrics({
             TRAIN_METRIC_KEY: best_val_train,
             VAL_METRIC_KEY: best_val_valid,
-        }
+        })
 
         for k, v in metrics.items():
             mlflow.log_metric(
@@ -63,8 +63,8 @@ def _update_best_metrics(experiment_id, parent_run):
 
 
 def new_eval(
-        experiment_id,
-        parent_run,
+        experiment: Experiment,
+        parent_run: ActiveRun,
         max_epochs,
         limit_batches,
         with_neutral_samples: str,
@@ -91,7 +91,7 @@ def new_eval(
                 # The entry point needs the equivalent of the --env-manager=local CLI flag
                 #   to use the poetry env of this project
                 env_manager="local",
-                experiment_id=experiment_id,
+                experiment_id=experiment.experiment_id,
                 synchronous=fail_on_error,  # If False, the run fails without crashing the current process (script)
             )
             succeeded = p.wait()
@@ -108,7 +108,7 @@ def new_eval(
             val_loss = np.nan
             status = hyperopt.STATUS_FAIL
 
-        _update_best_metrics(experiment_id, parent_run)
+        _update_best_model(experiment, parent_run)
 
         # Check here to see what should be returned:
         # https://hyperopt.github.io/hyperopt/getting-started/minimizing_functions/#attaching-extra-information-via-the-trials-object
@@ -181,15 +181,16 @@ def train(
         "one_cycle_max_lr": hp.loguniform(
             "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
         ),
-        "one_cycle_pct_start": hp.uniform(
-            "one_cycle_pct_start", one_cycle_pct_start_min, one_cycle_pct_start_max
-        ),
+        # "one_cycle_pct_start": hp.uniform(
+        #     "one_cycle_pct_start", one_cycle_pct_start_min, one_cycle_pct_start_max
+        # ), # TDOO debug
         "weight_decay": hp.loguniform(
             "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
         ),
         "lora_rank": scope.int(hp.quniform("lora_rank", lora_rank_min, lora_rank_max, 1)),
         "lora_alpha": hp.uniform("lora_alpha", lora_alpha_min, lora_alpha_max),
-        "C": hp.uniform("C", C_min, C_max),
+        "lora_dropout": hp.uniform("lora_dropout", lora_dropout_min, lora_dropout_max),
+        # "C": hp.uniform("C", C_min, C_max), # TODO debug
         "accumulate_grad_batches": scope.int(hp.quniform(
             "accumulate_grad_batches", accumulate_grad_batches_min, accumulate_grad_batches_max, 1
         )),
@@ -197,10 +198,10 @@ def train(
 
     mlflow.set_tracking_uri(uri=os.environ["MLFLOW_TRACKING_URI"])
     with mlflow.start_run(
-        log_system_metrics=True,
-        run_name=f"{datetime.date.today().isoformat()}",
+            log_system_metrics=True,
+            run_name=f"{datetime.date.today().isoformat()}",
     ) as run:
-        experiment_id = run.info.experiment_id
+        experiment = mlflow.get_experiment(run.info.experiment_id)
 
         # TODO this is not used atm but I could use it to extract additional info
         trials = Trials()
@@ -208,9 +209,9 @@ def train(
         best = fmin(
             fn=new_eval(
                 fail_on_error=fail_on_error != "false",
-                experiment_id=experiment_id,
+                experiment=experiment,
                 parent_run=run,
-                max_epochs=max_epochs, 
+                max_epochs=max_epochs,
                 limit_batches=limit_batches,
                 with_neutral_samples=with_neutral_samples
             ),
