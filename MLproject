@@ -16,10 +16,6 @@ entry_points:
 
       fail_on_error: {type: string, default: "true"} # anything different from "false" allows train run to fail without blocking the main hyperopt loop
 
-      # Check src/training/loader.py for the possible values
-      model_choice: { type: string, default: "FINBERT" }
-      dataset_choice: { type: string, default: "SEMEVAL_TRAIN_VAL" }
-
       #== Stocktwits-crypto specific
       with_neutral_samples: { type: string, default: "true" } # anything different from 'true' will result in a False boolean value
 
@@ -50,8 +46,6 @@ entry_points:
       limit_batches: {type: float, default: 1.0}
     command: "poetry env use {poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt_train.py \
-               --model-choice {model_choice} \
-               --dataset-choice {dataset_choice} \
                --with-neutral-samples {with_neutral_samples} \
                --algo {algo} \
                --max-runs {max_runs} \
@@ -79,10 +73,6 @@ entry_points:
       poetry_env:
         type: string
         default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
-
-      # Check src/training/loader.py for the possible values
-      model_choice: {type: string, default: 'FINBERT'}
-      dataset_choice: {type: string, default: 'SC_TRAIN_SEMEVAL_VAL'}
 
       #== Data module hparams
       train_batch_size: {type: float, default: 32}
@@ -123,8 +113,6 @@ entry_points:
       ckpt_save_top_k: {type: float, default: 1}
     command: "poetry env use {poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/train.py \
-               --model-choice {model_choice} \
-               --dataset-choice {dataset_choice} \
                --with-neutral-samples {with_neutral_samples} \
                --train-batch-size {train_batch_size} \
                --eval-batch-size {eval_batch_size} \

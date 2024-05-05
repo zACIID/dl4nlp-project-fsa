@@ -19,9 +19,7 @@ from mlflow.entities import RunStatus
 from mlflow.tracking import MlflowClient
 
 import utils.io as io_
-import training.loader as loader
-
-dotenv.load_dotenv(str(io_.PROJECT_ROOT / 'mlflow.env'))
+import utils.mlflow_env as env
 
 _inf = np.finfo(np.float64).max
 
@@ -69,8 +67,6 @@ def new_eval(
         parent_run,
         max_epochs,
         limit_batches,
-        model_choice,
-        dataset_choice,
         with_neutral_samples: str,
         fail_on_error: bool):
     def eval(params: typing.Dict[str, typing.Any]):
@@ -80,8 +76,6 @@ def new_eval(
         #   need to be passed to the training run
         params["max_epochs"] = max_epochs
         params["limit_batches"] = limit_batches
-        params["model_choice"] = model_choice
-        params["dataset_choice"] = dataset_choice
         params["with_neutral_samples"] = with_neutral_samples
 
         with mlflow.start_run(
@@ -129,8 +123,6 @@ def new_eval(
 @click.command(
     help="Perform hyperparameter search with Hyperopt library"
 )
-@click.option("--model-choice", default=loader.Model.FINBERT.value, type=click.STRING)
-@click.option("--dataset-choice", default=loader.Dataset.SEMEVAL_TRAIN_VAL.value, type=click.STRING)
 @click.option("--with-neutral-samples", default="false", type=click.STRING)
 @click.option("--algo", default='tpe.suggest', type=click.STRING)
 @click.option("--max-runs", default=10, type=click.INT)
@@ -152,8 +144,6 @@ def new_eval(
 @click.option("--limit-batches", default=0.001, type=click.FLOAT)
 @click.option("--fail-on-error", default='true', type=click.STRING)
 def train(
-        model_choice,
-        dataset_choice,
         with_neutral_samples,
         algo,
         max_runs,
@@ -218,8 +208,6 @@ def train(
                 parent_run=run,
                 max_epochs=max_epochs, 
                 limit_batches=limit_batches,
-                model_choice=model_choice,
-                dataset_choice=dataset_choice,
                 with_neutral_samples=with_neutral_samples
             ),
             space=space,

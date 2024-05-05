@@ -3,7 +3,6 @@ import logging
 import os
 
 import click
-import dotenv
 import lightning as L
 import lightning.pytorch.callbacks as cb
 import mlflow
@@ -12,6 +11,7 @@ from lightning.pytorch.loggers import MLFlowLogger
 from lightning.pytorch.profilers import SimpleProfiler
 
 import training.loader as loader
+import utils.mlflow_env as env
 from utils.io import PROJECT_ROOT
 from utils.random import RND_SEED
 
@@ -20,9 +20,7 @@ from utils.random import RND_SEED
 @click.command(
     help="Fine-tune FinBERT model"
 )
-@click.option("--model-choice", default=loader.Model.FINBERT.value, type=click.STRING)
-@click.option("--dataset-choice", default=loader.Dataset.SEMEVAL_TRAIN_VAL.value, type=click.STRING)
-@click.option("--with-neutral-samples", default='true', type=click.STRING)
+@click.option("--with-neutral-samples", default='false', type=click.STRING)
 @click.option("--train-batch-size", default=32, type=click.INT)
 @click.option("--eval-batch-size", default=16, type=click.INT)
 @click.option("--train-split-size", default=0.8, type=click.FLOAT)
@@ -43,8 +41,6 @@ from utils.random import RND_SEED
 @click.option("--ckpt-monitor", default='val_loss', type=click.STRING)
 @click.option("--ckpt-save-top-k", default=1, type=click.INT)
 def run(
-        model_choice,
-        dataset_choice,
         with_neutral_samples,
         train_batch_size,
         eval_batch_size,
@@ -73,15 +69,15 @@ def run(
     pytorch_logger = logging.getLogger("lightning.pytorch")
     pytorch_logger.setLevel(logging.INFO)
 
-    dotenv.load_dotenv(dotenv_path=os.path.join(PROJECT_ROOT, 'mlflow.env'))
+    if env.DATASET_CHOICE == loader.Dataset.SEMEVAL_TEST:
+        raise ValueError(f'{env.DATASET_CHOICE} is not a valid dataset choice for training/validation')
 
     model_choice: loader.Model = loader.Model(model_choice)
     dataset_choice: loader.Dataset = loader.Dataset(dataset_choice)
     if dataset_choice == loader.Dataset.SEMEVAL_TEST:
         raise ValueError(f'{dataset_choice} is not a valid dataset choice for training/validation')
 
-    mlflow.pytorch.autolog()
-    run_name_prefix = f"{model_choice}_{dataset_choice}"
+    run_name_prefix = f"{env.MODEL_CHOICE}_{env.DATASET_CHOICE}"
     with mlflow.start_run(
             log_system_metrics=True,
             run_name=f"{datetime.date.today().isoformat()}-{run_name_prefix}"
@@ -98,8 +94,8 @@ def run(
 
         function_call_kwargs['rnd_seed'] = RND_SEED
         model, data_module = loader.get_model_and_data_module(
-            model_choice=model_choice,
-            dataset_choice=dataset_choice,
+            model_choice=env.MODEL_CHOICE,
+            dataset_choice=env.DATASET_CHOICE,
             model_init_args=function_call_kwargs,
             dm_init_args=function_call_kwargs
         )
