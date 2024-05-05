@@ -20,7 +20,6 @@ from utils.random import RND_SEED
 )
 @click.option("--model-name", default=env.get_registered_model_name(loader.Model.FINBERT), type=click.STRING)
 @click.option("--model-alias", default=env.BEST_TUNED_MODEL_ALIAS, type=click.STRING)
-@click.option("--train-batch-size", default=16, type=click.INT)
 @click.option("--prefetch-factor", default=16, type=click.INT)
 @click.option("--num-workers", default=8, type=click.INT)
 @click.option("--max-epochs", default=150, type=click.INT)
@@ -34,8 +33,6 @@ from utils.random import RND_SEED
 def train(
         model_name,
         model_alias,
-        train_batch_size,
-        train_split_size,
         prefetch_factor,
         num_workers,
         max_epochs,
