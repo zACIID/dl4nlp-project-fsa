@@ -24,7 +24,6 @@ import utils.mlflow_env as env
 
 _inf = np.finfo(np.float64).max
 
-EXPERIMENT_NAME_PREFIX = 'Hyperopt'
 MLFLOW_TRAIN_ENTRYPOINT = 'train'
 
 VAL_METRIC_KEY = 'val_loss'
