@@ -25,7 +25,7 @@ def get_model_and_data_module(
         model_choice: Model,
         model_init_args: typing.Mapping[str, typing.Any],
         dataset_choice: Dataset,
-        dm_init_args: typing.Dict[str, typing.Any]
+        dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
     match model_choice:
         case Model.FINBERT:
@@ -39,9 +39,9 @@ def get_model_and_data_module(
 
 
 def load_finbert_model_and_data_module(
-        model_init_args: typing.Dict[str, typing.Any],
+        model_init_args: typing.Mapping[str, typing.Any],
         dataset_choice: Dataset,
-        dm_init_args: typing.Dict[str, typing.Any]
+        dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
     model = FineTunedFinBERT(**model_init_args)
     match dataset_choice:
