@@ -31,9 +31,9 @@ def get_model_and_data_module(
         case Model.FINBERT:
             return load_finbert_model_and_data_module(model_init_args, dataset_choice, dm_init_args)
         case Model.HAND_ENG_MLP:
-            raise NotImplementedError()  # TODO implement same function as above
+            raise NotImplementedError()  # TODO ( ͡° ͜ʖ ͡°) implement same function as above
         case Model.END_TO_END:
-            raise NotImplementedError()  # TODO implement same function as above
+            raise NotImplementedError()  # TODO ( ͡° ͜ʖ ͡°) implement same function as above
         case _:
             raise ValueError(f'Unknown model {model_choice}')
 
