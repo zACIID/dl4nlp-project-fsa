@@ -26,13 +26,13 @@ entry_points:
       max_runs: {type: float, default: 75}
 
       #== FinBERT hparams
-      one_cycle_max_lr_min: {type: float, default: 5e-5}
-      one_cycle_max_lr_max: {type: float, default: 5e-3}
+      one_cycle_max_lr_min: {type: float, default: 8e-4}
+      one_cycle_max_lr_max: {type: float, default: 5e-2}
       one_cycle_pct_start_min: {type: float, default: 0.01}
       one_cycle_pct_start_max: {type: float, default: 0.5}
       weight_decay_min: {type: float, default: 1e-5}
-      weight_decay_max: {type: float, default: 5e-3}
-      lora_rank_min: {type: float, default: 32}
+      weight_decay_max: {type: float, default: 5e-4}
+      lora_rank_min: {type: float, default: 64}
       lora_rank_max: {type: float, default: 256}
       lora_alpha_min: {type: float, default: 0.3}
       lora_alpha_max: {type: float, default: 3.5}
@@ -42,10 +42,11 @@ entry_points:
       C_max: {type: float, default: 3}
 
       #== Lightning Trainer hparams
-      max_epochs: {type: float, default: 50}
-      accumulate_grad_batches_min: {type: float, default: 2}
-      accumulate_grad_batches_max: {type: float, default: 12}
-      limit_batches: {type: float, default: 1.0}
+      max_epochs: {type: float, default: 150}
+      accumulate_grad_batches_min: {type: float, default: 8}
+      accumulate_grad_batches_max: {type: float, default: 16}
+      limit_batches: {type: float, default: 0.005}
+#      limit_batches: {type: float, default: 1.0}
     command: "poetry env use {poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt_train.py \
                --with-neutral-samples {with_neutral_samples} \
