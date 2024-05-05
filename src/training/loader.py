@@ -23,7 +23,7 @@ class Model(enum.StrEnum):
 
 def get_model_and_data_module(
         model_choice: Model,
-        model_init_args: typing.Dict[str, typing.Any],
+        model_init_args: typing.Mapping[str, typing.Any],
         dataset_choice: Dataset,
         dm_init_args: typing.Dict[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:

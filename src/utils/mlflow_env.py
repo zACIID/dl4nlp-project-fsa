@@ -61,7 +61,8 @@ def get_registered_model_name(model_choice: loader.Model):
 
 
 def get_dataset_specific_best_model_alias(dataset: loader.Dataset, tuning: bool = False) -> str:
-    return f"{BEST_FULL_TRAINED_MODEL_ALIAS if not tuning else BEST_TUNED_MODEL_ALIAS}-{dataset.value}"
+    # aliases are lowercased automatically by MLflow
+    return f"{BEST_FULL_TRAINED_MODEL_ALIAS if not tuning else BEST_TUNED_MODEL_ALIAS}-{dataset.value}".lower()
 
 
 # Kind of dirty way of setting tags for every run
