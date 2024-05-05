@@ -128,7 +128,6 @@ ENV/
 env.bak/
 venv.bak/
 *.env
-!mlflow.env
 !spark/spark.application.env
 
 # Spyder project settings

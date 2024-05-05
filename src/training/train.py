@@ -1,6 +1,5 @@
 import datetime
 import logging
-import os
 
 import click
 import lightning as L
@@ -68,12 +67,14 @@ def run(
     function_call_kwargs = locals()
     function_call_kwargs['with_neutral_samples'] = True if with_neutral_samples == 'true' else False
 
+    env.set_common_run_tags(with_neutral_samples=with_neutral_samples)
+
     # configure logging at the root level of Lightning
     pytorch_logger = logging.getLogger("lightning.pytorch")
     pytorch_logger.setLevel(logging.INFO)
 
-    if env.DATASET_CHOICE == loader.Dataset.SEMEVAL_TEST:
-        raise ValueError(f'{env.DATASET_CHOICE} is not a valid dataset choice for training/validation')
+    if env.get_dataset_choice() == loader.Dataset.SEMEVAL_TEST:
+        raise ValueError(f'{env.get_dataset_choice()} is not a valid dataset choice for training/validation')
 
     mlflow.pytorch.autolog(
         checkpoint_monitor='val_loss',
@@ -83,17 +84,17 @@ def run(
         checkpoint_save_freq='epoch'
     )
 
-    run_name_prefix = f"{env.MODEL_CHOICE}_{env.DATASET_CHOICE}"
     with mlflow.start_run(
-            log_system_metrics=True,
-            run_name=f"{datetime.date.today().isoformat()}-{run_name_prefix}"
+        log_system_metrics=True,
+        run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}-{env.get_model_choice()}",
+        tags=env.get_run_tags()
     ) as run:
         L.seed_everything(RND_SEED)
 
         function_call_kwargs['rnd_seed'] = RND_SEED
         model, data_module = loader.get_model_and_data_module(
-            model_choice=env.MODEL_CHOICE,
-            dataset_choice=env.DATASET_CHOICE,
+            model_choice=env.get_model_choice(),
+            dataset_choice=env.get_dataset_choice(),
             model_init_args=function_call_kwargs,
             dm_init_args=function_call_kwargs
         )

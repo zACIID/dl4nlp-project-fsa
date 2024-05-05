@@ -79,13 +79,14 @@ def new_eval(
         params["with_neutral_samples"] = with_neutral_samples
 
         with mlflow.start_run(
-                nested=True,
-                run_name=f"{datetime.date.today().isoformat()}-train"
-        ) as child_run:
+            nested=True,
+            run_name=f"{datetime.date.today().isoformat()}-train",
+            tags=env.get_run_tags()
+        ) as eval_run:
             p = mlflow.projects.run(
                 uri=str(io_.PROJECT_ROOT.absolute()),
                 entry_point=MLFLOW_TRAIN_ENTRYPOINT,
-                run_id=child_run.info.run_id,
+                run_id=eval_run.info.run_id,
                 parameters=params,
 
                 # The entry point needs the equivalent of the --env-manager=local CLI flag
@@ -145,7 +146,7 @@ def new_eval(
 @click.option("--accumulate-grad-batches-max", default=15, type=click.INT)
 @click.option("--limit-batches", default=0.001, type=click.FLOAT)
 @click.option("--fail-on-error", default='true', type=click.STRING)
-def train(
+def tune(
         with_neutral_samples,
         algo,
         max_runs,
@@ -169,6 +170,8 @@ def train(
         limit_batches,
         fail_on_error,
 ):
+    env.set_common_run_tags(with_neutral_samples=with_neutral_samples)
+
     # NOTE: Check these references to understand how to use the param space distributions:
     # - https://github.com/hyperopt/hyperopt/wiki/FMin#21-parameter-expressions
     # - https://www.databricks.com/blog/2021/04/15/how-not-to-tune-your-model-with-hyperopt.html
@@ -198,8 +201,9 @@ def train(
 
     mlflow.set_tracking_uri(uri=os.environ["MLFLOW_TRACKING_URI"])
     with mlflow.start_run(
-            log_system_metrics=True,
-            run_name=f"{datetime.date.today().isoformat()}",
+        log_system_metrics=True,
+        run_name=f"{datetime.date.today().isoformat()}",
+        tags=env.get_run_tags()
     ) as run:
         experiment = mlflow.get_experiment(run.info.experiment_id)
 
@@ -224,4 +228,4 @@ def train(
 
 
 if __name__ == "__main__":
-    train()
+    tune()
