@@ -54,6 +54,10 @@ def get_registered_model_name(model_choice: loader.Model):
     return f"{get_registered_model_name_prefix()}-{model_choice.value}"
 
 
+def get_dataset_specific_best_model_alias(dataset: loader.Dataset) -> str:
+    return f"{BEST_REGISTERED_MODEL_ALIAS}-{dataset.value}"
+
+
 # Kind of dirty way of setting tags for every run
 def set_run_tags(tags: typing.Dict[str, str | int]):
     os.environ['RUN_TAGS'] = json.dumps(tags)
@@ -65,14 +69,14 @@ def get_run_tags() -> typing.Dict[str, str | int]:
 
 def set_common_run_tags(
         with_neutral_samples: bool = False,
-        fine_tuning_on_sc_dataset: bool = False
+        second_order_fine_tuning: bool = False
 ):
     tags = get_run_tags()
 
     if with_neutral_samples:
         tags['neutral_samples'] = 'true'
 
-    if fine_tuning_on_sc_dataset:
+    if second_order_fine_tuning:
         tags['fine_tuning_on_sc_dataset'] = 'true'
 
     set_run_tags(tags)
