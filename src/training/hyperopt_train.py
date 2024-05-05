@@ -134,7 +134,9 @@ def new_eval(
 @click.option("--weight-decay-max", default=1e-2, type=click.FLOAT)
 @click.option("--lora-alpha-min", default=0.5, type=click.FLOAT)
 @click.option("--lora-alpha-max", default=3, type=click.FLOAT)
-@click.option("--lora-rank-min", default=64, type=click.INT)
+@click.option("--lora-dropout-min", default=0.1, type=click.FLOAT)
+@click.option("--lora-dropout-max", default=0.6, type=click.FLOAT)
+@click.option("--lora-rank-min", default=8, type=click.INT)
 @click.option("--lora-rank-max", default=256, type=click.INT)
 @click.option("--C-min", "C_min", default=0, type=click.FLOAT)
 @click.option("--C-max", "C_max", default=3, type=click.FLOAT)
@@ -155,6 +157,8 @@ def train(
         weight_decay_max,
         lora_alpha_min,
         lora_alpha_max,
+        lora_dropout_min,
+        lora_dropout_max,
         lora_rank_min,
         lora_rank_max,
         C_min,

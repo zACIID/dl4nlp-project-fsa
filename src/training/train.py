@@ -28,13 +28,15 @@ from utils.random import RND_SEED
 @click.option("--num-workers", default=8, type=click.INT)
 @click.option("--one-cycle-max-lr", default=1e-3, type=click.FLOAT)
 @click.option("--one-cycle-pct-start", default=0.3, type=click.FLOAT)
-@click.option("--weight-decay", default=1e-2, type=click.FLOAT)
-@click.option("--lora-rank", default=150, type=click.INT)
-@click.option("--lora-alpha", default=1.25, type=click.FLOAT)
-@click.option("--C", "C", default=1, type=click.FLOAT)
-@click.option("--max-epochs", default=25, type=click.INT)
-@click.option("--accumulate-grad-batches", default=6, type=click.INT)
-@click.option("--limit-batches", default=0.1, type=click.FLOAT)
+@click.option("--weight-decay", default=1e-5, type=click.FLOAT)
+@click.option("--lora-rank", default=128, type=click.INT)
+@click.option("--lora-alpha", default=1, type=click.FLOAT)
+@click.option("--lora-dropout", default=0.1, type=click.FLOAT)
+@click.option("--C", "C", default=0.1, type=click.FLOAT)
+@click.option("--max-epochs", default=20, type=click.INT)
+@click.option("--accumulate-grad-batches", default=4, type=click.INT)
+# @click.option("--limit-batches", default=1, type=click.FLOAT)
+@click.option("--limit-batches", default=0.003, type=click.FLOAT)
 @click.option("--es-monitor", default='val_loss', type=click.STRING)
 @click.option("--es-min-delta", default=1e-3, type=click.FLOAT)
 @click.option("--es-patience", default=500, type=click.INT)
@@ -52,6 +54,7 @@ def run(
         weight_decay,
         lora_rank,
         lora_alpha,
+        lora_dropout,
         C,
         max_epochs,
         accumulate_grad_batches,

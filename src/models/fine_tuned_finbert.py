@@ -37,6 +37,7 @@ class FineTunedFinBERT(L.LightningModule):
             one_cycle_max_lr: float = 2e-5,
             weight_decay: float = 0.0,
             lora_alpha: float = 1,
+            lora_dropout: float = 0.1,
             W_q: bool = True,
             W_v: bool = True,
             W_k: bool = True,
@@ -187,6 +188,7 @@ class FineTunedFinBERT(L.LightningModule):
             old_linear=layer,
             rank=rank,
             alpha=alpha,
+            dropout=self.hparams.lora_dropout,
             update_bias=self._update_bias
         )
 

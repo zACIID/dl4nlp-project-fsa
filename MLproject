@@ -36,6 +36,8 @@ entry_points:
       lora_rank_max: {type: float, default: 256}
       lora_alpha_min: {type: float, default: 0.3}
       lora_alpha_max: {type: float, default: 3.5}
+      lora_dropout_min: {type: float, default: 0.0}
+      lora_dropout_max: {type: float, default: 0.6}
       C_min: {type: float, default: 0}
       C_max: {type: float, default: 3}
 
@@ -59,6 +61,8 @@ entry_points:
                --lora-rank-max {lora_rank_max} \
                --lora-alpha-min {lora_alpha_min} \
                --lora-alpha-max {lora_alpha_max} \
+               --lora-dropout-min {lora_dropout_min} \
+               --lora-dropout-max {lora_dropout_max} \
                --C-min {C_min} \
                --C-max {C_max} \
                --max-epochs {max_epochs} \
@@ -92,6 +96,7 @@ entry_points:
       #======= FinBERT specific hparams
       lora_rank: {type: float, default: 128}
       lora_alpha: {type: float, default: 1}
+      lora_dropout: {type: float, default: 0.1}
       C: {type: float, default: 1}
 
       #== Lightning Trainer hparams
@@ -124,6 +129,7 @@ entry_points:
                --weight-decay {weight_decay} \
                --lora-rank {lora_rank} \
                --lora-alpha {lora_alpha} \
+               --lora-dropout {lora_dropout} \
                --C {C} \
                --max-epochs {max_epochs} \
                --accumulate-grad-batches {accumulate_grad_batches} \
