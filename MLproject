@@ -7,12 +7,14 @@ name: dl4nlp-project-fsa
 #  environment: [["NEW_ENV_VAR", "new_var_value"], "VAR_TO_COPY_FROM_HOST_ENVIRONMENT"]
 
 entry_points:
+  # TODO da modificare e fare solo per finbert
   hyperopt:
     parameters:
-      # path to the python executable in the project's poetry env (i.e. inside .venv folder)
+      # path to the python executable in the project's poetry env (i.e. inside .venv folder),
+      #   relative to the $HOME directory
       poetry_env:
         type: string
-        default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
+        default: "GitHub/dl4nlp-project-fsa/.venv/bin/python"
 
       fail_on_error: {type: string, default: "true"} # anything different from "false" allows train run to fail without blocking the main hyperopt loop
 
@@ -44,7 +46,7 @@ entry_points:
       accumulate_grad_batches_min: {type: float, default: 8}
       accumulate_grad_batches_max: {type: float, default: 12}
       limit_batches: {type: float, default: 1.0}
-    command: "poetry env use {poetry_env} \
+    command: "poetry env use ~/{poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/hyperopt_tuning.py \
                --with-neutral-samples {with_neutral_samples} \
                --algo {algo} \
@@ -69,10 +71,11 @@ entry_points:
                "
   train:
     parameters:
-      # path to the python executable in the project's poetry env (i.e. inside .venv folder)
+      # path to the python executable in the project's poetry env (i.e. inside .venv folder),
+      #   relative to the $HOME directory
       poetry_env:
         type: string
-        default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
+        default: "GitHub/dl4nlp-project-fsa/.venv/bin/python"
 
       #== Data module hparams
       train_batch_size: {type: float, default: 32}
@@ -111,7 +114,7 @@ entry_points:
       #== ModelCheckpoint hparams
       ckpt_monitor: {type: string, default: "val_loss"} # this is the key of a value that is manually logged inside the LightningModule
       ckpt_save_top_k: {type: float, default: 1}
-    command: "poetry env use {poetry_env} \
+    command: "poetry env use ~/{poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/train.py \
                --with-neutral-samples {with_neutral_samples} \
                --train-batch-size {train_batch_size} \
@@ -136,10 +139,11 @@ entry_points:
                "
   semeval_full_training:
     parameters:
-      # path to the python executable in the project's poetry env (i.e. inside .venv folder)
+      # path to the python executable in the project's poetry env (i.e. inside .venv folder),
+      #   relative to the $HOME directory
       poetry_env:
         type: string
-        default: "/home/zaciid/GitHub/dl4nlp-project-fsa/.venv/bin/python"
+        default: "GitHub/dl4nlp-project-fsa/.venv/bin/python"
 
       model_name: {type: string, default: "best-FINBERT"}
       model_alias: {type: string, default: "tuning-champion"}
@@ -147,7 +151,7 @@ entry_points:
       #== Data module hparams
       prefetch_factor: {type: float, default: 16}
       num_workers: {type: float, default: 8}
-    command: "poetry env use {poetry_env} \
+    command: "poetry env use ~/{poetry_env} \
             && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/semeval_full_training.py \
                --model-name {model_name} \
                --model-alias {model_alias} \
