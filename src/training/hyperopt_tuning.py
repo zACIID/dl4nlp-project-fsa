@@ -21,6 +21,7 @@ from mlflow.tracking import MlflowClient
 
 import utils.io as io_
 import utils.mlflow_env as env
+from training.loader import Model
 
 _inf = np.finfo(np.float64).max
 
@@ -201,23 +202,37 @@ def tune(
     # NOTE 2: `hp.loguniform(label, low, high)` returns a value drawn according to exp(uniform(low, high)),
     #   meaning that i have to apply the log to the various *min and *max arguments,
     #   because I want the search to be uniform w.r.t. the logarithm of such values (e.g. learning rate)
-    space = {
-        "one_cycle_max_lr": hp.loguniform(
-            "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
-        ),
-        "one_cycle_pct_start": hp.uniform(
-            "one_cycle_pct_start", one_cycle_pct_start_min, one_cycle_pct_start_max
-        ),
-        "weight_decay": hp.loguniform(
-            "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
-        ),
-        "lora_rank": scope.int(hp.quniform("lora_rank", lora_rank_min, lora_rank_max, 1)),
-        "lora_alpha": hp.uniform("lora_alpha", lora_alpha_min, lora_alpha_max),
-        "lora_dropout": hp.uniform("lora_dropout", lora_dropout_min, lora_dropout_max),
-        "accumulate_grad_batches": scope.int(hp.quniform(
-            "accumulate_grad_batches", accumulate_grad_batches_min, accumulate_grad_batches_max, 1
-        )),
-    }
+    if env.get_model_choice() == Model.FINBERT:
+        space = {
+            "one_cycle_max_lr": hp.loguniform(
+                "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
+            ),
+            "one_cycle_pct_start": hp.uniform(
+                "one_cycle_pct_start", one_cycle_pct_start_min, one_cycle_pct_start_max
+            ),
+            "weight_decay": hp.loguniform(
+                "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
+            ),
+            "lora_rank": scope.int(hp.quniform("lora_rank", lora_rank_min, lora_rank_max, 1)),
+            "lora_alpha": hp.uniform("lora_alpha", lora_alpha_min, lora_alpha_max),
+            "lora_dropout": hp.uniform("lora_dropout", lora_dropout_min, lora_dropout_max),
+            "accumulate_grad_batches": scope.int(hp.quniform(
+                "accumulate_grad_batches", accumulate_grad_batches_min, accumulate_grad_batches_max, 1
+            )),
+        }
+    elif env.get_model_choice() == Model.HAND_ENG_MLP:
+        space = None
+        # TODO ( ͡° ͜ʖ ͡°) implement
+        #   How to add parameters to the tuning and training scripts:
+        #   1. specify them as click.option in each script (hyperopt_tuning.py, train.py)
+        #   2. specify them as params in the MLproject file and pass them inside the "command" section of each entry point
+        #   3. profit
+        #   It might become a mess because of too many parameters but it is the easy way for now I think
+        #   A refactoring somehow for example to split training scripts or at least bring out somewhere
+        #       else those sections that depend on a specific model would not be bad, for sure
+        raise NotImplementedError('TODO implement hparam search')
+    else:
+        raise NotImplementedError('Unhandled model choice')
 
     mlflow.set_tracking_uri(uri=os.environ["MLFLOW_TRACKING_URI"])
     with mlflow.start_run(

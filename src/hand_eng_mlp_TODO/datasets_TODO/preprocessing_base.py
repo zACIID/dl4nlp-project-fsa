@@ -11,7 +11,7 @@ import data.common as common
 import fine_tuned_finbert.models.fine_tuned_finbert as ft
 
 
-# TODO compile once decided
+# TODO ( ͡° ͜ʖ ͡°) compile once decided
 # TEXT_COL = sc.TEXT_COL
 # LABEL_COL = common.LABEL_COL
 # TOKENIZER_OUTPUT_COL = "tokenizer"

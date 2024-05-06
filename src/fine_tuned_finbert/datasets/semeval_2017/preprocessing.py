@@ -59,6 +59,9 @@ def _main(get_train_dataset: bool):
         text_col=sem.TEXT_COL,
     )
 
+    # TODO ( ͡° ͜ʖ ͡°) need to derive a test dataset from the training dataset
+    #   maybe merge 'Microblog_Trainingdata.json' and 'Microblog_Trialdata.json'
+    #   and then take 200 samples out to make the test set, remaining samples for training
     dataset_path = TRAIN_DATASET_PATH if get_train_dataset else VAL_DATASET_PATH
     logger.info("Preprocessing dataset...")
     df.write.parquet(str(dataset_path), mode='overwrite')
