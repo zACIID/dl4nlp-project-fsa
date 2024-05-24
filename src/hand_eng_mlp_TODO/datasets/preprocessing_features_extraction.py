@@ -10,9 +10,9 @@ from scipy.stats import entropy
 from collections import Counter
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-# TODO ( ͡° ͜ʖ ͡°) Ruie: we need to install these two, is there a file of python packages requirement?
-# !pip install vaderSentiment
-# !pip install textstat
+# the following two packages have been added to pyproject.toml
+# poetry add vaderSentiment
+# poetry add textstat
 
 nltk.download('punkt')
 nltk.download('sentiwordnet')
@@ -21,13 +21,15 @@ nltk.download('wordnet')
 # Initialize sentiment analyzer globally
 analyzer = SentimentIntensityAnalyzer()
 
+# TODO fix documentation
 
-def compute_sentence_polarity_vader(text):
+
+def compute_sentence_polarity_VADER(text):
     vader_score = analyzer.polarity_scores(text)['compound']  # compound is for overall score
     return vader_score
 
 
-def emotion_recognition_sn(text):
+def emotion_recognition_SN(text):
     api_key = 'GqUQ3m0uJiWPD'
     url = f"http://sentic.net/api/en/{api_key}.py?text={text}"
     response = requests.get(url)
@@ -54,7 +56,7 @@ def emotion_recognition_sn(text):
 # Function to calculate sentiment lexicon-based features with VADER:
 # - ratio of positive to negative polarity words
 # - difference between positive and negative words (normalized by total number of words)
-def calculate_pos_neg_features_vader(text):
+def calculate_pos_neg_features_VADER(text):
     scores = analyzer.polarity_scores(text)
     total_words = len(word_tokenize(text))
     # print(scores)
@@ -73,7 +75,7 @@ def calculate_pos_neg_features_vader(text):
 
 
 # Function to calculate sentiment entropy using VADER
-def calculate_sentiment_entropy_vader(text):
+def calculate_sentiment_entropy_VADER(text):
     words = word_tokenize(text)
     # print(words)
 
@@ -104,7 +106,7 @@ def get_word_polarity(word):
 # Function to calculate sentiment lexicon-based features with SenticNet:
 # - ratio of positive to negative polarity words
 # - difference between positive and negative words (normalized by total number of words)
-def calculate_pos_neg_features_sn(text):
+def calculate_pos_neg_features_SN(text):
     words = word_tokenize(text)
     # print(words)
     positive_words = 0
@@ -130,7 +132,7 @@ def calculate_pos_neg_features_sn(text):
 
 
 # Function to compute the overall polarity of a sentence using SentiWordNet
-def compute_sentence_polarity_swn(text):
+def compute_sentence_polarity_SWN(text):
     words = word_tokenize(text)
 
     # Variables to store positive and negative scores for the sentence
@@ -230,14 +232,3 @@ def compute_overall_sentiment_features(text, sentiment_data, default_mean_value)
 
     return overall_valence_mean, overall_arousal_mean, overall_dominance_mean, overall_valence_std, overall_arousal_std, overall_dominance_std, valence_contrast, arousal_contrast, dominance_contrast
 
-
-def create_example_dataset():
-    data = {
-        'text': [
-            "This stock is performing exceptionally well, I'm optimistic about its future prospects.",
-            "The company's financial results were disappointing, leading to a decline in investor confidence.",
-            "My wallet got stolen, i'm extremely sad.",
-            "Today i won the lottery, i'm super happy."
-        ]
-    }
-    return pd.DataFrame(data)

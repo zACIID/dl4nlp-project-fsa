@@ -20,6 +20,8 @@ tqdm = "^4.66.2"
 jupyter = "^1.0.0"
 jupytext = "^1.16.1"
 transformers = "^4.39.3"
+vaderSentiment = "^3.3.2"
+textstat = "^0.7.3"
 
 # UserWarning raised by mlflow.utils.autologging_utils
 # Autologging is known to be compatible with pytorch-lightning versions between 1.4.9 and 2.2.0.post0

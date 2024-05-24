@@ -48,9 +48,6 @@ def _main(get_train_dataset: bool):
     logger.info("Cleaning data...")
     df = sem.clean_dataset(df=raw_df)
 
-    # TODO ( ͡° ͜ʖ ͡°)
-    raise NotImplementedError('Might need to do something here with custom features')
-
     df = df.withColumnRenamed(sem.SENTIMENT_SCORE_COL, ppb.LABEL_COL)
     df = ppb.preprocess_dataset(
         raw_df=df,
