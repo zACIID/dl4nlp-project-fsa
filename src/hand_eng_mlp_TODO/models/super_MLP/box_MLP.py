@@ -7,7 +7,7 @@ from src.hand_eng_mlp_TODO.models.super_MLP.utility.MLP_bundle import MLPBundle
 class BoxMLP(BaseSuperMLP):
     def __init__(
             self, n_layers: int, in_features: int, out_features: int,
-            f: Type[nn.Module] = nn.Tanh, alpha: float = 0.5,
+            f: Type[nn.Module] = nn.Tanh, alpha: float = 0.5, beta: float = None,
             dropout: float = .2, linear: bool = False, layernorm: bool = False
     ) -> None:
 

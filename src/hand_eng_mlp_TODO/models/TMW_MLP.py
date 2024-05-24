@@ -82,7 +82,7 @@ class TMW_MLP(L.LightningModule):
             batch_idx: int, dataloader_idx: int = 0, step_type: str = None) -> Tensor:
 
         x_batch, y_batch = batch
-        y_pred: Tensor = self(x_batch)
+        y_pred: Tensor = self.forward(x_batch)
 
         mse: Tensor = F.mse_loss(y_batch, y_pred)
         mae: Tensor = F.l1_loss(y_batch, y_pred)
@@ -93,6 +93,7 @@ class TMW_MLP(L.LightningModule):
             sign_accuracy_mask(y_batch, y_pred)
         ) / batch_len
 
+        # TODO check if cosine similarity is a good loss for our MLP
         loss: Tensor = -torch.cosine_similarity(y_batch, y_pred, dim=-1)
 
         if step_type == 'val':

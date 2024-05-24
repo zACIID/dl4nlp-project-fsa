@@ -5,7 +5,7 @@ from src.hand_eng_mlp_TODO.models.super_MLP.base.base_MLP import BaseSuperMLP
 from src.hand_eng_mlp_TODO.models.super_MLP.utility.MLP_bundle import MLPBundle
 
 
-class RomboidMLP(BaseSuperMLP):
+class RhomboidMLP(BaseSuperMLP):
     def __init__(
             self, n_layers: int, in_features: int, out_features: int,
             beta: float = 1.5, f: Type[nn.Module] = nn.Tanh, alpha: float = 0.5,
