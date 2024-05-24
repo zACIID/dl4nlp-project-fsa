@@ -82,7 +82,7 @@ compute_overall_sentiment_features_udf = udf(
 
 
 # Function to compute the additional features
-def get_new_features(df):
+def get_new_features(df: psql.DataFrame) -> psql.DataFrame:
     """
     :param df: Spark DataFrame with text data
     :return: DataFrame with additional computed features
@@ -116,7 +116,7 @@ def get_new_features(df):
     df = df.withColumn('coleman_liau_index', readability_metrics_udf['coleman_liau_index'])
 
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
-    sentiment_dataset_path = 'BRM-emot-submit.csv'
+    sentiment_dataset_path = 'src/hand_eng_mlp_TODO/datasets/BRM-emot-submit.csv'
     sentiment_data, mean_medians = ppfe.load_sentiment_dataset(sentiment_dataset_path)
     oa_sent_features_udf = compute_overall_sentiment_features_udf(df['text'], lit(sentiment_data), lit(mean_medians))
     df = df.withColumn('overall_valence_mean', oa_sent_features_udf['overall_valence_mean'])
@@ -130,7 +130,6 @@ def get_new_features(df):
     df = df.withColumn('dominance_contrast', oa_sent_features_udf['dominance_contrast'])
 
     return df
-
 
 # pandas og version
 # # Function to compute the additional features
@@ -159,7 +158,6 @@ def get_new_features(df):
 #     df = df.applymap(lambda x: float(x) if isinstance(x, (int, float)) else x)
 #
 #     return df
-
 
 def preprocess_dataset(
         raw_df: psql.DataFrame,

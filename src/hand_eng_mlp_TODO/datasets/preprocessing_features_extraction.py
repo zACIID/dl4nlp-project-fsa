@@ -9,8 +9,9 @@ from nltk.tokenize import word_tokenize
 from scipy.stats import entropy
 from collections import Counter
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from typing import Dict, Tuple, Union, List
 
-# the following two packages have been added to pyproject.toml
+# The following two packages have been added to pyproject.toml
 # poetry add vaderSentiment
 # poetry add textstat
 
@@ -21,15 +22,26 @@ nltk.download('wordnet')
 # Initialize sentiment analyzer globally
 analyzer = SentimentIntensityAnalyzer()
 
-# TODO fix documentation
 
+def compute_sentence_polarity_VADER(text: str) -> float:
+    """
+    Computes the overall sentiment polarity of a sentence using VADER
 
-def compute_sentence_polarity_VADER(text):
-    vader_score = analyzer.polarity_scores(text)['compound']  # compound is for overall score
+    :param text:
+    :return:
+    """
+    vader_score = analyzer.polarity_scores(text)['compound']
     return vader_score
 
 
-def emotion_recognition_SN(text):
+def emotion_recognition_SN(text: str) -> Union[Dict[str, float], None]:
+    """
+    Extract emotions in text using SenticNet
+
+    :param text:
+    :return: A dictionary containing emotion features (INTROSPECTION, TEMPER, ATTITUDE, SENSITIVITY)
+             with their respective float values, or None if the API call fails.
+    """
     api_key = 'GqUQ3m0uJiWPD'
     url = f"http://sentic.net/api/en/{api_key}.py?text={text}"
     response = requests.get(url)
@@ -53,29 +65,31 @@ def emotion_recognition_SN(text):
         return None
 
 
-# Function to calculate sentiment lexicon-based features with VADER:
-# - ratio of positive to negative polarity words
-# - difference between positive and negative words (normalized by total number of words)
-def calculate_pos_neg_features_VADER(text):
+def calculate_pos_neg_features_VADER(text: str) -> Tuple[float, float]:
+    """
+    Calculates sentiment lexicon-based features using VADER:
+    - ratio of positive to negative polarity words
+    - difference between positive and negative words (normalized by total number of words)
+    :param text:
+    :return: tuple containing the positive/negative ratio and the positive/negative difference.
+    """
     scores = analyzer.polarity_scores(text)
     total_words = len(word_tokenize(text))
     # print(scores)
 
-    if scores['neg'] != 0:
-        pos_neg_ratio = scores['pos'] / scores['neg']
-    else:
-        pos_neg_ratio = scores['pos']
-
-    if total_words != 0:
-        pos_neg_difference = (scores['pos'] - scores['neg']) / total_words
-    else:
-        pos_neg_difference = 0
+    pos_neg_ratio = scores['pos'] / scores['neg'] if scores['neg'] != 0 else scores['pos']
+    pos_neg_difference = (scores['pos'] - scores['neg']) / total_words if total_words != 0 else 0
 
     return pos_neg_ratio, pos_neg_difference
 
 
-# Function to calculate sentiment entropy using VADER
-def calculate_sentiment_entropy_VADER(text):
+def calculate_sentiment_entropy_VADER(text: str) -> float:
+    """
+    Calculates the sentiment entropy of a text using VADER.
+
+    :param text:
+    :return:
+    """
     words = word_tokenize(text)
     # print(words)
 
@@ -91,8 +105,13 @@ def calculate_sentiment_entropy_VADER(text):
     return sentiment_entropy
 
 
-# Function to fetch polarity of a word from SenticNet
-def get_word_polarity(word):
+def get_word_polarity(word: str) -> Union[str, None]:
+    """
+    Fetches the polarity of a word from SenticNet.
+
+    :param word:
+    :return: The polarity of the word ('POSITIVE', 'NEGATIVE', or None if not found).
+    """
     key = "u59p0l9yRM3Fk"
     url = f"http://sentic.net/api/en/{key}.py?text={word}"
     response = requests.get(url)
@@ -103,10 +122,15 @@ def get_word_polarity(word):
         return None
 
 
-# Function to calculate sentiment lexicon-based features with SenticNet:
-# - ratio of positive to negative polarity words
-# - difference between positive and negative words (normalized by total number of words)
-def calculate_pos_neg_features_SN(text):
+def calculate_pos_neg_features_SN(text: str) -> Tuple[float, float]:
+    """
+    Calculates sentiment lexicon-based features with SenticNet.
+    - ratio of positive to negative polarity words
+    - difference between positive and negative words (normalized by total number of words)
+
+    :param text: The input text string.
+    :return: A tuple containing the positive/negative ratio and the positive/negative difference.
+    """
     words = word_tokenize(text)
     # print(words)
     positive_words = 0
@@ -118,21 +142,19 @@ def calculate_pos_neg_features_SN(text):
         elif polarity == 'NEGATIVE':
             negative_words += 1
 
-    if negative_words != 0:
-        pos_neg_ratio_lexicon = positive_words / negative_words
-    else:
-        pos_neg_ratio_lexicon = positive_words
-
-    if len(words) != 0:
-        pos_neg_difference_lexicon = (positive_words - negative_words) / len(words)
-    else:
-        pos_neg_difference_lexicon = 0
+    pos_neg_ratio_lexicon = positive_words / negative_words if negative_words != 0 else positive_words
+    pos_neg_difference_lexicon = (positive_words - negative_words) / len(words) if len(words) != 0 else 0
 
     return pos_neg_ratio_lexicon, pos_neg_difference_lexicon
 
 
-# Function to compute the overall polarity of a sentence using SentiWordNet
-def compute_sentence_polarity_SWN(text):
+def compute_sentence_polarity_SWN(text: str) -> float:
+    """
+    Computes the overall polarity of a sentence using SentiWordNet.
+
+    :param text:
+    :return:
+    """
     words = word_tokenize(text)
 
     # Variables to store positive and negative scores for the sentence
@@ -151,16 +173,18 @@ def compute_sentence_polarity_SWN(text):
             neg_score += neg_word_score
 
     # Overall polarity score for the sentence
-    if len(words) > 0:
-        overall_polarity = (pos_score - neg_score) / len(words)
-    else:
-        overall_polarity = 0
+    overall_polarity = (pos_score - neg_score) / len(words) if len(words) > 0 else 0
 
     return overall_polarity
 
 
-# Calculate readability metrics
-def calculate_readability_metrics(text):
+def calculate_readability_metrics(text: str) -> Tuple[float, float, float]:
+    """
+    Calculates readability metrics for a given text.
+
+    :param text:
+    :return: A tuple containing Flesch-Kincaid grade, Gunning fog index, and Coleman-Liau index.
+    """
     flesch_kincaid_grade = textstat.flesch_kincaid_grade(text)
     gunning_fog = textstat.gunning_fog(text)
     coleman_liau_index = textstat.coleman_liau_index(text)
@@ -168,15 +192,16 @@ def calculate_readability_metrics(text):
     return flesch_kincaid_grade, gunning_fog, coleman_liau_index
 
 
-# Lexicon with ratings for valence (pleasantness), arousal (intensity), and dominance (control)
-# Ratings on three dimensions using a 9-point scale.
-# If you feel completely neutral, neither happy nor sad [not excited nor at all calm; neither in control nor controlled], select the middle of the scale (rating 5).
-# 1 (unhappy, calm, controlled) to 9 (happy, excited, in control)
-# mean, std, level of contrast in terms of affect infused into the tweet
-# V.Mean.Sum
-# A.Mean.Sum
-# D.Mean.Sum
-def load_sentiment_dataset(dataset_path):
+def load_sentiment_dataset(dataset_path: str) -> Tuple[pd.DataFrame, Tuple[float, float, float]]:
+    """
+    Loads the sentiment dataset and computes the median of valence, arousal, and dominance features.
+    In particular, the sentiment dataset is a Lexicon with ratings for valence (pleasantness), arousal (intensity), and dominance (control).
+    The Ratings are on three dimensions using a 9-point scale.
+    1 (unhappy, calm, controlled) to 9 (happy, excited, in control), 5 if completely neutral
+
+    :param dataset_path: path to the sentiment dataset CSV file
+    :return:
+    """
     # Load the "Norms of valence, arousal, and dominance for 13,915 English lemmas" dataset
     sentiment_data = pd.read_csv(dataset_path)
 
@@ -189,7 +214,19 @@ def load_sentiment_dataset(dataset_path):
     return sentiment_data, (valence_median, arousal_median, dominance_median)
 
 
-def compute_overall_sentiment_features(text, sentiment_data, default_mean_value):
+def compute_overall_sentiment_features(
+        text: str,
+        sentiment_data: pd.DataFrame,
+        default_mean_value: Tuple[float, float, float]
+) -> Tuple[float, float, float, float, float, float, float, float, float]:
+    """
+    Computes overall sentiment features for a text based on valence, arousal, and dominance.
+
+    :param text:
+    :param sentiment_data: sentiment data DataFrame
+    :param default_mean_value: default mean values for valence, arousal, and dominance
+    :return: tuple with overall mean and std for valence, arousal, and dominance, and their respective contrasts.
+    """
     words = word_tokenize(text)
 
     # Lists to store valence, arousal, and dominance values
