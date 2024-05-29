@@ -12,6 +12,7 @@ import data.stocktwits_crypto_dataset as sc
 import data.common as common
 import fine_tuned_finbert.models.fine_tuned_finbert as ft
 import hand_eng_mlp.datasets_TODO.preprocessing_features_extraction as ppfe
+import utils.io as io_
 
 
 # TODO ( ͡° ͜ʖ ͡°) compile once decided (in trial)
@@ -116,7 +117,7 @@ def get_new_features(df: psql.DataFrame) -> psql.DataFrame:
     df = df.withColumn('coleman_liau_index', readability_metrics_udf['coleman_liau_index'])
 
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
-    sentiment_dataset_path = 'src/hand_eng_mlp_TODO/datasets/BRM-emot-submit.csv'
+    sentiment_dataset_path = io_.DATA_DIR / "nomedelfileTODO"  # TODO vedere se epossible scaricare on the spot
     sentiment_data, mean_medians = ppfe.load_sentiment_dataset(sentiment_dataset_path)
     oa_sent_features_udf = compute_overall_sentiment_features_udf(df['text'], lit(sentiment_data), lit(mean_medians))
     df = df.withColumn('overall_valence_mean', oa_sent_features_udf['overall_valence_mean'])
