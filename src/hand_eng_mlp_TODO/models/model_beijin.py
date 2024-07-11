@@ -12,7 +12,7 @@ from src.fine_tuned_finbert.models.loss_functions import sign_accuracy_mask
 from src.hand_eng_mlp_TODO.models.linear_aggregator import LinAggregator
 from src.hand_eng_mlp_TODO.models.super_MLP.base.base_MLP import BaseSuperMLP
 from enum import Enum
-
+from transformers import BertForMaskedLM
 from src.hand_eng_mlp_TODO.models.super_MLP.box_mlp import BoxMLP
 from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_mlp import RepRhomboidMLP
 from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_mlp import RhomboidMLP
@@ -28,17 +28,17 @@ class MLPType(Enum):
 
 class ModelBeijin(L.LightningModule):
   def __init__(
-      self, MLM_mat: nn.Parameter, MLM_b: nn.Parameter,
+      self,
       model_spec: MLPType, MLP_args: dict[str, Any],
+      bert_path: str = "vinai/bertweet-base",
       one_cycle_max_lr: float = 2e-5, aggregator_out: int = BERT_EMBEDDING_SIZE,
       weight_decay: float = 0.0, one_cycle_pct_start: float = 0.3,
       log_hparams: bool = True, **kwargs
   ) -> None:
 
     """
+    :param bert_path: path defining the path from where to fetch the model for the sequence embeddings
     :param aggregator_out: output dimensionality of the Aggregator layer
-    :param MLM_mat: matrix of the MLM head of BERT
-    :param MLM_b: bias of the MLM head of BERT
     :param model_type: defining which subclass of a BaseSuperMLP will be used
     :param MLP_args: arguments of the related SuperMLP, param in_features is set
     to the value of aggregator_out
@@ -50,6 +50,11 @@ class ModelBeijin(L.LightningModule):
     """
 
     super().__init__()
+
+    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained("vinai/bertweet-base")
+    last_mlm_layer: nn.Linear = bertweet.cls.predictions.decoder
+    mlm_mat: Tensor = last_mlm_layer.weight
+    mlm_bias: Tensor = last_mlm_layer.bias
 
     self.save_hyperparameters()
 
@@ -66,7 +71,7 @@ class ModelBeijin(L.LightningModule):
 
     self.aggregator: LinAggregator(
         in_features=BERT_EMBEDDING_SIZE, out_features=aggregator_out,
-        MLM_mat=MLM_mat, MLM_b=MLM_b
+        mlm_mat=mlm_mat, mlm_bias=mlm_bias
     )
 
     MLP_args["in_features"] = aggregator_out + CUSTOM_FEATS_SIZE
