@@ -4,7 +4,10 @@ import typing
 from lightning import LightningModule, LightningDataModule
 
 import fine_tuned_finbert.datasets.data_modules as ft_dm
+import hand_eng_mlp_TODO.datasets.data_modules as mlp_dm
 from fine_tuned_finbert.models.fine_tuned_finbert import FineTunedFinBERT
+
+from src.hand_eng_mlp_TODO.models.model_beijin import ModelBeijin
 
 
 class Dataset(enum.StrEnum):
@@ -31,9 +34,9 @@ def get_model_and_data_module(
         case Model.FINBERT:
             return load_finbert_model_and_data_module(model_init_args, dataset_choice, dm_init_args)
         case Model.HAND_ENG_MLP:
-            raise NotImplementedError()  # TODO ( ͡° ͜ʖ ͡°) implement same function as above
+            return load_model_beijin_and_data_module(model_init_args, dataset_choice, dm_init_args)
         case Model.END_TO_END:
-            raise NotImplementedError()  # TODO ( ͡° ͜ʖ ͡°) implement same function as above
+            raise NotImplementedError() # TODO ( ͡° ͜ʖ ͡°) implement same function as above
         case _:
             raise ValueError(f'Unknown model {model_choice}')
 
@@ -55,5 +58,26 @@ def load_finbert_model_and_data_module(
             return model, ft_dm.Semeval2017TrainVal(**dm_init_args)
         case Dataset.SEMEVAL_TEST:
             return model, ft_dm.Semeval2017Test(**dm_init_args)
+        case _:
+            raise ValueError(f'Unknown dataset {dataset_choice}')
+
+
+def load_model_beijin_and_data_module(
+        model_init_args: typing.Mapping[str, typing.Any],
+        dataset_choice: Dataset,
+        dm_init_args: typing.Mapping[str, typing.Any]
+) -> typing.Tuple[LightningModule, LightningDataModule]:
+    model = ModelBeijin(**model_init_args)
+    match dataset_choice:
+        case Dataset.SC_TRAIN_VAL:
+            return model, mlp_dm.StocktwitsCryptoTrainVal(**dm_init_args)
+        case Dataset.SC_TRAIN_SEMEVAL_VAL:
+            return model, mlp_dm.StocktwitsCryptoTrainSemEval2017Val(**dm_init_args)
+        case Dataset.SEMEVAL_TRAIN:
+            return model, mlp_dm.Semeval2017Train(**dm_init_args)
+        case Dataset.SEMEVAL_TRAIN_VAL:
+            return model, mlp_dm.Semeval2017TrainVal(**dm_init_args)
+        case Dataset.SEMEVAL_TEST:
+            return model, mlp_dm.Semeval2017Test(**dm_init_args)
         case _:
             raise ValueError(f'Unknown dataset {dataset_choice}')
