@@ -9,7 +9,7 @@ import training.loader as loader
 if __name__ == "__main__":
     env.set_experiment_name_prefix(env.HYPEROPT_EXPERIMENT_NAME_PREFIX)
     env.set_dataset_choice(loader.Dataset.SEMEVAL_TRAIN_VAL)
-    env.set_model_choice(loader.Model.FINBERT)
+    env.set_model_choice(loader.Model.HAND_ENG_MLP)
 
     mlflow.set_tracking_uri(env.MLFLOW_TRACKING_URI)
     mlflow.projects.run(

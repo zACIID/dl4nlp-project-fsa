@@ -23,6 +23,13 @@ import utils.io as io_
 import utils.mlflow_env as env
 from training.loader import Model
 
+from src.hand_eng_mlp_TODO.models.super_MLP.box_MLP import BoxMLP
+from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_MLP import RepRhomboidMLP
+from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_MLP import RhomboidMLP
+
+in_features: int = 768 + 23  # BERT EMBEDDING + HAND MADE FEATURES
+out_features: int = 1
+
 _inf = np.finfo(np.float64).max
 
 MLFLOW_TRAIN_ENTRYPOINT = 'train'
@@ -105,9 +112,9 @@ def new_eval(
         params["with_neutral_samples"] = with_neutral_samples
 
         with mlflow.start_run(
-            nested=True,
-            run_name=f"{datetime.date.today().isoformat()}-train",
-            tags=env.get_run_tags()
+                nested=True,
+                run_name=f"{datetime.date.today().isoformat()}-train",
+                tags=env.get_run_tags()
         ) as eval_run:
             p = mlflow.projects.run(
                 uri=str(io_.PROJECT_ROOT.absolute()),
@@ -150,6 +157,7 @@ def new_eval(
 @click.command(
     help="Perform hyperparameter search with Hyperopt library"
 )
+# BOTH MODELS
 @click.option("--with-neutral-samples", default="false", type=click.STRING)
 @click.option("--algo", default='tpe.suggest', type=click.STRING)
 @click.option("--max-runs", default=10, type=click.INT)
@@ -159,17 +167,26 @@ def new_eval(
 @click.option("--one-cycle-pct-start-max", default=0.5, type=click.FLOAT)
 @click.option("--weight-decay-min", default=5e-5, type=click.FLOAT)
 @click.option("--weight-decay-max", default=1e-2, type=click.FLOAT)
+@click.option("--max-epochs", default=10, type=click.INT)
+@click.option("--accumulate-grad-batches-min", default=4, type=click.INT)
+@click.option("--accumulate-grad-batches-max", default=15, type=click.INT)
+@click.option("--limit-batches", default=0.001, type=click.FLOAT)
+@click.option("--fail-on-error", default='true', type=click.STRING)
+# FIN-BERT
 @click.option("--lora-alpha-min", default=0.5, type=click.FLOAT)
 @click.option("--lora-alpha-max", default=3, type=click.FLOAT)
 @click.option("--lora-dropout-min", default=0.1, type=click.FLOAT)
 @click.option("--lora-dropout-max", default=0.6, type=click.FLOAT)
 @click.option("--lora-rank-min", default=8, type=click.INT)
 @click.option("--lora-rank-max", default=256, type=click.INT)
-@click.option("--max-epochs", default=10, type=click.INT)
-@click.option("--accumulate-grad-batches-min", default=4, type=click.INT)
-@click.option("--accumulate-grad-batches-max", default=15, type=click.INT)
-@click.option("--limit-batches", default=0.001, type=click.FLOAT)
-@click.option("--fail-on-error", default='true', type=click.STRING)
+# BASE MLP (AND BOX MLP)
+@click.option("--MLP-type", default=1, type=click.INT)
+@click.option("--n-layers", default=10, type=click.INT)
+@click.option("--dropout", default=0.1, type=click.FLOAT)
+# @click.option("--layernorm", default=False, type=click.BOOL)
+# @click.option("--linear", default=False, type=click.BOOL)
+# REP. RHOMBOID AND RHOMBOID MLP
+@click.option("--beta", default=1.5, type=click.FLOAT)
 def tune(
         with_neutral_samples,
         algo,
@@ -191,6 +208,13 @@ def tune(
         accumulate_grad_batches_max,
         limit_batches,
         fail_on_error,
+        MLP_type_min, # TODO
+        n_layers_min,
+        n_layers_max,
+        dropout_min,
+        dropout_max,
+        beta_min,
+        beta_max
 ):
     env.set_common_run_tags(with_neutral_samples=with_neutral_samples)
 
@@ -221,7 +245,27 @@ def tune(
             )),
         }
     elif env.get_model_choice() == Model.HAND_ENG_MLP:
-        space = None
+        space = {
+            "one_cycle_max_lr": hp.loguniform(
+                "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
+            ),
+            "one_cycle_pct_start": hp.uniform(
+                "one_cycle_pct_start", one_cycle_pct_start_min, one_cycle_pct_start_max
+            ),
+            "weight_decay": hp.loguniform(
+                "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
+            ),
+            "in_features": in_features,
+            "out_features": out_features,
+            "n_layers": scope.int(
+                hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
+            ),
+            "dropout": hp.uniform("dropout", dropout_min, dropout_max),
+            "beta": hp.uniform("beta", beta_min, beta_max),
+            "linear": hp.choice("linear", [True, False]),
+            "layernorm": hp.choice("layernorm", [True, False]),
+            "model_type": hp.choice("model_type", [0, 1, 2])
+        }
         # TODO ( ͡° ͜ʖ ͡°) implement
         #   How to add parameters to the tuning and training scripts:
         #   1. specify them as click.option in each script (hyperopt_tuning.py, train.py)
@@ -230,15 +274,14 @@ def tune(
         #   It might become a mess because of too many parameters but it is the easy way for now I think
         #   A refactoring somehow for example to split training scripts or at least bring out somewhere
         #       else those sections that depend on a specific model would not be bad, for sure
-        raise NotImplementedError('TODO implement hparam search')
     else:
         raise NotImplementedError('Unhandled model choice')
 
     mlflow.set_tracking_uri(uri=os.environ["MLFLOW_TRACKING_URI"])
     with mlflow.start_run(
-        log_system_metrics=True,
-        run_name=f"{datetime.date.today().isoformat()}",
-        tags=env.get_run_tags()
+            log_system_metrics=True,
+            run_name=f"{datetime.date.today().isoformat()}",
+            tags=env.get_run_tags()
     ) as run:
         experiment = mlflow.get_experiment(run.info.experiment_id)
 

@@ -39,6 +39,14 @@ from utils.random import RND_SEED
 @click.option("--es-patience", default=500, type=click.INT)
 @click.option("--ckpt-monitor", default='val_loss', type=click.STRING)
 @click.option("--ckpt-save-top-k", default=1, type=click.INT)
+# BASE MLP (AND BOX MLP)
+@click.option("--MLP-type", default=1, type=click.INT)
+@click.option("--n-layers", default=10, type=click.INT)
+@click.option("--dropout", default=0.1, type=click.FLOAT)
+# @click.option("--layernorm", default=False, type=click.BOOL)
+# @click.option("--linear", default=False, type=click.BOOL)
+# REP. RHOMBOID AND RHOMBOID MLP
+@click.option("--beta", default=1.5, type=click.FLOAT)
 def train(
         with_neutral_samples,
         train_batch_size,
@@ -59,7 +67,11 @@ def train(
         es_min_delta,
         es_patience,
         ckpt_monitor,
-        ckpt_save_top_k
+        ckpt_save_top_k,
+        MLP_type,  # TODO metti apposto TMW MLP
+        n_layers,
+        dropout,
+        beta
 ):
     function_call_kwargs = locals()
     function_call_kwargs['with_neutral_samples'] = True if with_neutral_samples == 'true' else False
@@ -82,9 +94,9 @@ def train(
     )
 
     with mlflow.start_run(
-        log_system_metrics=True,
-        run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}-{env.get_model_choice()}",
-        tags=env.get_run_tags()
+            log_system_metrics=True,
+            run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}-{env.get_model_choice()}",
+            tags=env.get_run_tags()
     ) as run:
         L.seed_everything(RND_SEED)
 

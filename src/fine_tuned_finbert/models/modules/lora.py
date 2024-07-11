@@ -27,7 +27,7 @@ class CustomLoRA(nn.Module):
         self.alpha: float = alpha
         self.dropout: nn.Module | None = None if dropout is None else nn.Dropout(p=dropout)
 
-        std_dev: float = 1 / torch.sqrt(torch.tensor(rank).float()) # TODO chiedere a biango perche stdev viene calcolata cosi'
+        std_dev: float = 1 / torch.sqrt(torch.tensor(rank).float())
 
         # IMPORTANT: the prefix 'lora_' is there to make lora parameters distinguishable,
         #   so that checkpoints can save just them instead of the whole model.

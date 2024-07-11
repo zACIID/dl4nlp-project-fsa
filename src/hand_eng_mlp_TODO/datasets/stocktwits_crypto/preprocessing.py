@@ -47,9 +47,6 @@ def _main(drop_neutral_samples: bool):
         label_col=sc.LABEL_COL
     )
 
-    # TODO ( ͡° ͜ʖ ͡°)
-    raise NotImplementedError('Might need to do something here with custom features')
-
     df = ppb.preprocess_dataset(
         raw_df=df,
         drop_neutral_samples=drop_neutral_samples,
