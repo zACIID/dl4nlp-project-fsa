@@ -23,9 +23,9 @@ import utils.io as io_
 import utils.mlflow_env as env
 from training.loader import Model
 
-from src.hand_eng_mlp_TODO.models.super_MLP.box_MLP import BoxMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_MLP import RepRhomboidMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_MLP import RhomboidMLP
+from src.hand_eng_mlp_TODO.models.super_MLP.box_mlp import BoxMLP
+from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_mlp import RepRhomboidMLP
+from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_mlp import RhomboidMLP
 
 in_features: int = 768 + 23  # BERT EMBEDDING + HAND MADE FEATURES
 out_features: int = 1
