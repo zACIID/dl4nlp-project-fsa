@@ -51,7 +51,7 @@ class ModelBeijin(L.LightningModule):
 
     super().__init__()
 
-    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained("vinai/bertweet-base")
+    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(bert_path)
     last_mlm_layer: nn.Linear = bertweet.cls.predictions.decoder
     mlm_mat: Tensor = last_mlm_layer.weight
     mlm_bias: Tensor = last_mlm_layer.bias

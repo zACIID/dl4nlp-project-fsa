@@ -7,7 +7,7 @@ import fine_tuned_finbert.datasets.data_modules as ft_dm
 import hand_eng_mlp_TODO.datasets.data_modules as mlp_dm
 from fine_tuned_finbert.models.fine_tuned_finbert import FineTunedFinBERT
 
-from src.hand_eng_mlp_TODO.models.model_beijin import ModelBeijin
+from src.hand_eng_mlp_TODO.models.model_beijin import ModelBeijin, MLPType
 
 
 class Dataset(enum.StrEnum):
@@ -63,11 +63,31 @@ def load_finbert_model_and_data_module(
 
 
 def load_model_beijin_and_data_module(
-        model_init_args: typing.Mapping[str, typing.Any],
+        model_init_args: typing.MutableMapping[str, typing.Any],
         dataset_choice: Dataset,
         dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
     model = ModelBeijin(**model_init_args)
+    model_init_args["model_spec"] = MLPType.BOX
+    data: typing.Dict[str, typing.Any] = {
+        "n_layers": model_init_args.pop("n_layers"),
+        "in_features": model_init_args.pop("in_features"),
+        "out_features": model_init_args.pop("out_features"),
+        "dropout": model_init_args.pop("dropout"),
+        "linear": model_init_args.pop("linear"),
+        "layernorm": model_init_args.pop("layernorm")
+
+    }
+    if model_init_args["model_spec"] == 1:
+        model_init_args["model_spec"] = MLPType.RHOMBOID
+        data["beta"] = model_init_args["beta"]
+
+    else:
+        model_init_args["model_spec"] = MLPType.REPRHOMBOID
+        data["beta"] = model_init_args["beta"]
+
+    model_init_args["MLP_args"] = data
+
     match dataset_choice:
         case Dataset.SC_TRAIN_VAL:
             return model, mlp_dm.StocktwitsCryptoTrainVal(**dm_init_args)

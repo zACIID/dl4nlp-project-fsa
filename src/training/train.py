@@ -40,11 +40,11 @@ from utils.random import RND_SEED
 @click.option("--ckpt-monitor", default='val_loss', type=click.STRING)
 @click.option("--ckpt-save-top-k", default=1, type=click.INT)
 # BASE MLP (AND BOX MLP)
-@click.option("--MLP-type", default=1, type=click.INT)
+@click.option("--model-spec", default=1, type=click.INT)
 @click.option("--n-layers", default=10, type=click.INT)
 @click.option("--dropout", default=0.1, type=click.FLOAT)
-# @click.option("--layernorm", default=False, type=click.BOOL)
-# @click.option("--linear", default=False, type=click.BOOL)
+@click.option("--layernorm", default=False, type=click.BOOL)
+@click.option("--linear", default=False, type=click.BOOL)
 # REP. RHOMBOID AND RHOMBOID MLP
 @click.option("--beta", default=1.5, type=click.FLOAT)
 def train(
@@ -68,10 +68,12 @@ def train(
         es_patience,
         ckpt_monitor,
         ckpt_save_top_k,
-        MLP_type,  # TODO metti apposto TMW MLP
+        model_spec,
         n_layers,
         dropout,
-        beta
+        beta,
+        layernorm,
+        linear
 ):
     function_call_kwargs = locals()
     function_call_kwargs['with_neutral_samples'] = True if with_neutral_samples == 'true' else False

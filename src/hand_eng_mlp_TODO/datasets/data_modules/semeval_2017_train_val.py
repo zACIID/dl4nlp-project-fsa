@@ -1,10 +1,14 @@
+import typing
+
 import datasets
 import lightning as L
 import numpy as np
+import sklearn.model_selection as sel
 import torch
 from torch.utils.data import DataLoader, Subset
 
-import hand_eng_mlp.datasets_TODO.semeval_2017.preprocessing as pp
+import fine_tuned_finbert.datasets.preprocessing_base as ppb
+import fine_tuned_finbert.datasets.semeval_2017.preprocessing as pp
 from utils.random import RND_SEED
 
 
@@ -19,7 +23,7 @@ class Semeval2017TrainVal(L.LightningDataModule):
             with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
-            num_workers: int = 0,
+            num_workers: int = 4,
             rnd_seed: int = RND_SEED,
             **kwargs,
     ):
@@ -50,17 +54,16 @@ class Semeval2017TrainVal(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        raise NotImplementedError()
-        # self.dataset.set_format(type='torch', columns=[pp.TOKENIZER_OUTPUT_COL, pp.SENTIMENT_SCORE_COL])
-        # index = np.arange(len(self.dataset))
-        # train_split_idxs, val_split_idxs = sel.train_test_split(
-        #     index,
-        #     stratify=self.dataset.with_format(type='pandas')[pp.SENTIMENT_SCORE_COL].to_numpy(),
-        #     random_state=self.rnd_seed
-        # )
-        #
-        # self.train_idxs = train_split_idxs
-        # self.val_idxs = val_split_idxs
+        self.dataset.set_format(type='torch', columns=[ppb.TOKENIZER_OUTPUT_COL, ppb.LABEL_COL])
+        index = np.arange(len(self.dataset))
+        train_split_idxs, val_split_idxs = sel.train_test_split(
+            index,
+            stratify=(self.dataset.with_format(type='pandas')[ppb.LABEL_COL].to_numpy() >= 0).astype(int),
+            random_state=self.rnd_seed
+        )
+
+        self.train_idxs = train_split_idxs
+        self.val_idxs = val_split_idxs
 
     def train_dataloader(self):
         return DataLoader(
@@ -92,14 +95,21 @@ class Semeval2017TrainVal(L.LightningDataModule):
 
 
 def _collate_fn(raw_samples):
-    tokenizer_outputs = [item[pp.TOKENIZER_OUTPUT_COL] for item in raw_samples]
-    scores = [item[pp.SENTIMENT_SCORE_COL] for item in raw_samples]
+    # TODO tokenization should happen in the preprocessing phase
+    tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=True)
 
-    input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
-    att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))
-    tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
+    def tokenize(batch_texts: typing.Iterable[str]) -> BatchEncoding:
+        return tokenizer(
+            [text if text is not None else "" for text in batch_texts]
+            return_tensors='pt',
+            return_attention_mask=True,
+            padding='max_length',
+            truncation=True,
+            max_length=160
+        )
 
+    scores = [item[ppb.LABEL_COL] for item in raw_samples]
     scores = torch.tensor(scores)
 
-    return tensorized_tokenizer_output, scores
+    return tokenize([item[ppb.TEXT_COL] for item in raw_samples]), scores
 

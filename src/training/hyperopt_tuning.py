@@ -23,11 +23,12 @@ import utils.io as io_
 import utils.mlflow_env as env
 from training.loader import Model
 
+from src.hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE
 from src.hand_eng_mlp_TODO.models.super_MLP.box_mlp import BoxMLP
 from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_mlp import RepRhomboidMLP
 from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_mlp import RhomboidMLP
 
-in_features: int = 768 + 23  # BERT EMBEDDING + HAND MADE FEATURES
+in_features: int = BERT_EMBEDDING_SIZE + CUSTOM_FEATS_SIZE
 out_features: int = 1
 
 _inf = np.finfo(np.float64).max
@@ -180,11 +181,9 @@ def new_eval(
 @click.option("--lora-rank-min", default=8, type=click.INT)
 @click.option("--lora-rank-max", default=256, type=click.INT)
 # BASE MLP (AND BOX MLP)
-@click.option("--MLP-type", default=1, type=click.INT)
 @click.option("--n-layers", default=10, type=click.INT)
-@click.option("--dropout", default=0.1, type=click.FLOAT)
-# @click.option("--layernorm", default=False, type=click.BOOL)
-# @click.option("--linear", default=False, type=click.BOOL)
+@click.option("--dropout-min", default=0.1, type=click.FLOAT)
+@click.option("--dropout-max", default=0.5, type=click.FLOAT)
 # REP. RHOMBOID AND RHOMBOID MLP
 @click.option("--beta", default=1.5, type=click.FLOAT)
 def tune(
@@ -208,7 +207,6 @@ def tune(
         accumulate_grad_batches_max,
         limit_batches,
         fail_on_error,
-        MLP_type_min, # TODO
         n_layers_min,
         n_layers_max,
         dropout_min,
@@ -245,6 +243,57 @@ def tune(
             )),
         }
     elif env.get_model_choice() == Model.HAND_ENG_MLP:
+        space = hp.choice('model_spec', [
+            {
+                'model_type': 'BOX',
+                "one_cycle_max_lr": hp.loguniform("one_cycle_max_lr", math.log(one_cycle_max_lr_min),
+                                                  math.log(one_cycle_max_lr_max)),
+                "one_cycle_pct_start": hp.uniform("one_cycle_pct_start", one_cycle_pct_start_min,
+                                                  one_cycle_pct_start_max),
+                "weight_decay": hp.loguniform("weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)),
+                "in_features": in_features,
+                "out_features": out_features,
+                "n_layers": scope.int(hp.quniform("n_layers", n_layers_min, n_layers_max, 1)),
+                "dropout": hp.uniform("dropout", dropout_min, dropout_max),
+                "linear": hp.choice("linear", [True, False]),
+                "layernorm": hp.choice("layernorm", [True, False]),
+                 "model_spec": 0
+            },
+            {
+                'model_type': 'RHOMBOID',
+                "one_cycle_max_lr": hp.loguniform("one_cycle_max_lr", math.log(one_cycle_max_lr_min),
+                                                  math.log(one_cycle_max_lr_max)),
+                "one_cycle_pct_start": hp.uniform("one_cycle_pct_start", one_cycle_pct_start_min,
+                                                  one_cycle_pct_start_max),
+                "weight_decay": hp.loguniform("weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)),
+                "in_features": in_features,
+                "out_features": out_features,
+                "n_layers": scope.int(hp.quniform("n_layers", n_layers_min, n_layers_max, 1)),
+                "dropout": hp.uniform("dropout", dropout_min, dropout_max),
+                "beta": hp.uniform("beta", beta_min, beta_max),
+                "linear": hp.choice("linear", [True, False]),
+                "layernorm": hp.choice("layernorm", [True, False]),
+                 "model_spec": 1
+            },
+            {
+                'model_type': 'REPRHOMBOID',
+                "one_cycle_max_lr": hp.loguniform("one_cycle_max_lr", math.log(one_cycle_max_lr_min),
+                                                  math.log(one_cycle_max_lr_max)),
+                "one_cycle_pct_start": hp.uniform("one_cycle_pct_start", one_cycle_pct_start_min,
+                                                  one_cycle_pct_start_max),
+                "weight_decay": hp.loguniform("weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)),
+                "in_features": in_features,
+                "out_features": out_features,
+                "n_layers": scope.int(hp.quniform("n_layers", n_layers_min, n_layers_max, 1)),
+                "dropout": hp.uniform("dropout", dropout_min, dropout_max),
+                "beta": hp.uniform("beta", beta_min, beta_max),
+                "linear": hp.choice("linear", [True, False]),
+                "layernorm": hp.choice("layernorm", [True, False]),
+                 "model_spec": 2
+            }
+        ])
+
+        """
         space = {
             "one_cycle_max_lr": hp.loguniform(
                 "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
@@ -261,11 +310,11 @@ def tune(
                 hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
             ),
             "dropout": hp.uniform("dropout", dropout_min, dropout_max),
-            "beta": hp.uniform("beta", beta_min, beta_max),
+            "beta": hp.uniform("beta", beta_min, beta_max),  # TODO https://github.com/hyperopt/hyperopt/wiki/FMin#22-a-search-space-example-scikit-learn
             "linear": hp.choice("linear", [True, False]),
             "layernorm": hp.choice("layernorm", [True, False]),
-            "model_type": hp.choice("model_type", [0, 1, 2])
-        }
+            "model_spec": hp.choice("model_spec", [0, 1, 2])
+        }"""
         # TODO ( ͡° ͜ʖ ͡°) implement
         #   How to add parameters to the tuning and training scripts:
         #   1. specify them as click.option in each script (hyperopt_tuning.py, train.py)

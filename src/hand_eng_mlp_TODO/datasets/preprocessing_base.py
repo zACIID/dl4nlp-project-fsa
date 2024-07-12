@@ -10,7 +10,6 @@ from transformers import AutoTokenizer, BatchEncoding
 import data.spark as S
 import data.stocktwits_crypto_dataset as sc
 import data.common as common
-import fine_tuned_finbert.models.fine_tuned_finbert as ft
 import hand_eng_mlp.datasets_TODO.preprocessing_features_extraction as ppfe
 import utils.io as io_
 
@@ -66,7 +65,7 @@ calculate_readability_metrics_udf = udf(
         StructField("coleman_liau_index", FloatType())
     ])
 )
-compute_overall_sentiment_features_udf = udf(
+"""compute_overall_sentiment_features_udf = udf(
     ppfe.compute_overall_sentiment_features,
     StructType([
         StructField("overall_valence_mean", FloatType()),
@@ -79,7 +78,7 @@ compute_overall_sentiment_features_udf = udf(
         StructField("arousal_contrast", FloatType()),
         StructField("dominance_contrast", FloatType())
     ])
-)
+)"""
 
 
 # Function to compute the additional features
