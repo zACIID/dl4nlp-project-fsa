@@ -125,12 +125,12 @@ class RhomboidMLP(BaseSuperMLP):
             )
 
             right_ls = self.set_linear_layer(
-                tup_right[1], tup_right[1], idx=right_count - 1, layernorm=layernorm,
+                tup_right[1], tup_right[1], idx=right_count, layernorm=layernorm,
                 dropout=dropout, n_layers=n_layers
             ) + right_ls
 
             right_ls = self.set_linear_layer(
-                *tup_right, idx=right_count, layernorm=layernorm,
+                *tup_right, idx=right_count - 1, layernorm=layernorm,
                 dropout=dropout, n_layers=n_layers
             ) + right_ls
 
