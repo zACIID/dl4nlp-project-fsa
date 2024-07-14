@@ -23,10 +23,10 @@ import utils.io as io_
 import utils.mlflow_env as env
 from training.loader import Model
 
-from src.hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE
-from src.hand_eng_mlp_TODO.models.super_MLP.box_mlp import BoxMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_mlp import RepRhomboidMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_mlp import RhomboidMLP
+from hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE
+from hand_eng_mlp_TODO.models.super_mlp.box_mlp import BoxMLP
+from hand_eng_mlp_TODO.models.super_mlp.rep_rhomboid_mlp import RepRhomboidMLP
+from hand_eng_mlp_TODO.models.super_mlp.rhomboid_mlp import RhomboidMLP
 
 in_features: int = BERT_EMBEDDING_SIZE + CUSTOM_FEATS_SIZE
 out_features: int = 1

@@ -12,7 +12,7 @@ import data.stocktwits_crypto_dataset as sc
 import data.common as common
 import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
 import utils.io as io_
-from custom_features import CustomFeatures
+from hand_eng_mlp_TODO.datasets.custom_features import CustomFeatures
 import hand_eng_mlp_TODO.models.model_beijin as hemlp
 
 

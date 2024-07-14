@@ -13,7 +13,7 @@ from collections import Counter
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from typing import Dict, Tuple, Union, List
 from dotenv import load_dotenv
-from hand_eng_mlp_TODO.datasets.custom_features import *
+import hand_eng_mlp_TODO.datasets.custom_features as cf
 from utils.custom_features_utils import download_and_extract_zip
 
 # The following two packages have been added to pyproject.toml
@@ -47,7 +47,7 @@ def compute_vader_polarity(
 
 def calculate_vader_pos_neg_features(
         text: str
-) -> VaderPosNegFeatures:
+) -> cf.VaderPosNegFeatures:
     """
     Calculates sentiment lexicon-based features using VADER:
     - ratio of positive to negative polarity words
@@ -61,7 +61,7 @@ def calculate_vader_pos_neg_features(
 
     pos_neg_ratio = scores['pos'] / scores['neg'] if scores['neg'] != 0 else scores['pos']
     pos_neg_difference = (scores['pos'] - scores['neg']) / total_words if total_words != 0 else 0
-    return VaderPosNegFeatures(pos_neg_ratio, pos_neg_difference)
+    return cf.VaderPosNegFeatures(pos_neg_ratio, pos_neg_difference)
 
 
 def calculate_vader_sentiment_entropy(
@@ -137,7 +137,7 @@ def get_word_polarity(
 
 def calculate_sentic_pos_neg_features(
         text: str
-) -> SenticPosNegFeatures:
+) -> cf.SenticPosNegFeatures:
     """
     Calculates sentiment lexicon-based features with SenticNet.
     - ratio of positive to negative polarity words
@@ -160,7 +160,7 @@ def calculate_sentic_pos_neg_features(
     pos_neg_ratio = positive_words / negative_words if negative_words != 0 else positive_words
     pos_neg_difference = (positive_words - negative_words) / len(words) if len(words) != 0 else 0
 
-    return SenticPosNegFeatures(pos_neg_ratio, pos_neg_difference)
+    return cf.SenticPosNegFeatures(pos_neg_ratio, pos_neg_difference)
 
 
 def compute_swn_polarity(
@@ -248,7 +248,7 @@ def compute_overall_sentiment_features(
         text: str,
         sentiment_data: pd.DataFrame,
         default_mean_value: Tuple[float, float, float]
-) -> SentimentFeatures:
+) -> cf.SentimentFeatures:
     """
     Computes overall sentiment features for a text based on valence, arousal, and dominance.
 
@@ -297,7 +297,7 @@ def compute_overall_sentiment_features(
     arousal_contrast = max(arousal_values) - min(arousal_values)
     dominance_contrast = max(dominance_values) - min(dominance_values)
 
-    return SentimentFeatures(
+    return cf.SentimentFeatures(
         overall_valence_mean, overall_arousal_mean, overall_dominance_mean,
         overall_valence_std, overall_arousal_std, overall_dominance_std,
         valence_contrast, arousal_contrast, dominance_contrast)
@@ -312,7 +312,7 @@ def extract_all_features(  # TODO this is not used
     :param text: input text string.
     :return: A dictionary containing all the extracted features.
     """
-    features = CustomFeatures()
+    features = cf.CustomFeatures()
     sentiment_data, mean_medians = load_sentiment_dataset(io_.DATA_DIR)
 
     # Call each feature extraction function

@@ -7,7 +7,7 @@ import fine_tuned_finbert.datasets.data_modules as ft_dm
 import hand_eng_mlp_TODO.datasets.data_modules as mlp_dm
 from fine_tuned_finbert.models.fine_tuned_finbert import FineTunedFinBERT
 
-from src.hand_eng_mlp_TODO.models.model_beijin import ModelBeijin, MLPType
+from hand_eng_mlp_TODO.models.model_beijin import ModelBeijin, MLPType
 
 
 class Dataset(enum.StrEnum):

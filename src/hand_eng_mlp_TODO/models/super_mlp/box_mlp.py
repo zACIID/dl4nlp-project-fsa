@@ -1,7 +1,7 @@
 from typing import Type
 from torch import nn
-from src.hand_eng_mlp_TODO.models.super_MLP.base.base_MLP import BaseSuperMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.utility.MLP_bundle import MLPBundle
+from hand_eng_mlp_TODO.models.super_mlp.base.base_mlp import BaseSuperMLP
+from hand_eng_mlp_TODO.models.super_mlp.utility.mlp_bundle import MLPBundle
 
 
 class BoxMLP(BaseSuperMLP):
