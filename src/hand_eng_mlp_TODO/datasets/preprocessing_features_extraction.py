@@ -5,6 +5,7 @@ import textstat
 import math
 import nltk
 import os
+import utils.io as io_
 from nltk.corpus import sentiwordnet as swn
 from nltk.tokenize import word_tokenize
 from scipy.stats import entropy
@@ -12,14 +13,12 @@ from collections import Counter
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from typing import Dict, Tuple, Union, List
 from dotenv import load_dotenv
-from custom_features import CustomFeatures
+from custom_features import *
 from utils.custom_features_utils import download_and_extract_zip
 
 # The following two packages have been added to pyproject.toml
 # poetry add vaderSentiment
 # poetry add textstat
-
-# TODO update docstrings
 
 load_dotenv()
 SENTICNET_API_EMOTION_KEY = os.getenv('SENTICNET_API_EMOTION_KEY')
@@ -33,7 +32,9 @@ nltk.download('wordnet')
 analyzer = SentimentIntensityAnalyzer()
 
 
-def compute_vader_polarity(text: str, features: CustomFeatures) -> CustomFeatures:
+def compute_vader_polarity(
+        text: str
+) -> float:
     """
     Computes the overall sentiment polarity of a sentence using VADER
 
@@ -41,11 +42,12 @@ def compute_vader_polarity(text: str, features: CustomFeatures) -> CustomFeature
     :return:
     """
     vader_score = analyzer.polarity_scores(text)['compound']
-    features.update_vader_polarity(vader_score)
-    return features
+    return vader_score
 
 
-def calculate_vader_pos_neg_features(text: str, features: CustomFeatures) -> CustomFeatures:
+def calculate_vader_pos_neg_features(
+        text: str
+) -> VaderPosNegFeatures:
     """
     Calculates sentiment lexicon-based features using VADER:
     - ratio of positive to negative polarity words
@@ -59,11 +61,12 @@ def calculate_vader_pos_neg_features(text: str, features: CustomFeatures) -> Cus
 
     pos_neg_ratio = scores['pos'] / scores['neg'] if scores['neg'] != 0 else scores['pos']
     pos_neg_difference = (scores['pos'] - scores['neg']) / total_words if total_words != 0 else 0
-    features.update_vader_pos_neg_features(pos_neg_ratio, pos_neg_difference)
-    return features
+    return VaderPosNegFeatures(pos_neg_ratio, pos_neg_difference)
 
 
-def calculate_vader_sentiment_entropy(text: str, features: CustomFeatures) -> CustomFeatures:
+def calculate_vader_sentiment_entropy(
+        text: str
+) -> float:
     """
     Calculates the sentiment entropy of a text using VADER.
 
@@ -81,11 +84,12 @@ def calculate_vader_sentiment_entropy(text: str, features: CustomFeatures) -> Cu
     probabilities = [count / total_words for count in sentiment_counts.values()]
     # Entropy
     sentiment_entropy = entropy(probabilities)
-    features.update_vader_sentiment_entropy(sentiment_entropy)
-    return features
+    return sentiment_entropy
 
 
-def sentic_emotion_recognition(text: str, features: CustomFeatures) -> CustomFeatures:
+def sentic_emotion_recognition(
+        text: str
+) -> Dict[str, float]:
     """
     Extract emotions in text using SenticNet
 
@@ -96,21 +100,26 @@ def sentic_emotion_recognition(text: str, features: CustomFeatures) -> CustomFea
     url = f"http://sentic.net/api/en/{SENTICNET_API_EMOTION_KEY}.py?text={text}"
     response = requests.get(url)
     if response.status_code == 200:
+        # extract emotion features from response
         match = re.search(r'\[(INTROSPECTION=.+?)\]', response.text)
         if match:
             features_text = match.group(1)
+            # extract individual emotion values
             emotions = {}
             for feature in features_text.split(','):
                 name, value = feature.split('=')
+                # remove percentage symbol and convert to float
                 value = float(value.rstrip('%')) / 100
                 emotions[name] = value
-            features.update_emotions(emotions)
+            return emotions
     else:
         print("Error: Unable to retrieve emotion features from API")
-    return features
+    return {}
 
 
-def get_word_polarity(word: str) -> Union[str, None]:
+def get_word_polarity(
+        word: str
+) -> Union[str, None]:
     """
     Fetches the polarity of a word from SenticNet.
 
@@ -126,7 +135,9 @@ def get_word_polarity(word: str) -> Union[str, None]:
         return None
 
 
-def calculate_sentic_pos_neg_features(text: str, features: CustomFeatures) -> CustomFeatures:
+def calculate_sentic_pos_neg_features(
+        text: str
+) -> SenticPosNegFeatures:
     """
     Calculates sentiment lexicon-based features with SenticNet.
     - ratio of positive to negative polarity words
@@ -149,11 +160,12 @@ def calculate_sentic_pos_neg_features(text: str, features: CustomFeatures) -> Cu
     pos_neg_ratio = positive_words / negative_words if negative_words != 0 else positive_words
     pos_neg_difference = (positive_words - negative_words) / len(words) if len(words) != 0 else 0
 
-    features.update_sentic_pos_neg_features(pos_neg_ratio, pos_neg_difference)
-    return features
+    return SenticPosNegFeatures(pos_neg_ratio, pos_neg_difference)
 
 
-def compute_swn_polarity(text: str, features: CustomFeatures) -> CustomFeatures:
+def compute_swn_polarity(
+        text: str
+) -> float:
     """
     Computes the overall polarity of a sentence using SentiWordNet.
 
@@ -180,11 +192,12 @@ def compute_swn_polarity(text: str, features: CustomFeatures) -> CustomFeatures:
     # Overall polarity score for the sentence
     overall_polarity = (pos_score - neg_score) / len(words) if len(words) > 0 else 0
 
-    features.update_swn_polarity(overall_polarity)
-    return features
+    return overall_polarity
 
 
-def calculate_readability_metrics(text: str, features: CustomFeatures) -> CustomFeatures:
+def calculate_readability_metrics(
+        text: str
+) -> ReadabilityMetrics:
     """
     Calculates readability metrics for a given text.
 
@@ -195,11 +208,12 @@ def calculate_readability_metrics(text: str, features: CustomFeatures) -> Custom
     gunning_fog = textstat.gunning_fog(text)
     coleman_liau_index = textstat.coleman_liau_index(text)
 
-    features.update_readability_metrics((flesch_kincaid_grade, gunning_fog, coleman_liau_index))
-    return features
+    return ReadabilityMetrics(flesch_kincaid_grade, gunning_fog, coleman_liau_index)
 
 
-def load_sentiment_dataset(extract_to: str) -> Tuple[pd.DataFrame, Tuple[float, float, float]]:
+def load_sentiment_dataset(
+        extract_to: str
+) -> Tuple[pd.DataFrame, Tuple[float, float, float]]:
     """
     Loads the sentiment dataset and computes the median of valence, arousal, and dominance features.
     In particular, the sentiment dataset is a Lexicon with ratings for valence (pleasantness), arousal (intensity), and dominance (control).
@@ -233,16 +247,15 @@ def load_sentiment_dataset(extract_to: str) -> Tuple[pd.DataFrame, Tuple[float, 
 def compute_overall_sentiment_features(
         text: str,
         sentiment_data: pd.DataFrame,
-        default_mean_value: Tuple[float, float, float],
-        features: CustomFeatures
-) -> CustomFeatures:
+        default_mean_value: Tuple[float, float, float]
+) -> SentimentFeatures:
     """
     Computes overall sentiment features for a text based on valence, arousal, and dominance.
 
     :param text:
     :param sentiment_data: sentiment data DataFrame
     :param default_mean_value: default mean values for valence, arousal, and dominance
-    :return: tuple with overall mean and std for valence, arousal, and dominance, and their respective contrasts.
+    :return: SentimentFeatures with overall mean and std for valence, arousal, and dominance, and their respective contrasts.
     """
     words = word_tokenize(text)
 
@@ -284,36 +297,39 @@ def compute_overall_sentiment_features(
     arousal_contrast = max(arousal_values) - min(arousal_values)
     dominance_contrast = max(dominance_values) - min(dominance_values)
 
-    features.update_overall_sentiment_features((overall_valence_mean, overall_arousal_mean, overall_dominance_mean,
-                                                overall_valence_std, overall_arousal_std, overall_dominance_std,
-                                                valence_contrast, arousal_contrast, dominance_contrast))
-    return features
+    return SentimentFeatures(
+        overall_valence_mean, overall_arousal_mean, overall_dominance_mean,
+        overall_valence_std, overall_arousal_std, overall_dominance_std,
+        valence_contrast, arousal_contrast, dominance_contrast)
 
 
-def extract_all_features(
-        text: str,
-        sentiment_data: pd.DataFrame,
-        default_mean_value: Tuple[float, float, float]
+def extract_all_features(  # TODO this is not used
+        text: str
 ) -> Dict:
     """
     Extracts all features for a given text by calling all the feature extraction functions.
 
     :param text: input text string.
-    :param sentiment_data: Sentiment data DataFrame.
-    :param default_mean_value: Default mean values for valence, arousal, and dominance.
     :return: A dictionary containing all the extracted features.
     """
     features = CustomFeatures()
+    sentiment_data, mean_medians = load_sentiment_dataset(io_.DATA_DIR)
 
     # Call each feature extraction function
-    features = compute_vader_polarity(text, features)
-    features = calculate_vader_pos_neg_features(text, features)
-    features = calculate_vader_sentiment_entropy(text, features)
-    features = sentic_emotion_recognition(text, features)
-    features = calculate_sentic_pos_neg_features(text, features)
-    features = compute_swn_polarity(text, features)
-    features = calculate_readability_metrics(text, features)
-    features = compute_overall_sentiment_features(text, sentiment_data, default_mean_value, features)
+    features.update_vader_polarity(compute_vader_polarity(text))
+    features.update_vader_pos_neg_features(calculate_vader_pos_neg_features(text))
+    features.update_vader_sentiment_entropy(calculate_vader_sentiment_entropy(text))
+    features.update_emotions(sentic_emotion_recognition(text))
+    features.update_sentic_pos_neg_features(calculate_sentic_pos_neg_features(text))
+    features.update_swn_polarity(compute_swn_polarity(text))
+    features.update_readability_metrics(calculate_readability_metrics(text))
+    features.update_overall_sentiment_features(compute_overall_sentiment_features(text, sentiment_data, mean_medians))
 
-    # Return the features as a dictionary
+    # Return the features as a dict
     return features.to_dict()
+
+# # Example usage:
+# # Extract all features from a given text
+# text = "This is a sample sentence for feature extraction."
+# all_features = extract_all_features(text)
+# print(all_features)
