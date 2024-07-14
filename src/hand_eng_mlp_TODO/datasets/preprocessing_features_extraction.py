@@ -197,7 +197,7 @@ def compute_swn_polarity(
 
 def calculate_readability_metrics(
         text: str
-) -> ReadabilityMetrics:
+) -> cf.ReadabilityMetrics:
     """
     Calculates readability metrics for a given text.
 
@@ -208,7 +208,7 @@ def calculate_readability_metrics(
     gunning_fog = textstat.gunning_fog(text)
     coleman_liau_index = textstat.coleman_liau_index(text)
 
-    return ReadabilityMetrics(flesch_kincaid_grade, gunning_fog, coleman_liau_index)
+    return cf.ReadabilityMetrics(flesch_kincaid_grade, gunning_fog, coleman_liau_index)
 
 
 def load_sentiment_dataset(

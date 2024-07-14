@@ -90,36 +90,36 @@ def get_new_features(df: psql.DataFrame) -> psql.DataFrame:
     :return: DataFrame with additional computed features
     """
     # Sentiment score with VADER, SenticNet and SentiWordNet
-    df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df['text']))
+    df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df[TEXT_COL]))
 
-    pos_neg_vader_udf = calculate_pos_neg_features_VADER_udf(df['text'])
+    pos_neg_vader_udf = calculate_pos_neg_features_VADER_udf(df[TEXT_COL])
     df = df.withColumn('Pos_Neg_Ratio_VADER', pos_neg_vader_udf['Pos_Neg_Ratio_VADER'])
     df = df.withColumn('Pos_Neg_Difference_VADER', pos_neg_vader_udf['Pos_Neg_Difference_VADER'])
 
-    df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df['text']))
+    df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[TEXT_COL]))
 
-    pos_neg_sn_udf = calculate_pos_neg_features_SN_udf(df['text'])
+    pos_neg_sn_udf = calculate_pos_neg_features_SN_udf(df[TEXT_COL])
     df = df.withColumn('Pos_Neg_Ratio_SenticNet', pos_neg_sn_udf['Pos_Neg_Ratio_SenticNet'])
     df = df.withColumn('Pos_Neg_Difference_SenticNet', pos_neg_sn_udf['Pos_Neg_Difference_SenticNet'])
 
-    df = df.withColumn('sentiment_score_SWN', compute_sentence_polarity_SWN_udf(df['text']))
+    df = df.withColumn('sentiment_score_SWN', compute_sentence_polarity_SWN_udf(df[TEXT_COL]))
 
     # Emotion recognition
-    emotion_features_udf = emotion_recognition_SN_udf(df['text'])
+    emotion_features_udf = emotion_recognition_SN_udf(df[TEXT_COL])
     df = df.withColumn('INTROSPECTION', emotion_features_udf['INTROSPECTION'])
     df = df.withColumn('TEMPER', emotion_features_udf['TEMPER'])
     df = df.withColumn('ATTITUDE', emotion_features_udf['ATTITUDE'])
     df = df.withColumn('SENSITIVITY', emotion_features_udf['SENSITIVITY'])
 
     # Readability metrics
-    readability_metrics_udf = calculate_readability_metrics_udf(df['text'])
+    readability_metrics_udf = calculate_readability_metrics_udf(df[TEXT_COL])
     df = df.withColumn('flesch_kincaid_grade', readability_metrics_udf['flesch_kincaid_grade'])
     df = df.withColumn('gunning_fog', readability_metrics_udf['gunning_fog'])
     df = df.withColumn('coleman_liau_index', readability_metrics_udf['coleman_liau_index'])
 
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
     sentiment_data, mean_medians = ppfe.load_sentiment_dataset(io_.DATA_DIR)
-    oa_sent_features_udf = compute_overall_sentiment_features_udf(df['text'], lit(sentiment_data), lit(mean_medians))
+    oa_sent_features_udf = compute_overall_sentiment_features_udf(df[TEXT_COL], lit(sentiment_data), lit(mean_medians))
     df = df.withColumn('overall_valence_mean', oa_sent_features_udf['overall_valence_mean'])
     df = df.withColumn('overall_arousal_mean', oa_sent_features_udf['overall_arousal_mean'])
     df = df.withColumn('overall_dominance_mean', oa_sent_features_udf['overall_dominance_mean'])
