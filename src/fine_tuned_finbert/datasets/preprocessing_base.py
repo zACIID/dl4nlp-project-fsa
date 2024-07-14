@@ -12,7 +12,7 @@ import fine_tuned_finbert.models.fine_tuned_finbert as ft
 
 _TOKENIZER_PATH = ft.PRE_TRAINED_MODEL_PATH
 
-TEXT_COL = sc.TEXT_COL
+TEXT_COL = sc.TEXT_COL  # TODO this is actually different for each dataset
 LABEL_COL = common.LABEL_COL
 TOKENIZER_OUTPUT_COL = "tokenizer"
 
