@@ -88,8 +88,6 @@ def get_new_features(df: psql.DataFrame) -> psql.DataFrame:
     :param df: Spark DataFrame with text data
     :return: DataFrame with additional computed features
     """
-    features = CustomFeatures()
-
     # Sentiment score with VADER, SenticNet and SentiWordNet
     df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df['text']))
 
@@ -159,7 +157,7 @@ def preprocess_dataset(
     df = sc.convert_labels_to_sentiment_scores(df=raw_df, label_col=label_col)
 
     # Extract additional features
-    df = get_new_features(df)
+    df = get_new_features(df)  # TODO pier said something about tokenize before adding idk
 
     logger.debug("Preprocessing implemented")
     return df
