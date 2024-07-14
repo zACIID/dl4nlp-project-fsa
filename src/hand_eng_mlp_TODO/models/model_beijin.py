@@ -18,7 +18,9 @@ from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_mlp import RepRhomboidM
 from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_mlp import RhomboidMLP
 
 BERT_EMBEDDING_SIZE = 768
-CUSTOM_FEATS_SIZE = 0 # TODO more still waiting on beijin
+CUSTOM_FEATS_SIZE = 0  # TODO more still waiting on beijin
+PRE_TRAINED_MODEL_PATH = "vinai/bertweet-base"
+
 
 class MLPType(Enum):
     BOX = 1
@@ -30,7 +32,6 @@ class ModelBeijin(L.LightningModule):
   def __init__(
       self,
       model_spec: MLPType, MLP_args: dict[str, Any],
-      bert_path: str = "vinai/bertweet-base",
       one_cycle_max_lr: float = 2e-5, aggregator_out: int = BERT_EMBEDDING_SIZE,
       weight_decay: float = 0.0, one_cycle_pct_start: float = 0.3,
       log_hparams: bool = True, **kwargs
@@ -51,7 +52,7 @@ class ModelBeijin(L.LightningModule):
 
     super().__init__()
 
-    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(bert_path)
+    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(PRE_TRAINED_MODEL_PATH)
     last_mlm_layer: nn.Linear = bertweet.cls.predictions.decoder
     mlm_mat: Tensor = last_mlm_layer.weight
     mlm_bias: Tensor = last_mlm_layer.bias

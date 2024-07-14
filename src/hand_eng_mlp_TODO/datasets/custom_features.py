@@ -33,7 +33,7 @@ class CustomFeatures:
     def __init__(self):
         self.vader_polarity: float = 0.0
 
-        self.pos_neg_ratio_vader: float = 0.0
+        self.pos_neg_ratio_vader: float = 0.0  # todo: remove similar features
         self.pos_neg_difference_vader: float = 0.0
 
         self.sentiment_entropy_vader: float = 0.0
@@ -48,7 +48,7 @@ class CustomFeatures:
         self.attitude: float = 0.0
         self.sensitivity: float = 0.0
 
-        self.flesch_kincaid_grade: float = 0.0
+        self.flesch_kincaid_grade: float = 0.0  # todo: might remove later
         self.gunning_fog: float = 0.0
         self.coleman_liau_index: float = 0.0
 

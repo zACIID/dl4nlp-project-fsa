@@ -13,13 +13,14 @@ import data.common as common
 import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
 import utils.io as io_
 from custom_features import CustomFeatures
+import hand_eng_mlp_TODO.models.model_beijin as hemlp
 
 
-# TODO ( ͡° ͜ʖ ͡°) compile once decided (in trial)
 TEXT_COL = sc.TEXT_COL
 LABEL_COL = common.LABEL_COL
 TOKENIZER_OUTPUT_COL = "tokenizer"
 SENTIMENT_SCORE_COL = "sentiment_score"
+_TOKENIZER_PATH = hemlp.PRE_TRAINED_MODEL_PATH
 
 PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
@@ -153,11 +154,49 @@ def preprocess_dataset(
         logger.debug(f"Repartitioning RDD to {S.EXECUTORS_AVAILABLE_CORES}")
         raw_df = raw_df.repartition(numPartitions=S.EXECUTORS_AVAILABLE_CORES)
 
+    logger.debug("Applying tokenizer...")
+    with_tokens = _apply_tokenizer(df=raw_df, text_col=text_col)
+
     logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
-    df = sc.convert_labels_to_sentiment_scores(df=raw_df, label_col=label_col)
+    df = sc.convert_labels_to_sentiment_scores(df=with_tokens, label_col=label_col)
 
     # Extract additional features
-    df = get_new_features(df)  # TODO pier said something about tokenize before adding idk
+    df = get_new_features(df)
 
     logger.debug("Preprocessing implemented")
     return df
+
+
+def _apply_tokenizer(
+        df: psql.DataFrame,
+        text_col: str
+) -> psql.DataFrame:
+    tokenizer = AutoTokenizer.from_pretrained(_TOKENIZER_PATH, use_fast=True)
+
+    @psqlf.udf(
+        returnType=psqlt.StructType([
+            psqlt.StructField("input_ids", psqlt.ArrayType(psqlt.IntegerType())),
+            psqlt.StructField("attention_mask", psqlt.ArrayType(psqlt.IntegerType()))
+        ])
+    )
+    def tokenize(text: str) -> typing.Tuple:
+        # NOTE: UDFs complex types are defined as StructType
+        # - https://stackoverflow.com/a/53346512
+        # - https://stackoverflow.com/a/36841721
+        batch: BatchEncoding = tokenizer(
+            text if text is not None else "",
+            return_tensors='np',
+            return_attention_mask=True,
+            padding='max_length',
+            truncation=True,
+            max_length=sc.WORST_CASE_TOKENS
+        )
+        input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
+        input_ids = input_ids.squeeze()
+        attention_mask = attention_mask.squeeze()
+
+        return input_ids.tolist(), attention_mask.tolist()
+
+    with_tokens_df = df.withColumn(TOKENIZER_OUTPUT_COL, tokenize(psqlf.col(text_col)))
+
+    return with_tokens_df
