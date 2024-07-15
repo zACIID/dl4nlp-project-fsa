@@ -4,7 +4,7 @@ import click
 import datasets
 from loguru import logger
 
-import hand_eng_mlp.datasets_TODO.preprocessing_base as ppb
+import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
 import data.spark as S
 import data.semeval_2017_dataset as sem
 import utils.io as io_
@@ -53,7 +53,7 @@ def _main(get_train_dataset: bool):
         raw_df=df,
         drop_neutral_samples=False,  # NOTE: false in this case because labels are continuously-valued sentiment scores
         text_col=sem.TEXT_COL,
-        label_col=sem.SENTIMENT_SCORE_COL
+        label_col=ppb.LABEL_COL
     )
 
     dataset_path = TRAIN_DATASET_PATH if get_train_dataset else VAL_DATASET_PATH

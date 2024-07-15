@@ -1,7 +1,7 @@
 from typing import Type, Callable
 import torch.nn as nn
 from torch import Tensor
-from src.hand_eng_mlp_TODO.models.super_MLP.utility.custom_layers.super_linear import SuperLinear
+from hand_eng_mlp_TODO.models.super_mlp.utility.custom_layers.super_linear import SuperLinear
 
 
 class SuperBlock(nn.Module):

@@ -1,8 +1,8 @@
 from collections import OrderedDict
 from typing import Type
 from torch import nn, Tensor
-from src.hand_eng_mlp_TODO.models.super_MLP.utility.MLP_bundle import MLPBundle
-from src.hand_eng_mlp_TODO.models.super_MLP.utility.custom_layers.super_block import SuperBlock
+from hand_eng_mlp_TODO.models.super_mlp.utility.mlp_bundle import MLPBundle
+from hand_eng_mlp_TODO.models.super_mlp.utility.custom_layers.super_block import SuperBlock
 
 
 class BaseSuperMLP(nn.Module):

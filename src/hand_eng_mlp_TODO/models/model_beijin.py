@@ -8,17 +8,19 @@ from torch import Tensor
 import torch.nn.functional as F
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
-from src.fine_tuned_finbert.models.loss_functions import sign_accuracy_mask
-from src.hand_eng_mlp_TODO.models.linear_aggregator import LinAggregator
-from src.hand_eng_mlp_TODO.models.super_MLP.base.base_MLP import BaseSuperMLP
+from fine_tuned_finbert.models.loss_functions import sign_accuracy_mask
+from hand_eng_mlp_TODO.models.linear_aggregator import LinAggregator
+from hand_eng_mlp_TODO.models.super_mlp.base.base_mlp import BaseSuperMLP
 from enum import Enum
 from transformers import BertForMaskedLM
-from src.hand_eng_mlp_TODO.models.super_MLP.box_mlp import BoxMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_mlp import RepRhomboidMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_mlp import RhomboidMLP
+from hand_eng_mlp_TODO.models.super_mlp.box_mlp import BoxMLP
+from hand_eng_mlp_TODO.models.super_mlp.rep_rhomboid_mlp import RepRhomboidMLP
+from hand_eng_mlp_TODO.models.super_mlp.rhomboid_mlp import RhomboidMLP
 
 BERT_EMBEDDING_SIZE = 768
-CUSTOM_FEATS_SIZE = 0 # TODO more still waiting on beijin
+CUSTOM_FEATS_SIZE = 0  # TODO more still waiting on beijin
+PRE_TRAINED_MODEL_PATH = "vinai/bertweet-base"
+
 
 class MLPType(Enum):
     BOX = 1
@@ -30,7 +32,6 @@ class ModelBeijin(L.LightningModule):
   def __init__(
       self,
       model_spec: MLPType, MLP_args: dict[str, Any],
-      bert_path: str = "vinai/bertweet-base",
       one_cycle_max_lr: float = 2e-5, aggregator_out: int = BERT_EMBEDDING_SIZE,
       weight_decay: float = 0.0, one_cycle_pct_start: float = 0.3,
       log_hparams: bool = True, **kwargs
@@ -51,7 +52,7 @@ class ModelBeijin(L.LightningModule):
 
     super().__init__()
 
-    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(bert_path)
+    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(PRE_TRAINED_MODEL_PATH)
     last_mlm_layer: nn.Linear = bertweet.cls.predictions.decoder
     mlm_mat: Tensor = last_mlm_layer.weight
     mlm_bias: Tensor = last_mlm_layer.bias
