@@ -183,7 +183,7 @@ def preprocess_dataset(
     df = sc.convert_labels_to_sentiment_scores(df=with_tokens, label_col=label_col)
 
     # Extract additional features
-    df = get_new_features(df, text_col=text_col)
+    # df = get_new_features(df, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
     return df
