@@ -7,6 +7,7 @@ import dotenv
 import pyspark.sql as psql
 from loguru import logger
 from pyspark import SparkFiles
+from dotenv import load_dotenv
 
 import utils.io as io_
 
@@ -19,6 +20,10 @@ DRIVER_CORES = int(os.getenv('DRIVER_CORES'))
 N_EXECUTORS = int(os.getenv('N_EXECUTORS'))
 EXECUTORS_AVAILABLE_RAM_GB = int(os.getenv('EXECUTORS_AVAILABLE_RAM_GB'))
 EXECUTORS_AVAILABLE_CORES = int(os.getenv('EXECUTORS_AVAILABLE_CORES'))
+
+load_dotenv()
+SENTICNET_API_EMOTION_KEY = os.getenv('SENTICNET_API_EMOTION_KEY')
+SENTICNET_API_POLARITY_KEY = os.getenv('SENTICNET_API_POLARITY_KEY')
 
 # Since the datasets used are relatively small, one partition per core is sufficient
 # The rule of thumb would be "numPartitions = numWorkers * cpuCoresPerWorker"
@@ -57,6 +62,8 @@ def create_spark_session(app_name: str) -> psql.SparkSession:
         #   I think this determines the number of RDD partitions
         .config("spark.default.parallelism", EXECUTORS_AVAILABLE_CORES)
         .config("spark.cores.max", EXECUTORS_AVAILABLE_CORES)
+        .conffig("spark.executorEnv.SENTICNET_API_EMOTION_KEY", SENTICNET_API_EMOTION_KEY)
+        .conffig("spark.executorEnv.SENTICNET_API_POLARITY_KEY", SENTICNET_API_POLARITY_KEY)
         .getOrCreate()
     )
 
