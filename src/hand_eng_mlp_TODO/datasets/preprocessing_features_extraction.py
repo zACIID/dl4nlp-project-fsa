@@ -264,7 +264,7 @@ def compute_overall_sentiment_features(
     arousal_values = []
     dominance_values = []
 
-    sentiment_data, default_mean_value = load_sentiment_dataset(io_.DATA_DIR) #mean_medians
+    sentiment_data, default_mean_value = load_sentiment_dataset(io_.DATA_DIR) #mean_medians TODO: can we pass it only once to spark?
 
     print("start step VAD")
     for word in words:
