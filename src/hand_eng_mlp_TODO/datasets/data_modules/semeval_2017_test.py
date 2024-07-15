@@ -3,7 +3,7 @@ import lightning as L
 import torch
 from torch.utils.data import DataLoader
 
-import hand_eng_mlp.datasets_TODO.semeval_2017.preprocessing as sem_pp
+import hand_eng_mlp_TODO.datasets.semeval_2017.preprocessing as sem_pp
 from utils.random import RND_SEED
 
 

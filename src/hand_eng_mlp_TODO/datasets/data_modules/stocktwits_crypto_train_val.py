@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 
-import hand_eng_mlp.datasets_TODO.stocktwits_crypto.preprocessing as pp
+import hand_eng_mlp_TODO.datasets.stocktwits_crypto.preprocessing as pp
 from utils.random import RND_SEED
 
 
