@@ -89,7 +89,7 @@ def convert_labels_to_sentiment_scores(
 ) -> psql.DataFrame:
     @psqlf.udf(returnType=psqlt.FloatType())
     def convert_label(label: int) -> float:
-        match label:
+        match round(label):  #TODO og is without round(), otherwise the running will give value error for those 0.000x
             case 0.0: return -1.0
             case 1.0: return 0.0
             case 2.0: return 1.0
