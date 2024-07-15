@@ -62,8 +62,8 @@ def create_spark_session(app_name: str) -> psql.SparkSession:
         #   I think this determines the number of RDD partitions
         .config("spark.default.parallelism", EXECUTORS_AVAILABLE_CORES)
         .config("spark.cores.max", EXECUTORS_AVAILABLE_CORES)
-        .conffig("spark.executorEnv.SENTICNET_API_EMOTION_KEY", SENTICNET_API_EMOTION_KEY)
-        .conffig("spark.executorEnv.SENTICNET_API_POLARITY_KEY", SENTICNET_API_POLARITY_KEY)
+        .config("spark.executorEnv.SENTICNET_API_EMOTION_KEY", SENTICNET_API_EMOTION_KEY)
+        .config("spark.executorEnv.SENTICNET_API_POLARITY_KEY", SENTICNET_API_POLARITY_KEY)
         .getOrCreate()
     )
 
