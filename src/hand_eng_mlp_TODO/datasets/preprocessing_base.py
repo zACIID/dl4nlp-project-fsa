@@ -33,7 +33,9 @@ PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
 
 
 # Define UDFs for feature extraction functions
-compute_sentence_polarity_VADER_udf = udf(ppfe.compute_vader_polarity, FloatType())
+compute_sentence_polarity_VADER_udf = udf(
+    ppfe.compute_vader_polarity, FloatType()
+)
 calculate_pos_neg_features_VADER_udf = udf(
     ppfe.calculate_vader_pos_neg_features,
     StructType([
@@ -41,7 +43,9 @@ calculate_pos_neg_features_VADER_udf = udf(
         StructField("Pos_Neg_Difference_VADER", FloatType())
     ])
 )
-calculate_sentiment_entropy_VADER_udf = udf(ppfe.calculate_vader_sentiment_entropy, FloatType())
+calculate_sentiment_entropy_VADER_udf = udf(
+    ppfe.calculate_vader_sentiment_entropy, FloatType()
+)
 calculate_pos_neg_features_SN_udf = udf(
     ppfe.calculate_sentic_pos_neg_features,
     StructType([
@@ -49,7 +53,9 @@ calculate_pos_neg_features_SN_udf = udf(
         StructField("Pos_Neg_Difference_SenticNet", FloatType())
     ])
 )
-compute_sentence_polarity_SWN_udf = udf(ppfe.compute_swn_polarity, FloatType())
+compute_sentence_polarity_SWN_udf = udf(
+    ppfe.compute_swn_polarity, FloatType()
+)
 emotion_recognition_SN_udf = udf(
     ppfe.sentic_emotion_recognition,
     StructType([
@@ -87,48 +93,64 @@ compute_overall_sentiment_features_udf = udf(
 def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     """
     :param df: Spark DataFrame with text data
+    :param text_col: name of the column containing the text
     :return: DataFrame with additional computed features
     """
     # Sentiment score with VADER, SenticNet and SentiWordNet
     df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df[text_col]))
 
-    pos_neg_vader_udf = calculate_pos_neg_features_VADER_udf(df[text_col])
-    df = df.withColumn('Pos_Neg_Ratio_VADER', pos_neg_vader_udf['Pos_Neg_Ratio_VADER'])
-    df = df.withColumn('Pos_Neg_Difference_VADER', pos_neg_vader_udf['Pos_Neg_Difference_VADER'])
+    df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["vader_features"]["Pos_Neg_Ratio_VADER"].alias("Pos_Neg_Ratio_VADER"),
+        df["vader_features"]["Pos_Neg_Difference_VADER"].alias("Pos_Neg_Difference_VADER")
+    ).drop("vader_features")
 
     df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[text_col]))
 
-    pos_neg_sn_udf = calculate_pos_neg_features_SN_udf(df[text_col])
-    df = df.withColumn('Pos_Neg_Ratio_SenticNet', pos_neg_sn_udf['Pos_Neg_Ratio_SenticNet'])
-    df = df.withColumn('Pos_Neg_Difference_SenticNet', pos_neg_sn_udf['Pos_Neg_Difference_SenticNet'])
+    df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["senticnet_features"]["Pos_Neg_Ratio_SenticNet"].alias("Pos_Neg_Ratio_SenticNet"),
+        df["senticnet_features"]["Pos_Neg_Difference_SenticNet"].alias("Pos_Neg_Difference_SenticNet")
+    ).drop("senticnet_features")
 
     df = df.withColumn('sentiment_score_SWN', compute_sentence_polarity_SWN_udf(df[text_col]))
 
     # Emotion recognition
-    emotion_features_udf = emotion_recognition_SN_udf(df[text_col])
-    df = df.withColumn('INTROSPECTION', emotion_features_udf['INTROSPECTION'])
-    df = df.withColumn('TEMPER', emotion_features_udf['TEMPER'])
-    df = df.withColumn('ATTITUDE', emotion_features_udf['ATTITUDE'])
-    df = df.withColumn('SENSITIVITY', emotion_features_udf['SENSITIVITY'])
+    df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
+        df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
+        df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
+        df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
+    ).drop("emotion_recognition")
 
     # Readability metrics
-    readability_metrics_udf = calculate_readability_metrics_udf(df[text_col])
-    df = df.withColumn('flesch_kincaid_grade', readability_metrics_udf['flesch_kincaid_grade'])
-    df = df.withColumn('gunning_fog', readability_metrics_udf['gunning_fog'])
-    df = df.withColumn('coleman_liau_index', readability_metrics_udf['coleman_liau_index'])
+    df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["readability_metrics"]["flesch_kincaid_grade"].alias("flesch_kincaid_grade"),
+        df["readability_metrics"]["gunning_fog"].alias("gunning_fog"),
+        df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
+    ).drop("readability_metrics")
 
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
     sentiment_data, mean_medians = ppfe.load_sentiment_dataset(io_.DATA_DIR)
-    oa_sent_features_udf = compute_overall_sentiment_features_udf(df[text_col], lit(sentiment_data), lit(mean_medians))
-    df = df.withColumn('overall_valence_mean', oa_sent_features_udf['overall_valence_mean'])
-    df = df.withColumn('overall_arousal_mean', oa_sent_features_udf['overall_arousal_mean'])
-    df = df.withColumn('overall_dominance_mean', oa_sent_features_udf['overall_dominance_mean'])
-    df = df.withColumn('overall_valence_std', oa_sent_features_udf['overall_valence_std'])
-    df = df.withColumn('overall_arousal_std', oa_sent_features_udf['overall_arousal_std'])
-    df = df.withColumn('overall_dominance_std', oa_sent_features_udf['overall_dominance_std'])
-    df = df.withColumn('valence_contrast', oa_sent_features_udf['valence_contrast'])
-    df = df.withColumn('arousal_contrast', oa_sent_features_udf['arousal_contrast'])
-    df = df.withColumn('dominance_contrast', oa_sent_features_udf['dominance_contrast'])
+    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col], lit(sentiment_data), lit(mean_medians)))
+    df = df.select(
+        "*",
+        df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
+        df["lexical_affect_features"]["overall_arousal_mean"].alias("overall_arousal_mean"),
+        df["lexical_affect_features"]["overall_dominance_mean"].alias("overall_dominance_mean"),
+        df["lexical_affect_features"]["overall_valence_std"].alias("overall_valence_std"),
+        df["lexical_affect_features"]["overall_arousal_std"].alias("overall_arousal_std"),
+        df["lexical_affect_features"]["overall_dominance_std"].alias("overall_dominance_std"),
+        df["lexical_affect_features"]["valence_contrast"].alias("valence_contrast"),
+        df["lexical_affect_features"]["arousal_contrast"].alias("arousal_contrast"),
+        df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
+    ).drop("lexical_affect_features")
 
     return df
 
