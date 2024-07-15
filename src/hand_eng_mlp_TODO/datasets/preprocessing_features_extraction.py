@@ -264,6 +264,8 @@ def compute_overall_sentiment_features(
     arousal_values = []
     dominance_values = []
 
+    sentiment_data, default_mean_value = load_sentiment_dataset(io_.DATA_DIR) #mean_medians
+
     print("start step VAD")
     for word in words:
         word_data = sentiment_data[sentiment_data['Word'] == word]

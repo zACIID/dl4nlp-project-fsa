@@ -98,7 +98,7 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     """
     # Sentiment score with VADER, SenticNet and SentiWordNet
     df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df[text_col]))
-    print("END step1")
+
     df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
     df = df.select(
         "*",
@@ -143,11 +143,12 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     print("END step7")
 
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
-    print("START load VAD dataset")
-    sentiment_data, mean_medians = ppfe.load_sentiment_dataset(io_.DATA_DIR)
-    print("END load VAD dataset")
+    # print("START load VAD dataset")
+    # sentiment_data, mean_medians = ppfe.load_sentiment_dataset(io_.DATA_DIR)
+    # print("END load VAD dataset")
 
-    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col], sentiment_data, mean_medians))
+    # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col], sentiment_data, mean_medians))
+    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
     df = df.select(
         "*",
         df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
