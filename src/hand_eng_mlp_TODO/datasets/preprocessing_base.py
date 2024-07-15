@@ -144,7 +144,7 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
     sentiment_data, mean_medians = ppfe.load_sentiment_dataset(io_.DATA_DIR)
-    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col], lit(sentiment_data), lit(mean_medians)))
+    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col], sentiment_data, mean_medians))
     df = df.select(
         "*",
         df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
