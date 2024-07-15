@@ -264,8 +264,10 @@ def compute_overall_sentiment_features(
     arousal_values = []
     dominance_values = []
 
+    print("start step VAD")
     for word in words:
         word_data = sentiment_data[sentiment_data['Word'] == word]
+        print("mid step VAD")
         if not word_data.empty:
             # Get the valence, arousal, and dominance values for the word
             valence = word_data['V.Mean.Sum'].values[0]
@@ -281,6 +283,7 @@ def compute_overall_sentiment_features(
             valence_values.append(valence)
             arousal_values.append(arousal)
             dominance_values.append(dominance)
+    print("end step VAD")
 
     # Compute overall mean and standard deviation for valence, arousal, and dominance
     overall_valence_mean = sum(valence_values) / len(valence_values) if valence_values else 0
