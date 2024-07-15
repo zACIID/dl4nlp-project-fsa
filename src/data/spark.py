@@ -7,7 +7,6 @@ import dotenv
 import pyspark.sql as psql
 from loguru import logger
 from pyspark import SparkFiles
-from dotenv import load_dotenv
 
 import utils.io as io_
 
@@ -21,7 +20,7 @@ N_EXECUTORS = int(os.getenv('N_EXECUTORS'))
 EXECUTORS_AVAILABLE_RAM_GB = int(os.getenv('EXECUTORS_AVAILABLE_RAM_GB'))
 EXECUTORS_AVAILABLE_CORES = int(os.getenv('EXECUTORS_AVAILABLE_CORES'))
 
-load_dotenv()
+dotenv.load_dotenv(io_.PROJECT_ROOT / '.env')
 SENTICNET_API_EMOTION_KEY = os.getenv('SENTICNET_API_EMOTION_KEY')
 SENTICNET_API_POLARITY_KEY = os.getenv('SENTICNET_API_POLARITY_KEY')
 

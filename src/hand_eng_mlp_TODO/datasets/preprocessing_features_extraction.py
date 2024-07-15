@@ -20,7 +20,6 @@ from utils.custom_features_utils import download_and_extract_zip
 # poetry add vaderSentiment
 # poetry add textstat
 
-load_dotenv()
 SENTICNET_API_EMOTION_KEY = os.getenv('SENTICNET_API_EMOTION_KEY')
 SENTICNET_API_POLARITY_KEY = os.getenv('SENTICNET_API_POLARITY_KEY')
 
