@@ -97,23 +97,23 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     :return: DataFrame with additional computed features
     """
     # Sentiment score with VADER, SenticNet and SentiWordNet
-    df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df[text_col]))
-    print("END step1 - SAFE")
+    # df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df[text_col]))
+    # print("END step1 - SAFE")
 
 
 
-    df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
-    df = df.select(
-        "*",
-        df["vader_features"]["Pos_Neg_Ratio_VADER"].alias("Pos_Neg_Ratio_VADER"),
-        df["vader_features"]["Pos_Neg_Difference_VADER"].alias("Pos_Neg_Difference_VADER")
-    ).drop("vader_features")
-    print("END step2 - SAFE?")
+    # df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
+    # df = df.select(
+    #     "*",
+    #     df["vader_features"]["Pos_Neg_Ratio_VADER"].alias("Pos_Neg_Ratio_VADER"),
+    #     df["vader_features"]["Pos_Neg_Difference_VADER"].alias("Pos_Neg_Difference_VADER")
+    # ).drop("vader_features")
+    # print("END step2 - SAFE")
 
 
 
-    # df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    # print("END step3 - SAFE?")
+    df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[text_col]))
+    print("END step3 - SAFE?")
 
 
 
