@@ -272,10 +272,13 @@ def load_sentiment_dataset(
     return sentiment_data, (valence_median, arousal_median, dominance_median)
 
 
+# def compute_overall_sentiment_features(
+#         text: str,
+#         sentiment_data: pd.DataFrame,
+#         default_mean_value: Tuple[float, float, float]
+# ) -> cf.SentimentFeatures:
 def compute_overall_sentiment_features(
-        text: str,
-        sentiment_data: pd.DataFrame,
-        default_mean_value: Tuple[float, float, float]
+        text: str
 ) -> cf.SentimentFeatures:
     """
     Computes overall sentiment features for a text based on valence, arousal, and dominance.
