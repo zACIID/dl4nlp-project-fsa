@@ -96,11 +96,9 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     :param text_col: name of the column containing the text
     :return: DataFrame with additional computed features
     """
-    # Sentiment score with VADER, SenticNet and SentiWordNet
+    # # Sentiment score with VADER, SenticNet and SentiWordNet
     # df = df.withColumn('vader_polarity', compute_sentence_polarity_VADER_udf(df[text_col]))
     # print("END step1 - SAFE")
-
-
 
     # df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
     # df = df.select(
@@ -110,10 +108,8 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     # ).drop("vader_features")
     # print("END step2 - SAFE")
 
-
-
-    # df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    # print("END step3 - SAFE?")  # TODO no more numpy array but slow?
+    df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
+    print("END step3 - SAFE?")
 
 
 
@@ -127,8 +123,8 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
 
-    df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
-    print("END step5 - SAFE?")
+    # df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
+    # print("END step5 - SAFE")
 
 
 
