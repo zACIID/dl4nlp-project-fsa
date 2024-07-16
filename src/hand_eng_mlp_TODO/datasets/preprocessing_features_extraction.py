@@ -33,6 +33,16 @@ nltk.download('wordnet')
 # Initialize sentiment analyzer globally
 analyzer = SentimentIntensityAnalyzer()
 
+global_sentiment_data_broadcast = None
+global_default_mean_value_broadcast = None
+
+
+def set_broadcast_variables(sentiment_data_broadcast, default_mean_value_broadcast):
+    global global_sentiment_data_broadcast
+    global global_default_mean_value_broadcast
+    global_sentiment_data_broadcast = sentiment_data_broadcast
+    global_default_mean_value_broadcast = default_mean_value_broadcast
+
 
 # Function to create a configured session
 def create_session_with_retries() -> requests.Session:
@@ -297,8 +307,8 @@ def compute_overall_sentiment_features(
     dominance_values = []
 
     # sentiment_data, default_mean_value = load_sentiment_dataset(io_.DATA_DIR) #mean_medians TODO: can we pass it only once to spark?
-    sentiment_data = sentiment_data_broadcast.value
-    default_mean_value = default_mean_value_broadcast.value
+    sentiment_data = global_sentiment_data_broadcast.value
+    default_mean_value = global_default_mean_value_broadcast.value
 
     print("start step VAD")
     for word in words:

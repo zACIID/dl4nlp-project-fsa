@@ -157,10 +157,13 @@ def get_new_features(
 
 
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
-    print("START load VAD dataset")  #TODO: remove later?
+    print("START load VAD dataset")  # TODO: remove later?
     sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
     sentiment_data_broadcast = spark.sparkContext.broadcast(sentiment_data)
     default_mean_value_broadcast = spark.sparkContext.broadcast(default_mean_value)
+
+    # Set the global broadcast variables
+    ppfe.set_broadcast_variables(sentiment_data_broadcast, default_mean_value_broadcast)
     print("END load VAD dataset")
 
     # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col],
@@ -220,7 +223,7 @@ def preprocess_dataset(
     return df
 
 
-def _apply_tokenizer(
+def _apply_tokenizer(  # TODO use bert tokenizer
         df: psql.DataFrame,
         text_col: str
 ) -> psql.DataFrame:
