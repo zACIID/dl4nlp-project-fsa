@@ -158,16 +158,16 @@ def get_new_features(
 
 
 
-    # # Emotion recognition
-    # df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
-    #     df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
-    #     df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
-    #     df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
-    # ).drop("emotion_recognition")
-    # print("END step6 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
+    # Emotion recognition
+    df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
+        df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
+        df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
+        df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
+    ).drop("emotion_recognition")
+    print("END step6 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
 
 
 
@@ -182,36 +182,36 @@ def get_new_features(
     # print("END step7 - SAFE to use")
 
 
-    # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
-    print("START load VAD dataset")  # TODO: remove later?
-    sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
-    sentiment_data_broadcast = spark.sparkContext.broadcast(sentiment_data)
-    default_mean_value_broadcast = spark.sparkContext.broadcast(default_mean_value)
-    print("END load VAD dataset")
-
-    # Create the UDF
-    compute_overall_sentiment_features_udf = create_compute_overall_sentiment_features_udf(
-        sentiment_data_broadcast,
-        default_mean_value_broadcast
-    )
-
-    # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col],
-    #                                                                                      sentiment_data_broadcast,
-    #                                                                                      default_mean_value_broadcast))
-    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
-    df = df.select(
-        "*",
-        df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
-        df["lexical_affect_features"]["overall_arousal_mean"].alias("overall_arousal_mean"),
-        df["lexical_affect_features"]["overall_dominance_mean"].alias("overall_dominance_mean"),
-        df["lexical_affect_features"]["overall_valence_std"].alias("overall_valence_std"),
-        df["lexical_affect_features"]["overall_arousal_std"].alias("overall_arousal_std"),
-        df["lexical_affect_features"]["overall_dominance_std"].alias("overall_dominance_std"),
-        df["lexical_affect_features"]["valence_contrast"].alias("valence_contrast"),
-        df["lexical_affect_features"]["arousal_contrast"].alias("arousal_contrast"),
-        df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
-    ).drop("lexical_affect_features")
-    print("END step8 - SAFE?")
+    # # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
+    # print("START load VAD dataset")  # TODO: remove later?
+    # sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
+    # sentiment_data_broadcast = spark.sparkContext.broadcast(sentiment_data)
+    # default_mean_value_broadcast = spark.sparkContext.broadcast(default_mean_value)
+    # print("END load VAD dataset")
+    #
+    # # Create the UDF
+    # compute_overall_sentiment_features_udf = create_compute_overall_sentiment_features_udf(
+    #     sentiment_data_broadcast,
+    #     default_mean_value_broadcast
+    # )
+    #
+    # # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col],
+    # #                                                                                      sentiment_data_broadcast,
+    # #                                                                                      default_mean_value_broadcast))
+    # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
+    # df = df.select(
+    #     "*",
+    #     df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
+    #     df["lexical_affect_features"]["overall_arousal_mean"].alias("overall_arousal_mean"),
+    #     df["lexical_affect_features"]["overall_dominance_mean"].alias("overall_dominance_mean"),
+    #     df["lexical_affect_features"]["overall_valence_std"].alias("overall_valence_std"),
+    #     df["lexical_affect_features"]["overall_arousal_std"].alias("overall_arousal_std"),
+    #     df["lexical_affect_features"]["overall_dominance_std"].alias("overall_dominance_std"),
+    #     df["lexical_affect_features"]["valence_contrast"].alias("valence_contrast"),
+    #     df["lexical_affect_features"]["arousal_contrast"].alias("arousal_contrast"),
+    #     df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
+    # ).drop("lexical_affect_features")
+    # print("END step8 - SAFE to use")
 
     return df
 
