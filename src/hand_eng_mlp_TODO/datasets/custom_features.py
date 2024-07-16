@@ -33,12 +33,12 @@ class CustomFeatures:
     def __init__(self):
         self.vader_polarity: float = 0.0
 
-        self.pos_neg_ratio_vader: float = 0.0  # todo: remove similar features (maybe rermove senticnet one since it takes too much time
+        self.pos_neg_ratio_vader: float = 0.0  # todo: remove similar features (maybe rermove senticnet one since it takes too much time 40 mins for 100 rows
         self.pos_neg_difference_vader: float = 0.0
 
         self.sentiment_entropy_vader: float = 0.0
 
-        self.pos_neg_ratio_sentic: float = 0.0
+        self.pos_neg_ratio_sentic: float = 0.0  # TODO: similar to vade above TOREMOVE this
         self.pos_neg_difference_sentic: float = 0.0
 
         self.swn_polarity: float = 0.0
