@@ -143,13 +143,13 @@ def get_new_features(
 
 
 
-    # df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["senticnet_features"]["pos_neg_ratio_sentic"].alias("pos_neg_ratio_sentic"),
-    #     df["senticnet_features"]["pos_neg_difference_sentic"].alias("pos_neg_difference_sentic")
-    # ).drop("senticnet_features")
-    # print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
+    df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["senticnet_features"]["pos_neg_ratio_sentic"].alias("pos_neg_ratio_sentic"),
+        df["senticnet_features"]["pos_neg_difference_sentic"].alias("pos_neg_difference_sentic")
+    ).drop("senticnet_features")
+    print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
 
 
 
@@ -158,16 +158,16 @@ def get_new_features(
 
 
 
-    # Emotion recognition
-    df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
-    df = df.select(
-        "*",
-        df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
-        df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
-        df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
-        df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
-    ).drop("emotion_recognition")
-    print("END step6 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
+    # # Emotion recognition
+    # df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
+    # df = df.select(
+    #     "*",
+    #     df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
+    #     df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
+    #     df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
+    #     df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
+    # ).drop("emotion_recognition")
+    # print("END step6 - SAFE to use")
 
 
 
