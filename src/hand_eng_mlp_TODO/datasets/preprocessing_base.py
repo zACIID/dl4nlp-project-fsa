@@ -128,26 +128,28 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
 
-    # Emotion recognition
-    df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
-    df = df.select(
-        "*",
-        df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
-        df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
-        df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
-        df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
-    ).drop("emotion_recognition")
-    print("END step6 - SAFE?")
-
-    # # Readability metrics
-    # df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
+    # # Emotion recognition
+    # df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
     # df = df.select(
     #     "*",
-    #     df["readability_metrics"]["flesch_kincaid_grade"].alias("flesch_kincaid_grade"),
-    #     df["readability_metrics"]["gunning_fog"].alias("gunning_fog"),
-    #     df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
-    # ).drop("readability_metrics")
-    # print("END step7 - SAFE?")
+    #     df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
+    #     df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
+    #     df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
+    #     df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
+    # ).drop("emotion_recognition")
+    # print("END step6 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
+
+
+
+    # Readability metrics
+    df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["readability_metrics"]["flesch_kincaid_grade"].alias("flesch_kincaid_grade"),
+        df["readability_metrics"]["gunning_fog"].alias("gunning_fog"),
+        df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
+    ).drop("readability_metrics")
+    print("END step7 - SAFE?")
 
     # # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
     # # print("START load VAD dataset")  #TODO: remove later, ask ruie
