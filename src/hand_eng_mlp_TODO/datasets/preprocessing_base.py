@@ -90,8 +90,12 @@ compute_overall_sentiment_features_udf = udf(
 
 
 # Function to compute the additional features
-def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
+def get_new_features(
+        spark: psql.SparkSession,
+        df: psql.DataFrame,
+        text_col: str) -> psql.DataFrame:
     """
+    :param spark: spark session
     :param df: Spark DataFrame with text data
     :param text_col: name of the column containing the text
     :return: DataFrame with additional computed features
@@ -180,12 +184,14 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
 def preprocess_dataset(
+        spark: psql.SparkSession,
         raw_df: psql.DataFrame,
         drop_neutral_samples: bool,
         text_col: str,
         label_col: str
 ) -> psql.DataFrame:
     """
+    :param spark: spark session
     :param raw_df: just read, no preprocessing, raw dataset
     :param drop_neutral_samples: true if neutrally labelled samples should be dropped
     :param label_col: name of column in raw_df
@@ -207,7 +213,7 @@ def preprocess_dataset(
     df = sc.convert_labels_to_sentiment_scores(df=with_tokens, label_col=label_col)
 
     # Extract additional features
-    df = get_new_features(df, text_col=text_col)
+    df = get_new_features(spark, df, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
     return df

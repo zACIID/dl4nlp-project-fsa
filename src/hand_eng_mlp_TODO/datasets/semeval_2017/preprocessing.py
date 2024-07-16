@@ -50,6 +50,7 @@ def _main(get_train_dataset: bool):
 
     df = df.withColumnRenamed(sem.SENTIMENT_SCORE_COL, ppb.LABEL_COL)
     df = ppb.preprocess_dataset(
+        spark=spark,
         raw_df=df,
         drop_neutral_samples=False,  # NOTE: false in this case because labels are continuously-valued sentiment scores
         text_col=sem.TEXT_COL,

@@ -48,6 +48,7 @@ def _main(drop_neutral_samples: bool):
     )
 
     df = ppb.preprocess_dataset(
+        spark=spark,
         raw_df=df,
         drop_neutral_samples=drop_neutral_samples,
         text_col=sc.TEXT_COL,
