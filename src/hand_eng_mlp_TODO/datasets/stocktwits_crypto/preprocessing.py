@@ -39,6 +39,8 @@ def _main(drop_neutral_samples: bool):
     )
     raw_df = sc.read_dataset(spark=spark, path=raw_csv_path)
 
+    raw_df = raw_df.limit(100)  # Take the first 100 rows TODO just for testingn
+
     logger.info("Cleaning dataset...")
     df = sc.clean(
         raw_df=raw_df,
