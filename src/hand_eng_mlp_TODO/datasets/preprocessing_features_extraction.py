@@ -272,13 +272,10 @@ def load_sentiment_dataset(
     return sentiment_data, (valence_median, arousal_median, dominance_median)
 
 
-# def compute_overall_sentiment_features(
-#         text: str,
-#         sentiment_data: pd.DataFrame,
-#         default_mean_value: Tuple[float, float, float]
-# ) -> cf.SentimentFeatures:
 def compute_overall_sentiment_features(
-        text: str
+        text: str,
+        sentiment_data_broadcast: pd.DataFrame,
+        default_mean_value_broadcast: Tuple[float, float, float]
 ) -> cf.SentimentFeatures:
     """
     Computes overall sentiment features for a text based on valence, arousal, and dominance.
@@ -295,7 +292,9 @@ def compute_overall_sentiment_features(
     arousal_values = []
     dominance_values = []
 
-    sentiment_data, default_mean_value = load_sentiment_dataset(io_.DATA_DIR) #mean_medians TODO: can we pass it only once to spark?
+    # sentiment_data, default_mean_value = load_sentiment_dataset(io_.DATA_DIR) #mean_medians TODO: can we pass it only once to spark?
+    sentiment_data = sentiment_data_broadcast.value
+    default_mean_value = default_mean_value_broadcast.value
 
     print("start step VAD")
     for word in words:
@@ -306,16 +305,14 @@ def compute_overall_sentiment_features(
             valence = word_data['V.Mean.Sum'].values[0]
             arousal = word_data['A.Mean.Sum'].values[0]
             dominance = word_data['D.Mean.Sum'].values[0]
-            valence_values.append(valence)
-            arousal_values.append(arousal)
-            dominance_values.append(dominance)
             # print(f"word: {word}, scores: V:{valence} A:{arousal} D:{dominance}")
         else:
             # Get the default values for valence, arousal, and dominance for the word not in the lexicon
             valence, arousal, dominance = default_mean_value
-            valence_values.append(valence)
-            arousal_values.append(arousal)
-            dominance_values.append(dominance)
+
+        valence_values.append(valence)
+        arousal_values.append(arousal)
+        dominance_values.append(dominance)
     print("end step VAD")
 
     # Compute overall mean and standard deviation for valence, arousal, and dominance
@@ -329,9 +326,9 @@ def compute_overall_sentiment_features(
     overall_dominance_std = pd.Series(dominance_values).std() if dominance_values else 0
 
     # Contrast in the text
-    valence_contrast = max(valence_values) - min(valence_values)
-    arousal_contrast = max(arousal_values) - min(arousal_values)
-    dominance_contrast = max(dominance_values) - min(dominance_values)
+    valence_contrast = max(valence_values) - min(valence_values) if valence_values else 0
+    arousal_contrast = max(arousal_values) - min(arousal_values) if arousal_values else 0
+    dominance_contrast = max(dominance_values) - min(dominance_values) if dominance_values else 0
 
     return cf.SentimentFeatures(
         overall_valence_mean, overall_arousal_mean, overall_dominance_mean,
