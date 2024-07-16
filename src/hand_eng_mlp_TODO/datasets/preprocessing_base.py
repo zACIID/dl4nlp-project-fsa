@@ -98,22 +98,22 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     """
     # Sentiment score with VADER, SenticNet and SentiWordNet
     df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df[text_col]))
+    print("END step1 - SAFE")
 
 
 
-
-    # df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["vader_features"]["Pos_Neg_Ratio_VADER"].alias("Pos_Neg_Ratio_VADER"),
-    #     df["vader_features"]["Pos_Neg_Difference_VADER"].alias("Pos_Neg_Difference_VADER")
-    # ).drop("vader_features")
-    # print("END step2")
+    df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["vader_features"]["Pos_Neg_Ratio_VADER"].alias("Pos_Neg_Ratio_VADER"),
+        df["vader_features"]["Pos_Neg_Difference_VADER"].alias("Pos_Neg_Difference_VADER")
+    ).drop("vader_features")
+    print("END step2 - SAFE?")
 
 
 
     # df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    # print("END step3")
+    # print("END step3 - SAFE?")
 
 
 
@@ -123,12 +123,12 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     #     df["senticnet_features"]["Pos_Neg_Ratio_SenticNet"].alias("Pos_Neg_Ratio_SenticNet"),
     #     df["senticnet_features"]["Pos_Neg_Difference_SenticNet"].alias("Pos_Neg_Difference_SenticNet")
     # ).drop("senticnet_features")
-    # print("END step4")
+    # print("END step4 - SAFE?")
 
 
 
     # df = df.withColumn('sentiment_score_SWN', compute_sentence_polarity_SWN_udf(df[text_col]))
-    # print("END step5")
+    # print("END step5 - SAFE?")
 
 
 
@@ -141,7 +141,7 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     #     df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
     #     df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
     # ).drop("emotion_recognition")
-    # print("END step6")
+    # print("END step6 - SAFE?")
 
     # # Readability metrics
     # df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
@@ -151,7 +151,7 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     #     df["readability_metrics"]["gunning_fog"].alias("gunning_fog"),
     #     df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
     # ).drop("readability_metrics")
-    # print("END step7")
+    # print("END step7 - SAFE?")
 
     # # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
     # # print("START load VAD dataset")  #TODO: remove later, ask ruie
@@ -171,7 +171,7 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     #     df["lexical_affect_features"]["arousal_contrast"].alias("arousal_contrast"),
     #     df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
     # ).drop("lexical_affect_features")
-    # print("END step8")
+    # print("END step8 - SAFE?")
 
     return df
 
