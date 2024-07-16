@@ -74,7 +74,7 @@ calculate_readability_metrics_udf = udf(
     ])
 )
 compute_overall_sentiment_features_udf = udf(
-    lambda text, vad_df, default_values: ppfe.compute_overall_sentiment_features(text, vad_df, default_values),
+    ppfe.compute_overall_sentiment_features,
     StructType([
         StructField("overall_valence_mean", FloatType()),
         StructField("overall_arousal_mean", FloatType()),
@@ -155,6 +155,7 @@ def get_new_features(
     # ).drop("readability_metrics")
     # print("END step7 - SAFE to use")
 
+
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
     print("START load VAD dataset")  #TODO: remove later?
     sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
@@ -162,10 +163,10 @@ def get_new_features(
     default_mean_value_broadcast = spark.sparkContext.broadcast(default_mean_value)
     print("END load VAD dataset")
 
-    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col],
-                                                                                         sentiment_data_broadcast,
-                                                                                         default_mean_value_broadcast))
-    # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
+    # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col],
+    #                                                                                      sentiment_data_broadcast,
+    #                                                                                      default_mean_value_broadcast))
+    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
     df = df.select(
         "*",
         df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
