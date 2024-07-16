@@ -74,7 +74,7 @@ calculate_readability_metrics_udf = udf(
     ])
 )
 compute_overall_sentiment_features_udf = udf(
-    ppfe.compute_overall_sentiment_features,
+    lambda text, vad_df, default_values: ppfe.compute_overall_sentiment_features(text, vad_df, default_values),
     StructType([
         StructField("overall_valence_mean", FloatType()),
         StructField("overall_arousal_mean", FloatType()),
