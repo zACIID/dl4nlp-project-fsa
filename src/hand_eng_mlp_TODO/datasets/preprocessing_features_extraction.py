@@ -38,7 +38,7 @@ analyzer = SentimentIntensityAnalyzer()
 def create_session_with_retries() -> requests.Session:
     session = requests.Session()
     retry = Retry(
-        connect=4,  # Retry up to 3 times on connection errors
+        connect=3,  # Retry up to 3 times on connection errors
         backoff_factor=0.5,  # Backoff factor for delays between retries
         # status_forcelist=[500, 502, 503, 504]  # Retry on these status codes
     )
