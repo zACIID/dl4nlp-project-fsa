@@ -110,13 +110,13 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[text_col]))
     print("END step3")
 
-    # df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["senticnet_features"]["Pos_Neg_Ratio_SenticNet"].alias("Pos_Neg_Ratio_SenticNet"),
-    #     df["senticnet_features"]["Pos_Neg_Difference_SenticNet"].alias("Pos_Neg_Difference_SenticNet")
-    # ).drop("senticnet_features")
-    # print("END step4")
+    df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["senticnet_features"]["Pos_Neg_Ratio_SenticNet"].alias("Pos_Neg_Ratio_SenticNet"),
+        df["senticnet_features"]["Pos_Neg_Difference_SenticNet"].alias("Pos_Neg_Difference_SenticNet")
+    ).drop("senticnet_features")
+    print("END step4")
 
     df = df.withColumn('sentiment_score_SWN', compute_sentence_polarity_SWN_udf(df[text_col]))
     print("END step5")

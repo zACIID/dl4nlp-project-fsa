@@ -6,6 +6,8 @@ import math
 import nltk
 import os
 import utils.io as io_
+import requests
+import hand_eng_mlp_TODO.datasets.custom_features as cf
 from nltk.corpus import sentiwordnet as swn
 from nltk.tokenize import word_tokenize
 from scipy.stats import entropy
@@ -13,7 +15,8 @@ from collections import Counter
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from typing import Dict, Tuple, Union, List
 from dotenv import load_dotenv
-import hand_eng_mlp_TODO.datasets.custom_features as cf
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from utils.custom_features_utils import download_and_extract_zip
 
 # The following two packages have been added to pyproject.toml
@@ -29,6 +32,20 @@ nltk.download('wordnet')
 
 # Initialize sentiment analyzer globally
 analyzer = SentimentIntensityAnalyzer()
+
+
+# Function to create a configured session
+def create_session_with_retries() -> requests.Session:
+    session = requests.Session()
+    retry = Retry(
+        connect=4,  # Retry up to 3 times on connection errors
+        backoff_factor=0.5,  # Backoff factor for delays between retries
+        # status_forcelist=[500, 502, 503, 504]  # Retry on these status codes
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
 
 
 def compute_vader_polarity(
@@ -97,22 +114,27 @@ def sentic_emotion_recognition(
              with their respective float values, or None if the API call fails.
     """
     url = f"http://sentic.net/api/en/{SENTICNET_API_EMOTION_KEY}.py?text={text}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        # extract emotion features from response
-        match = re.search(r'\[(INTROSPECTION=.+?)\]', response.text)
-        if match:
-            features_text = match.group(1)
-            # extract individual emotion values
-            emotions = {}
-            for feature in features_text.split(','):
-                name, value = feature.split('=')
-                # remove percentage symbol and convert to float
-                value = float(value.rstrip('%')) / 100
-                emotions[name] = value
-            return emotions
-    else:
-        print("Error: Unable to retrieve emotion features from API")
+
+    session = create_session_with_retries()
+    try:
+        response = session.get(url)
+        if response.status_code == 200:
+            # Extract emotion features from response
+            match = re.search(r'\[(INTROSPECTION=.+?)\]', response.text)
+            if match:
+                features_text = match.group(1)
+                # Extract individual emotion values
+                emotions = {}
+                for feature in features_text.split(','):
+                    name, value = feature.split('=')
+                    # Remove percentage symbol and convert to float
+                    value = float(value.rstrip('%')) / 100
+                    emotions[name] = value
+                return emotions
+        else:
+            print("Error: Unable to retrieve emotion features from API, status code:", response.status_code)
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
     return {}
 
 
@@ -126,11 +148,17 @@ def get_word_polarity(
     :return: The polarity of the word ('POSITIVE', 'NEGATIVE', or None if not found).
     """
     url = f"http://sentic.net/api/en/{SENTICNET_API_POLARITY_KEY}.py?text={word}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        polarity = response.text.strip()
-        return polarity
-    else:
+
+    session = create_session_with_retries()
+    try:
+        response = session.get(url)
+        if response.status_code == 200:
+            polarity = response.text.strip()
+            return polarity
+        else:
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
         return None
 
 
