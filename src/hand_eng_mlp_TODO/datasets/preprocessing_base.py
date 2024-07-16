@@ -108,8 +108,8 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     # ).drop("vader_features")
     # print("END step2 - SAFE")
 
-    df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    print("END step3 - SAFE?")
+    # df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
+    # print("END step3 - SAFE")
 
 
 
@@ -129,15 +129,15 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
     # Emotion recognition
-    # df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
-    #     df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
-    #     df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
-    #     df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
-    # ).drop("emotion_recognition")
-    # print("END step6 - SAFE?")
+    df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
+        df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
+        df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
+        df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
+    ).drop("emotion_recognition")
+    print("END step6 - SAFE?")
 
     # # Readability metrics
     # df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
