@@ -98,7 +98,7 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     """
     # # Sentiment score with VADER, SenticNet and SentiWordNet
     # df = df.withColumn('vader_polarity', compute_sentence_polarity_VADER_udf(df[text_col]))
-    # print("END step1 - SAFE")
+    # print("END step1 - SAFE to use")
 
     # df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
     # df = df.select(
@@ -106,10 +106,10 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     #     df["vader_features"]["pos_neg_ratio_vader"].alias("pos_neg_ratio_vader"),
     #     df["vader_features"]["pos_neg_difference_vader"].alias("pos_neg_difference_vader")
     # ).drop("vader_features")
-    # print("END step2 - SAFE")
+    # print("END step2 - SAFE to use")
 
     # df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    # print("END step3 - SAFE")
+    # print("END step3 - SAFE to use")
 
 
 
@@ -124,7 +124,7 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
     # df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
-    # print("END step5 - SAFE")
+    # print("END step5 - SAFE to use")
 
 
 
@@ -141,35 +141,35 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
 
-    # Readability metrics
-    df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
-    df = df.select(
-        "*",
-        df["readability_metrics"]["flesch_kincaid_grade"].alias("flesch_kincaid_grade"),
-        df["readability_metrics"]["gunning_fog"].alias("gunning_fog"),
-        df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
-    ).drop("readability_metrics")
-    print("END step7 - SAFE?")
-
-    # # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
-    # # print("START load VAD dataset")  #TODO: remove later, ask ruie
-    # # sentiment_data, mean_medians = ppfe.load_sentiment_dataset(io_.DATA_DIR)
-    # # print("END load VAD dataset")
-    # # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col], sentiment_data, mean_medians))
-    # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
+    # # Readability metrics
+    # df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
     # df = df.select(
     #     "*",
-    #     df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
-    #     df["lexical_affect_features"]["overall_arousal_mean"].alias("overall_arousal_mean"),
-    #     df["lexical_affect_features"]["overall_dominance_mean"].alias("overall_dominance_mean"),
-    #     df["lexical_affect_features"]["overall_valence_std"].alias("overall_valence_std"),
-    #     df["lexical_affect_features"]["overall_arousal_std"].alias("overall_arousal_std"),
-    #     df["lexical_affect_features"]["overall_dominance_std"].alias("overall_dominance_std"),
-    #     df["lexical_affect_features"]["valence_contrast"].alias("valence_contrast"),
-    #     df["lexical_affect_features"]["arousal_contrast"].alias("arousal_contrast"),
-    #     df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
-    # ).drop("lexical_affect_features")
-    # print("END step8 - SAFE?")
+    #     df["readability_metrics"]["flesch_kincaid_grade"].alias("flesch_kincaid_grade"),
+    #     df["readability_metrics"]["gunning_fog"].alias("gunning_fog"),
+    #     df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
+    # ).drop("readability_metrics")
+    # print("END step7 - SAFE to use")
+
+    # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
+    print("START load VAD dataset")  #TODO: remove later, ask ruie
+    sentiment_data, mean_medians = ppfe.load_sentiment_dataset(io_.DATA_DIR)
+    print("END load VAD dataset")
+    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col], sentiment_data, mean_medians))
+    # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
+        df["lexical_affect_features"]["overall_arousal_mean"].alias("overall_arousal_mean"),
+        df["lexical_affect_features"]["overall_dominance_mean"].alias("overall_dominance_mean"),
+        df["lexical_affect_features"]["overall_valence_std"].alias("overall_valence_std"),
+        df["lexical_affect_features"]["overall_arousal_std"].alias("overall_arousal_std"),
+        df["lexical_affect_features"]["overall_dominance_std"].alias("overall_dominance_std"),
+        df["lexical_affect_features"]["valence_contrast"].alias("valence_contrast"),
+        df["lexical_affect_features"]["arousal_contrast"].alias("arousal_contrast"),
+        df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
+    ).drop("lexical_affect_features")
+    print("END step8 - SAFE?")
 
     return df
 
@@ -202,7 +202,7 @@ def preprocess_dataset(
     df = sc.convert_labels_to_sentiment_scores(df=with_tokens, label_col=label_col)
 
     # Extract additional features
-    df = get_new_features(df, text_col=text_col)  #TODO fa errore wall of text numeri
+    df = get_new_features(df, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
     return df
