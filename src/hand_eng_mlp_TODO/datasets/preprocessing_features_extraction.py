@@ -303,13 +303,13 @@ def compute_overall_sentiment_features(
         print("mid step VAD")
         if not word_data.empty:
             # Get the valence, arousal, and dominance values for the word
-            valence = word_data['V.Mean.Sum'].values[0]
-            arousal = word_data['A.Mean.Sum'].values[0]
-            dominance = word_data['D.Mean.Sum'].values[0]
+            valence = float(word_data['V.Mean.Sum'].values[0])
+            arousal = float(word_data['A.Mean.Sum'].values[0])
+            dominance = float(word_data['D.Mean.Sum'].values[0])
             # print(f"word: {word}, scores: V:{valence} A:{arousal} D:{dominance}")
         else:
             # Get the default values for valence, arousal, and dominance for the word not in the lexicon
-            valence, arousal, dominance = default_mean_value
+            valence, arousal, dominance = map(float, default_mean_value)
 
         valence_values.append(valence)
         arousal_values.append(arousal)
@@ -317,19 +317,19 @@ def compute_overall_sentiment_features(
     print("end step VAD")
 
     # Compute overall mean and standard deviation for valence, arousal, and dominance
-    overall_valence_mean = sum(valence_values) / len(valence_values) if valence_values else 0
-    overall_arousal_mean = sum(arousal_values) / len(arousal_values) if arousal_values else 0
-    overall_dominance_mean = sum(dominance_values) / len(dominance_values) if dominance_values else 0
+    overall_valence_mean = float(sum(valence_values) / len(valence_values)) if valence_values else 0
+    overall_arousal_mean = float(sum(arousal_values) / len(arousal_values)) if arousal_values else 0
+    overall_dominance_mean = float(sum(dominance_values) / len(dominance_values)) if dominance_values else 0
 
     # Standard deviation in the text
-    overall_valence_std = pd.Series(valence_values).std() if valence_values else 0
-    overall_arousal_std = pd.Series(arousal_values).std() if arousal_values else 0
-    overall_dominance_std = pd.Series(dominance_values).std() if dominance_values else 0
+    overall_valence_std = float(pd.Series(valence_values).std()) if valence_values else 0
+    overall_arousal_std = float(pd.Series(arousal_values).std()) if arousal_values else 0
+    overall_dominance_std = float(pd.Series(dominance_values).std()) if dominance_values else 0
 
     # Contrast in the text
-    valence_contrast = max(valence_values) - min(valence_values) if valence_values else 0
-    arousal_contrast = max(arousal_values) - min(arousal_values) if arousal_values else 0
-    dominance_contrast = max(dominance_values) - min(dominance_values) if dominance_values else 0
+    valence_contrast = float(max(valence_values) - min(valence_values)) if valence_values else 0
+    arousal_contrast = float(max(arousal_values) - min(arousal_values)) if arousal_values else 0
+    dominance_contrast = float(max(dominance_values) - min(dominance_values)) if dominance_values else 0
 
     return cf.SentimentFeatures(
         overall_valence_mean, overall_arousal_mean, overall_dominance_mean,
