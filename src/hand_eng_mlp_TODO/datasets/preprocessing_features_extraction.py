@@ -88,7 +88,7 @@ def calculate_vader_sentiment_entropy(
     Calculates the sentiment entropy of a text using VADER.
 
     :param text:
-    :return:
+    :return: the sentiment entropy
     """
     words = word_tokenize(text)
     # print(words)
@@ -99,9 +99,9 @@ def calculate_vader_sentiment_entropy(
     sentiment_counts = Counter(sentiment_scores)
     total_words = len(sentiment_scores)
     probabilities = [count / total_words for count in sentiment_counts.values()]
-    # Entropy
-    sentiment_entropy = entropy(probabilities)
-    return sentiment_entropy  # todo fixed?
+    # Entropy converted to a Python float
+    sentiment_entropy = float(entropy(probabilities))
+    return sentiment_entropy
 
 
 def sentic_emotion_recognition(
@@ -361,8 +361,8 @@ def extract_all_features(  # TODO this is not used
     # Return the features as a dict
     return features.to_dict()
 
-# # Example usage:
+# # Example:
 # # Extract all features from a given text
-# text = "This is a sample sentence for feature extraction."
+# text = "This is an example sentence"
 # all_features = extract_all_features(text)
 # print(all_features)

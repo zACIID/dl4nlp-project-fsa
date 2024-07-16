@@ -39,8 +39,8 @@ compute_sentence_polarity_VADER_udf = udf(
 calculate_pos_neg_features_VADER_udf = udf(
     ppfe.calculate_vader_pos_neg_features,
     StructType([
-        StructField("Pos_Neg_Ratio_VADER", FloatType()),
-        StructField("Pos_Neg_Difference_VADER", FloatType())
+        StructField("pos_neg_ratio_vader", FloatType()),
+        StructField("pos_neg_difference_vader", FloatType())
     ])
 )
 calculate_sentiment_entropy_VADER_udf = udf(
@@ -49,8 +49,8 @@ calculate_sentiment_entropy_VADER_udf = udf(
 calculate_pos_neg_features_SN_udf = udf(
     ppfe.calculate_sentic_pos_neg_features,
     StructType([
-        StructField("Pos_Neg_Ratio_SenticNet", FloatType()),
-        StructField("Pos_Neg_Difference_SenticNet", FloatType())
+        StructField("pos_neg_ratio_sentic", FloatType()),
+        StructField("pos_neg_difference_sentic", FloatType())
     ])
 )
 compute_sentence_polarity_SWN_udf = udf(
@@ -97,7 +97,7 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     :return: DataFrame with additional computed features
     """
     # Sentiment score with VADER, SenticNet and SentiWordNet
-    # df = df.withColumn('sentiment_score_VADER', compute_sentence_polarity_VADER_udf(df[text_col]))
+    # df = df.withColumn('vader_polarity', compute_sentence_polarity_VADER_udf(df[text_col]))
     # print("END step1 - SAFE")
 
 
@@ -105,29 +105,29 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
     # df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
     # df = df.select(
     #     "*",
-    #     df["vader_features"]["Pos_Neg_Ratio_VADER"].alias("Pos_Neg_Ratio_VADER"),
-    #     df["vader_features"]["Pos_Neg_Difference_VADER"].alias("Pos_Neg_Difference_VADER")
+    #     df["vader_features"]["pos_neg_ratio_vader"].alias("pos_neg_ratio_vader"),
+    #     df["vader_features"]["pos_neg_difference_vader"].alias("pos_neg_difference_vader")
     # ).drop("vader_features")
     # print("END step2 - SAFE")
 
 
 
-    df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    print("END step3 - NOT     SAFE") # TODO solve numpy bullshit
+    df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
+    print("END step3 - NOT     SAFE")  # TODO solve numpy bullshit
 
 
 
     # df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
     # df = df.select(
     #     "*",
-    #     df["senticnet_features"]["Pos_Neg_Ratio_SenticNet"].alias("Pos_Neg_Ratio_SenticNet"),
-    #     df["senticnet_features"]["Pos_Neg_Difference_SenticNet"].alias("Pos_Neg_Difference_SenticNet")
+    #     df["senticnet_features"]["pos_neg_ratio_sentic"].alias("pos_neg_ratio_sentic"),
+    #     df["senticnet_features"]["pos_neg_difference_sentic"].alias("pos_neg_difference_sentic")
     # ).drop("senticnet_features")
     # print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
 
 
 
-    # df = df.withColumn('sentiment_score_SWN', compute_sentence_polarity_SWN_udf(df[text_col]))
+    # df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
     # print("END step5 - SAFE?")
 
 
