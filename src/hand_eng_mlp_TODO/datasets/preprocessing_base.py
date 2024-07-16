@@ -1,11 +1,12 @@
 import typing
 import pandas as pd
 import pyspark.sql as psql
+import torch
 from loguru import logger
 from pyspark.sql import types as psqlt, functions as psqlf
 from pyspark.sql.functions import udf, col, struct, lit
 from pyspark.sql.types import FloatType, StructType, StructField
-from transformers import AutoTokenizer, BatchEncoding
+from transformers import AutoTokenizer, BatchEncoding, BertForMaskedLM
 
 import data.spark as S
 import data.stocktwits_crypto_dataset as sc
@@ -149,7 +150,7 @@ def get_new_features(
         df["senticnet_features"]["pos_neg_ratio_sentic"].alias("pos_neg_ratio_sentic"),
         df["senticnet_features"]["pos_neg_difference_sentic"].alias("pos_neg_difference_sentic")
     ).drop("senticnet_features")
-    print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
+    print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well TOREMOVE ask pier
 
 
 
@@ -246,17 +247,18 @@ def preprocess_dataset(
     df = sc.convert_labels_to_sentiment_scores(df=with_tokens, label_col=label_col)
 
     # Extract additional features
-    df = get_new_features(spark, df, text_col=text_col)
+    df = get_new_features(spark, df, text_col=text_col)  # todo don't add to the og dataset but create a new dataset and return at the end (with_tokens, new_features)
 
     logger.debug("Preprocessing implemented")
     return df
 
 
-def _apply_tokenizer(  # TODO use bert tokenizer
+def _apply_tokenizer(
         df: psql.DataFrame,
         text_col: str
 ) -> psql.DataFrame:
-    tokenizer = AutoTokenizer.from_pretrained(_TOKENIZER_PATH, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
+    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
 
     @psqlf.udf(
         returnType=psqlt.StructType([
@@ -276,12 +278,14 @@ def _apply_tokenizer(  # TODO use bert tokenizer
             truncation=True,
             max_length=sc.WORST_CASE_TOKENS
         )
-        input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
-        input_ids = input_ids.squeeze()
-        attention_mask = attention_mask.squeeze()
 
-        return input_ids.tolist(), attention_mask.tolist()
+        return torch.tensor([tokenizer.encode(batch)])
 
-    with_tokens_df = df.withColumn(TOKENIZER_OUTPUT_COL, tokenize(psqlf.col(text_col)))
+    with torch.no_grad():
+        features = bertweet(tokenize(psqlf.col(text_col)))
+    states = features.hidden_states[-1]
+    states = states[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
+
+    with_tokens_df = df.withColumn(TOKENIZER_OUTPUT_COL, tokenize(psqlf.col(text_col))) # todo update pier ask what is this and update on what to returns
 
     return with_tokens_df
