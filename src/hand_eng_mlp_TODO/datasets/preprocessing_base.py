@@ -112,8 +112,8 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
 
-    df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    print("END step3 - NOT     SAFE")  # TODO solve numpy bullshit
+    # df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
+    # print("END step3 - SAFE?")  # TODO no more numpy array but slow?
 
 
 
@@ -127,8 +127,8 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
 
-    # df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
-    # print("END step5 - SAFE?")
+    df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
+    print("END step5 - SAFE?")
 
 
 
