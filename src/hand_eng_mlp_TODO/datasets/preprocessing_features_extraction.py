@@ -30,17 +30,15 @@ nltk.download('punkt')
 nltk.download('sentiwordnet')
 nltk.download('wordnet')
 
-# Initialize sentiment analyzer globally
-analyzer = SentimentIntensityAnalyzer()
-
 
 # Function to create a configured session
 def create_session_with_retries() -> requests.Session:
     session = requests.Session()
     retry = Retry(
-        connect=3,  # Retry up to 3 times on connection errors
-        backoff_factor=0.5,  # Backoff factor for delays between retries
+        connect=5,  # Retry up to 3 times on connection errors
+        backoff_factor=0.2,  # Backoff factor for delays between retries
         # status_forcelist=[500, 502, 503, 504]  # Retry on these status codes
+        raise_on_status=False  # Do not raise an error on status codes, return response instead
     )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
@@ -57,6 +55,9 @@ def compute_vader_polarity(
     :param text:
     :return:
     """
+    # Initialize sentiment analyzer
+    analyzer = SentimentIntensityAnalyzer()
+
     vader_score = analyzer.polarity_scores(text)['compound']
     return vader_score
 
@@ -71,6 +72,9 @@ def calculate_vader_pos_neg_features(
     :param text:
     :return: tuple containing the positive/negative ratio and the positive/negative difference.
     """
+    # Initialize sentiment analyzer
+    analyzer = SentimentIntensityAnalyzer()
+
     scores = analyzer.polarity_scores(text)
     total_words = len(word_tokenize(text))
     # print(scores)
@@ -89,6 +93,9 @@ def calculate_vader_sentiment_entropy(
     :param text:
     :return:
     """
+    # Initialize sentiment analyzer
+    analyzer = SentimentIntensityAnalyzer()
+
     words = word_tokenize(text)
     # print(words)
 
@@ -111,7 +118,7 @@ def sentic_emotion_recognition(
 
     :param text:
     :return: A dictionary containing emotion features (INTROSPECTION, TEMPER, ATTITUDE, SENSITIVITY)
-             with their respective float values, or None if the API call fails.
+             with their respective float values, or an empty dictionary if the API call fails.
     """
     url = f"http://sentic.net/api/en/{SENTICNET_API_EMOTION_KEY}.py?text={text}"
 

@@ -112,18 +112,18 @@ def get_new_features(df: psql.DataFrame, text_col: str) -> psql.DataFrame:
 
 
 
-    # df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    # print("END step3 - NOT     SAFE") # TODO solve numpy bullshit
+    df = df.withColumn('Sentiment_Entropy_VADER', calculate_sentiment_entropy_VADER_udf(df[text_col]))
+    print("END step3 - NOT     SAFE") # TODO solve numpy bullshit
 
 
 
-    df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
-    df = df.select(
-        "*",
-        df["senticnet_features"]["Pos_Neg_Ratio_SenticNet"].alias("Pos_Neg_Ratio_SenticNet"),
-        df["senticnet_features"]["Pos_Neg_Difference_SenticNet"].alias("Pos_Neg_Difference_SenticNet")
-    ).drop("senticnet_features")
-    print("END step4 - SAFE?")
+    # df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
+    # df = df.select(
+    #     "*",
+    #     df["senticnet_features"]["Pos_Neg_Ratio_SenticNet"].alias("Pos_Neg_Ratio_SenticNet"),
+    #     df["senticnet_features"]["Pos_Neg_Difference_SenticNet"].alias("Pos_Neg_Difference_SenticNet")
+    # ).drop("senticnet_features")
+    # print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well
 
 
 
