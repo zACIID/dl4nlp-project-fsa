@@ -30,6 +30,9 @@ nltk.download('punkt')
 nltk.download('sentiwordnet')
 nltk.download('wordnet')
 
+# Initialize sentiment analyzer globally
+analyzer = SentimentIntensityAnalyzer()
+
 
 # Function to create a configured session
 def create_session_with_retries() -> requests.Session:
@@ -55,9 +58,6 @@ def compute_vader_polarity(
     :param text:
     :return:
     """
-    # Initialize sentiment analyzer
-    analyzer = SentimentIntensityAnalyzer()
-
     vader_score = analyzer.polarity_scores(text)['compound']
     return vader_score
 
@@ -72,9 +72,6 @@ def calculate_vader_pos_neg_features(
     :param text:
     :return: tuple containing the positive/negative ratio and the positive/negative difference.
     """
-    # Initialize sentiment analyzer
-    analyzer = SentimentIntensityAnalyzer()
-
     scores = analyzer.polarity_scores(text)
     total_words = len(word_tokenize(text))
     # print(scores)
@@ -93,9 +90,6 @@ def calculate_vader_sentiment_entropy(
     :param text:
     :return:
     """
-    # Initialize sentiment analyzer
-    analyzer = SentimentIntensityAnalyzer()
-
     words = word_tokenize(text)
     # print(words)
 
@@ -107,7 +101,7 @@ def calculate_vader_sentiment_entropy(
     probabilities = [count / total_words for count in sentiment_counts.values()]
     # Entropy
     sentiment_entropy = entropy(probabilities)
-    return sentiment_entropy
+    return sentiment_entropy  # todo fixed?
 
 
 def sentic_emotion_recognition(
