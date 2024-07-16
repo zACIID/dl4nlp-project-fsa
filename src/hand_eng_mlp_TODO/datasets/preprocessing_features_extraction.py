@@ -17,8 +17,6 @@ from typing import Dict, Tuple, Union, List
 from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
-from hand_eng_mlp_TODO.datasets.preprocessing_base import sentiment_data_broadcast, default_mean_value_broadcast
 from utils.custom_features_utils import download_and_extract_zip
 
 # The following two packages have been added to pyproject.toml
@@ -274,15 +272,14 @@ def load_sentiment_dataset(
     return sentiment_data, (valence_median, arousal_median, dominance_median)
 
 
-# def compute_overall_sentiment_features(
-#         text: str,
-#         sentiment_data_broadcast: pd.DataFrame,
-#         default_mean_value_broadcast: Tuple[float, float, float]
-# ) -> cf.SentimentFeatures:
-
 def compute_overall_sentiment_features(
-        text: str
+        text: str,
+        sentiment_data: pd.DataFrame,
+        default_mean_value: Tuple[float, float, float]
 ) -> cf.SentimentFeatures:
+# def compute_overall_sentiment_features(
+#         text: str
+# ) -> cf.SentimentFeatures:
     """
     Computes overall sentiment features for a text based on valence, arousal, and dominance.
 
@@ -299,8 +296,6 @@ def compute_overall_sentiment_features(
     dominance_values = []
 
     # sentiment_data, default_mean_value = load_sentiment_dataset(io_.DATA_DIR) #mean_medians TODO: can we pass it only once to spark?
-    sentiment_data = sentiment_data_broadcast.value
-    default_mean_value = default_mean_value_broadcast.value
 
     print("start step VAD")
     for word in words:

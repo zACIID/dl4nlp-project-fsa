@@ -31,9 +31,6 @@ PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
 )
 # up to here to comment in case of failure
 
-sentiment_data_broadcast = None
-default_mean_value_broadcast = None
-
 
 # Define UDFs for feature extraction functions
 compute_sentence_polarity_VADER_udf = udf(
@@ -76,20 +73,46 @@ calculate_readability_metrics_udf = udf(
         StructField("coleman_liau_index", FloatType())
     ])
 )
-compute_overall_sentiment_features_udf = udf(
-    ppfe.compute_overall_sentiment_features,
-    StructType([
-        StructField("overall_valence_mean", FloatType()),
-        StructField("overall_arousal_mean", FloatType()),
-        StructField("overall_dominance_mean", FloatType()),
-        StructField("overall_valence_std", FloatType()),
-        StructField("overall_arousal_std", FloatType()),
-        StructField("overall_dominance_std", FloatType()),
-        StructField("valence_contrast", FloatType()),
-        StructField("arousal_contrast", FloatType()),
-        StructField("dominance_contrast", FloatType())
-    ])
-)
+# compute_overall_sentiment_features_udf = udf(
+#     ppfe.compute_overall_sentiment_features,
+#     StructType([
+#         StructField("overall_valence_mean", FloatType()),
+#         StructField("overall_arousal_mean", FloatType()),
+#         StructField("overall_dominance_mean", FloatType()),
+#         StructField("overall_valence_std", FloatType()),
+#         StructField("overall_arousal_std", FloatType()),
+#         StructField("overall_dominance_std", FloatType()),
+#         StructField("valence_contrast", FloatType()),
+#         StructField("arousal_contrast", FloatType()),
+#         StructField("dominance_contrast", FloatType())
+#     ])
+# )
+# Define the closure
+def create_compute_overall_sentiment_features_udf(sentiment_data_broadcast, default_mean_value_broadcast):
+    sentiment_data = sentiment_data_broadcast.value
+    default_mean_value = default_mean_value_broadcast.value
+
+    def compute_overall_sentiment_features_closure(text: str) -> ppfe.cf.SentimentFeatures:
+        return ppfe.compute_overall_sentiment_features(
+            text,
+            sentiment_data,
+            default_mean_value
+        )
+
+    return udf(
+        compute_overall_sentiment_features_closure,
+        StructType([
+            StructField("overall_valence_mean", FloatType()),
+            StructField("overall_arousal_mean", FloatType()),
+            StructField("overall_dominance_mean", FloatType()),
+            StructField("overall_valence_std", FloatType()),
+            StructField("overall_arousal_std", FloatType()),
+            StructField("overall_dominance_std", FloatType()),
+            StructField("valence_contrast", FloatType()),
+            StructField("arousal_contrast", FloatType()),
+            StructField("dominance_contrast", FloatType())
+        ])
+    )
 
 
 # Function to compute the additional features
@@ -165,6 +188,12 @@ def get_new_features(
     sentiment_data_broadcast = spark.sparkContext.broadcast(sentiment_data)
     default_mean_value_broadcast = spark.sparkContext.broadcast(default_mean_value)
     print("END load VAD dataset")
+
+    # Create the UDF
+    compute_overall_sentiment_features_udf = create_compute_overall_sentiment_features_udf(
+        sentiment_data_broadcast,
+        default_mean_value_broadcast
+    )
 
     # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col],
     #                                                                                      sentiment_data_broadcast,
