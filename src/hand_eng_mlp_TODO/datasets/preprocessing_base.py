@@ -1,5 +1,4 @@
 import typing
-import pandas as pd
 import pyspark.sql as psql
 import torch
 from loguru import logger
@@ -13,7 +12,6 @@ import data.stocktwits_crypto_dataset as sc
 import data.common as common
 import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
 import utils.io as io_
-from hand_eng_mlp_TODO.datasets.custom_features import CustomFeatures
 import hand_eng_mlp_TODO.models.model_beijin as hemlp
 
 
@@ -30,8 +28,6 @@ PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
     .add(TOKENIZER_OUTPUT_COL, psqlt.ArrayType(psqlt.IntegerType()), nullable=False)
     .add(SENTIMENT_SCORE_COL, psqlt.FloatType(), nullable=False)
 )
-# up to here to comment in case of failure
-
 
 # Define UDFs for feature extraction functions
 compute_sentence_polarity_VADER_udf = udf(
@@ -47,13 +43,13 @@ calculate_pos_neg_features_VADER_udf = udf(
 calculate_sentiment_entropy_VADER_udf = udf(
     ppfe.calculate_vader_sentiment_entropy, FloatType()
 )
-calculate_pos_neg_features_SN_udf = udf(
-    ppfe.calculate_sentic_pos_neg_features,
-    StructType([
-        StructField("pos_neg_ratio_sentic", FloatType()),
-        StructField("pos_neg_difference_sentic", FloatType())
-    ])
-)
+# calculate_pos_neg_features_SN_udf = udf(
+#     ppfe.calculate_sentic_pos_neg_features,
+#     StructType([
+#         StructField("pos_neg_ratio_sentic", FloatType()),
+#         StructField("pos_neg_difference_sentic", FloatType())
+#     ])
+# )
 compute_sentence_polarity_SWN_udf = udf(
     ppfe.compute_swn_polarity, FloatType()
 )
@@ -74,21 +70,8 @@ calculate_readability_metrics_udf = udf(
         StructField("coleman_liau_index", FloatType())
     ])
 )
-# compute_overall_sentiment_features_udf = udf(
-#     ppfe.compute_overall_sentiment_features,
-#     StructType([
-#         StructField("overall_valence_mean", FloatType()),
-#         StructField("overall_arousal_mean", FloatType()),
-#         StructField("overall_dominance_mean", FloatType()),
-#         StructField("overall_valence_std", FloatType()),
-#         StructField("overall_arousal_std", FloatType()),
-#         StructField("overall_dominance_std", FloatType()),
-#         StructField("valence_contrast", FloatType()),
-#         StructField("arousal_contrast", FloatType()),
-#         StructField("dominance_contrast", FloatType())
-#     ])
-# )
-# Define the closure
+
+
 def create_compute_overall_sentiment_features_udf(sentiment_data_broadcast, default_mean_value_broadcast):
     sentiment_data = sentiment_data_broadcast.value
     default_mean_value = default_mean_value_broadcast.value
@@ -127,92 +110,70 @@ def get_new_features(
     :param text_col: name of the column containing the text
     :return: DataFrame with additional computed features
     """
-    # # Sentiment score with VADER, SenticNet and SentiWordNet
-    # df = df.withColumn('vader_polarity', compute_sentence_polarity_VADER_udf(df[text_col]))
-    # print("END step1 - SAFE to use")
+    # Sentiment score with VADER and SentiWordNet
+    df = df.withColumn('vader_polarity', compute_sentence_polarity_VADER_udf(df[text_col]))
 
-    # df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["vader_features"]["pos_neg_ratio_vader"].alias("pos_neg_ratio_vader"),
-    #     df["vader_features"]["pos_neg_difference_vader"].alias("pos_neg_difference_vader")
-    # ).drop("vader_features")
-    # print("END step2 - SAFE to use")
-
-    # df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-    # print("END step3 - SAFE to use")
-
-
-
-    df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
+    df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
     df = df.select(
         "*",
-        df["senticnet_features"]["pos_neg_ratio_sentic"].alias("pos_neg_ratio_sentic"),
-        df["senticnet_features"]["pos_neg_difference_sentic"].alias("pos_neg_difference_sentic")
-    ).drop("senticnet_features")
-    print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well TOREMOVE ask pier: 40 mins for 100 rows
+        df["vader_features"]["pos_neg_ratio_vader"].alias("pos_neg_ratio_vader"),
+        df["vader_features"]["pos_neg_difference_vader"].alias("pos_neg_difference_vader")
+    ).drop("vader_features")
 
+    df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
 
-
-    # df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
-    # print("END step5 - SAFE to use")
-
-
-
-    # # Emotion recognition
-    # df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
+    # df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
     # df = df.select(
     #     "*",
-    #     df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
-    #     df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
-    #     df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
-    #     df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
-    # ).drop("emotion_recognition")
-    # print("END step6 - SAFE to use")
+    #     df["senticnet_features"]["pos_neg_ratio_sentic"].alias("pos_neg_ratio_sentic"),
+    #     df["senticnet_features"]["pos_neg_difference_sentic"].alias("pos_neg_difference_sentic")
+    # ).drop("senticnet_features")
+    # print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well TOREMOVE ask pier: 40 mins for 100 rows
 
+    df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
 
+    # Emotion recognition with SenticNet
+    df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
+        df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
+        df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
+        df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
+    ).drop("emotion_recognition")
 
-    # # Readability metrics
-    # df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["readability_metrics"]["flesch_kincaid_grade"].alias("flesch_kincaid_grade"),
-    #     df["readability_metrics"]["gunning_fog"].alias("gunning_fog"),
-    #     df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
-    # ).drop("readability_metrics")
-    # print("END step7 - SAFE to use")
+    # Readability metrics
+    df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["readability_metrics"]["flesch_kincaid_grade"].alias("flesch_kincaid_grade"),
+        df["readability_metrics"]["gunning_fog"].alias("gunning_fog"),
+        df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
+    ).drop("readability_metrics")
 
+    # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
+    sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
+    sentiment_data_broadcast = spark.sparkContext.broadcast(sentiment_data)
+    default_mean_value_broadcast = spark.sparkContext.broadcast(default_mean_value)
 
-    # # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
-    # print("START load VAD dataset")  # TODO: remove later?
-    # sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
-    # sentiment_data_broadcast = spark.sparkContext.broadcast(sentiment_data)
-    # default_mean_value_broadcast = spark.sparkContext.broadcast(default_mean_value)
-    # print("END load VAD dataset")
-    #
-    # # Create the UDF
-    # compute_overall_sentiment_features_udf = create_compute_overall_sentiment_features_udf(
-    #     sentiment_data_broadcast,
-    #     default_mean_value_broadcast
-    # )
-    #
-    # # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col],
-    # #                                                                                      sentiment_data_broadcast,
-    # #                                                                                      default_mean_value_broadcast))
-    # df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
-    #     df["lexical_affect_features"]["overall_arousal_mean"].alias("overall_arousal_mean"),
-    #     df["lexical_affect_features"]["overall_dominance_mean"].alias("overall_dominance_mean"),
-    #     df["lexical_affect_features"]["overall_valence_std"].alias("overall_valence_std"),
-    #     df["lexical_affect_features"]["overall_arousal_std"].alias("overall_arousal_std"),
-    #     df["lexical_affect_features"]["overall_dominance_std"].alias("overall_dominance_std"),
-    #     df["lexical_affect_features"]["valence_contrast"].alias("valence_contrast"),
-    #     df["lexical_affect_features"]["arousal_contrast"].alias("arousal_contrast"),
-    #     df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
-    # ).drop("lexical_affect_features")
-    # print("END step8 - SAFE to use")
+    compute_overall_sentiment_features_udf = create_compute_overall_sentiment_features_udf(
+        sentiment_data_broadcast,
+        default_mean_value_broadcast
+    )
+
+    df = df.withColumn("lexical_affect_features", compute_overall_sentiment_features_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["lexical_affect_features"]["overall_valence_mean"].alias("overall_valence_mean"),
+        df["lexical_affect_features"]["overall_arousal_mean"].alias("overall_arousal_mean"),
+        df["lexical_affect_features"]["overall_dominance_mean"].alias("overall_dominance_mean"),
+        df["lexical_affect_features"]["overall_valence_std"].alias("overall_valence_std"),
+        df["lexical_affect_features"]["overall_arousal_std"].alias("overall_arousal_std"),
+        df["lexical_affect_features"]["overall_dominance_std"].alias("overall_dominance_std"),
+        df["lexical_affect_features"]["valence_contrast"].alias("valence_contrast"),
+        df["lexical_affect_features"]["arousal_contrast"].alias("arousal_contrast"),
+        df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
+    ).drop("lexical_affect_features")
 
     return df
 

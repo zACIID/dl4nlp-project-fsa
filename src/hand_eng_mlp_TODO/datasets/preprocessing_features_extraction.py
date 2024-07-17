@@ -38,7 +38,7 @@ analyzer = SentimentIntensityAnalyzer()
 def create_session_with_retries() -> requests.Session:
     session = requests.Session()
     retry = Retry(
-        connect=5,  # Retry up to 3 times on connection errors
+        connect=5,  # Retry up to 5 times on connection errors
         backoff_factor=0.2,  # Backoff factor for delays between retries
         # status_forcelist=[500, 502, 503, 504]  # Retry on these status codes
         raise_on_status=False  # Do not raise an error on status codes, return response instead
@@ -74,7 +74,6 @@ def calculate_vader_pos_neg_features(
     """
     scores = analyzer.polarity_scores(text)
     total_words = len(word_tokenize(text))
-    # print(scores)
 
     pos_neg_ratio = scores['pos'] / scores['neg'] if scores['neg'] != 0 else scores['pos']
     pos_neg_difference = (scores['pos'] - scores['neg']) / total_words if total_words != 0 else 0
@@ -91,7 +90,6 @@ def calculate_vader_sentiment_entropy(
     :return: the sentiment entropy
     """
     words = word_tokenize(text)
-    # print(words)
 
     # Sentiment scores for each word
     sentiment_scores = [analyzer.polarity_scores(word)['compound'] for word in words]
@@ -163,32 +161,32 @@ def get_word_polarity(
         return None
 
 
-def calculate_sentic_pos_neg_features(
-        text: str
-) -> cf.SenticPosNegFeatures:
-    """
-    Calculates sentiment lexicon-based features with SenticNet.
-    - ratio of positive to negative polarity words
-    - difference between positive and negative words (normalized by total number of words)
-
-    :param text: The input text string.
-    :return: A tuple containing the positive/negative ratio and the positive/negative difference.
-    """
-    words = word_tokenize(text)
-    # print(words)
-    positive_words = 0
-    negative_words = 0
-    for word in words:
-        polarity = get_word_polarity(word)
-        if polarity == 'POSITIVE':
-            positive_words += 1
-        elif polarity == 'NEGATIVE':
-            negative_words += 1
-
-    pos_neg_ratio = positive_words / negative_words if negative_words != 0 else positive_words
-    pos_neg_difference = (positive_words - negative_words) / len(words) if len(words) != 0 else 0
-
-    return cf.SenticPosNegFeatures(pos_neg_ratio, pos_neg_difference)
+# def calculate_sentic_pos_neg_features(  # TODO: this is not used anymore because it takes too much time
+#         text: str
+# ) -> cf.SenticPosNegFeatures:
+#     """
+#     Calculates sentiment lexicon-based features with SenticNet.
+#     - ratio of positive to negative polarity words
+#     - difference between positive and negative words (normalized by total number of words)
+#
+#     :param text: The input text string.
+#     :return: A tuple containing the positive/negative ratio and the positive/negative difference.
+#     """
+#     words = word_tokenize(text)
+#
+#     positive_words = 0
+#     negative_words = 0
+#     for word in words:
+#         polarity = get_word_polarity(word)
+#         if polarity == 'POSITIVE':
+#             positive_words += 1
+#         elif polarity == 'NEGATIVE':
+#             negative_words += 1
+#
+#     pos_neg_ratio = positive_words / negative_words if negative_words != 0 else positive_words
+#     pos_neg_difference = (positive_words - negative_words) / len(words) if len(words) != 0 else 0
+#
+#     return cf.SenticPosNegFeatures(pos_neg_ratio, pos_neg_difference)
 
 
 def compute_swn_polarity(
@@ -267,7 +265,6 @@ def load_sentiment_dataset(
     valence_median = sentiment_data['V.Mean.Sum'].median()
     arousal_median = sentiment_data['A.Mean.Sum'].median()
     dominance_median = sentiment_data['D.Mean.Sum'].median()
-    # print(f"Medians: V:{valence_median} A:{arousal_median} d:{dominance_median}")
 
     return sentiment_data, (valence_median, arousal_median, dominance_median)
 
@@ -277,9 +274,6 @@ def compute_overall_sentiment_features(
         sentiment_data: pd.DataFrame,
         default_mean_value: Tuple[float, float, float]
 ) -> cf.SentimentFeatures:
-# def compute_overall_sentiment_features(
-#         text: str
-# ) -> cf.SentimentFeatures:
     """
     Computes overall sentiment features for a text based on valence, arousal, and dominance.
 
@@ -295,18 +289,13 @@ def compute_overall_sentiment_features(
     arousal_values = []
     dominance_values = []
 
-    # sentiment_data, default_mean_value = load_sentiment_dataset(io_.DATA_DIR) #mean_medians TODO: can we pass it only once to spark?
-
-    print("start step VAD")
     for word in words:
         word_data = sentiment_data[sentiment_data['Word'] == word]
-        print("mid step VAD")
         if not word_data.empty:
             # Get the valence, arousal, and dominance values for the word
             valence = float(word_data['V.Mean.Sum'].values[0])
             arousal = float(word_data['A.Mean.Sum'].values[0])
             dominance = float(word_data['D.Mean.Sum'].values[0])
-            # print(f"word: {word}, scores: V:{valence} A:{arousal} D:{dominance}")
         else:
             # Get the default values for valence, arousal, and dominance for the word not in the lexicon
             valence, arousal, dominance = map(float, default_mean_value)
@@ -314,7 +303,6 @@ def compute_overall_sentiment_features(
         valence_values.append(valence)
         arousal_values.append(arousal)
         dominance_values.append(dominance)
-    print("end step VAD")
 
     # Compute overall mean and standard deviation for valence, arousal, and dominance
     overall_valence_mean = float(sum(valence_values) / len(valence_values)) if valence_values else 0
@@ -349,21 +337,13 @@ def extract_all_features(  # TODO this is not used
     features = cf.CustomFeatures()
     sentiment_data, mean_medians = load_sentiment_dataset(io_.DATA_DIR)
 
-    # Call each feature extraction function
     features.update_vader_polarity(compute_vader_polarity(text))
     features.update_vader_pos_neg_features(calculate_vader_pos_neg_features(text))
     features.update_vader_sentiment_entropy(calculate_vader_sentiment_entropy(text))
     features.update_emotions(sentic_emotion_recognition(text))
-    features.update_sentic_pos_neg_features(calculate_sentic_pos_neg_features(text))
+    # features.update_sentic_pos_neg_features(calculate_sentic_pos_neg_features(text))
     features.update_swn_polarity(compute_swn_polarity(text))
     features.update_readability_metrics(calculate_readability_metrics(text))
     features.update_overall_sentiment_features(compute_overall_sentiment_features(text, sentiment_data, mean_medians))
 
-    # Return the features as a dict
     return features.to_dict()
-
-# # Example:
-# # Extract all features from a given text
-# text = "This is an example sentence"
-# all_features = extract_all_features(text)
-# print(all_features)
