@@ -128,7 +128,7 @@ def get_new_features(
     #     df["senticnet_features"]["pos_neg_ratio_sentic"].alias("pos_neg_ratio_sentic"),
     #     df["senticnet_features"]["pos_neg_difference_sentic"].alias("pos_neg_difference_sentic")
     # ).drop("senticnet_features")
-    # print("END step4 - SAFE?")  # TODO takes too much time, to run when sleeping, if the seconnd senticnet works this should works as well TOREMOVE ask pier: 40 mins for 100 rows
+    # TODO remove: works but takes too much time. ask pier: 40 mins for 100 rows
 
     df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
 
