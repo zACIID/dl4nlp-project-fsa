@@ -122,7 +122,7 @@ class ModelBeijin(L.LightningModule):
       self, batch: tuple[Tensor, Tensor],
       batch_idx: int, dataloader_idx: int = 0, step_type: str = None) -> Tensor:
 
-    x_batch, y_batch = batch
+    x_batch, y_batch = batch   #todo shoudl get embeddings, new feeaturs, scores
     y_pred: Tensor = self(x_batch)
 
     mse: Tensor = F.mse_loss(y_batch, y_pred)

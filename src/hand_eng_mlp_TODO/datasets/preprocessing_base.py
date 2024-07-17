@@ -211,7 +211,7 @@ def preprocess_dataset(
     df = get_new_features(spark, df, text_col=text_col)  # todo don't add to the og dataset but create a new dataset and return at the end (with_tokens, new_features)
 
     logger.debug("Preprocessing implemented")
-    return df
+    return df # TODO should contain: text, label, embedding, new_feaeturs
 
 
 def _apply_tokenizer(
@@ -248,5 +248,6 @@ def _apply_tokenizer(
     states = states[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
 
     with_tokens_df = df.withColumn(TOKENIZER_OUTPUT_COL, tokenize(psqlf.col(text_col))) # todo update pier ask what is this and update on what to returns
+    #todo compute and add embeddings insteaed of tokens since htey arre constant (remeber to change funciton name)
 
     return with_tokens_df

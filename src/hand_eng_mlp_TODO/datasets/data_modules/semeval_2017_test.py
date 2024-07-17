@@ -76,6 +76,7 @@ def _collate_fn(raw_samples):
     tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
 
     scores = torch.tensor(scores)
+    # todo shoudl return embeddings, new feeaturs, scores for all data_modules under hang_eng_mlp
 
     return tensorized_tokenizer_output, scores
 
