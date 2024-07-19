@@ -6,7 +6,7 @@ class VaderPosNegFeatures(NamedTuple):
     pos_neg_difference: float
 
 
-# class SenticPosNegFeatures(NamedTuple):
+# class SenticPosNegFeatures(NamedTuple):  # TOREMOVE bcs too much time
 #     pos_neg_ratio: float
 #     pos_neg_difference: float
 

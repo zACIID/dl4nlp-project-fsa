@@ -80,7 +80,6 @@ class ModelBeijin(L.LightningModule):
     self._val_predictions: list[Tensor] = []
     self._val_targets: list[Tensor] = []
 
-
   def forward(self, x_batch: Tensor, beijin_feats_batch: Tensor) -> Tensor:
     aggregated_batch: Tensor = self.aggregator(x_batch)
     aggregated_batch = torch.cat((aggregated_batch, beijin_feats_batch), dim=-1)
@@ -112,7 +111,6 @@ class ModelBeijin(L.LightningModule):
 
     return self._base_step(batch, batch_idx, dataloader_idx, step_type="val")
 
-
   def test_step(
       self, batch: tuple[Tensor, Tensor],
       batch_idx: int, dataloader_idx: int = 0) -> Tensor:
@@ -124,7 +122,7 @@ class ModelBeijin(L.LightningModule):
       batch_idx: int, dataloader_idx: int = 0, step_type: str = None) -> Tensor:
 
     x_batch, y_batch, new_features = batch   #todo shoudl get embeddings, new feeaturs, scores
-    y_pred: Tensor = self(x_batch)
+    y_pred: Tensor = self(x_batch, new_features)
 
     mse: Tensor = F.mse_loss(y_batch, y_pred)
     mae: Tensor = F.l1_loss(y_batch, y_pred)

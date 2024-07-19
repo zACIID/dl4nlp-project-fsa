@@ -71,13 +71,15 @@ def _collate_fn(raw_samples):
     # todo shoudl return embeddings, new feeaturs, scores for all data_modules under hang_eng_mlp
     embeddings = [item[hemlp_pb.EMBEDDER_OUTPUT_COL] for item in raw_samples]
     scores = [item[hemlp_pb.LABEL_COL] for item in raw_samples]
-    new_features = [item['new_features'] for item in raw_samples]
+    new_features = [[item[key] for key in hemlp_pb.NEW_FEATURES] for item in raw_samples]
 
-    input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
-    att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))
-    tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
-
+    embeddings_tensor = torch.stack(embeddings)
+    new_features_tensor = torch.stack(new_features)
     scores = torch.tensor(scores)
 
-    return tensorized_tokenizer_output, scores
+    print("embeddings batch ", embeddings_tensor.shape)
+    print("features batch ", new_features_tensor.shape)
+    print("scores batch ", scores.shape)
+
+    return embeddings_tensor, scores, new_features_tensor
 
