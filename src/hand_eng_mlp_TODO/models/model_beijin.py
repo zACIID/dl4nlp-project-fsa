@@ -81,15 +81,16 @@ class ModelBeijin(L.LightningModule):
     self._val_targets: list[Tensor] = []
 
 
-  def forward(self, x_batch: Tensor) -> Tensor:
+  def forward(self, x_batch: Tensor, beijin_feats_batch: Tensor) -> Tensor:
     aggregated_batch: Tensor = self.aggregator(x_batch)
+    aggregated_batch = torch.cat((aggregated_batch, beijin_feats_batch), dim=-1)
     return self.model(aggregated_batch)
 
-  def predict(self, x_batch: Tensor) -> Tensor:
+  def predict(self, x_batch: Tensor, beijin_feats_batch: Tensor) -> Tensor:
     self.eval()
 
     with torch.no_grad():
-      y_pred: Tensor = self(x_batch)
+      y_pred: Tensor = self(x_batch, beijin_feats_batch)
       return y_pred
 
   def predict_step(self, *args: Any, **kwargs: Any) -> Tensor:
