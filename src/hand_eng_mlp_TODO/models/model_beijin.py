@@ -119,10 +119,10 @@ class ModelBeijin(L.LightningModule):
       return self._base_step(batch, batch_idx, dataloader_idx, step_type="test")
 
   def base_step(
-      self, batch: tuple[Tensor, Tensor],
+      self, batch: tuple[Tensor, Tensor, Tensor],
       batch_idx: int, dataloader_idx: int = 0, step_type: str = None) -> Tensor:
 
-    x_batch, y_batch = batch   #todo shoudl get embeddings, new feeaturs, scores
+    x_batch, y_batch, new_features = batch   #todo shoudl get embeddings, new feeaturs, scores
     y_pred: Tensor = self(x_batch)
 
     mse: Tensor = F.mse_loss(y_batch, y_pred)

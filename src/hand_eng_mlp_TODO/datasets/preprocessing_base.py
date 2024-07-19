@@ -17,7 +17,7 @@ import hand_eng_mlp_TODO.models.model_beijin as hemlp
 
 TEXT_COL = sc.TEXT_COL  # TODO this is actually different for each dataset
 LABEL_COL = common.LABEL_COL
-TOKENIZER_OUTPUT_COL = "tokenizer"
+EMBEDDER_OUTPUT_COL = "embedder"
 SENTIMENT_SCORE_COL = "sentiment_score"
 _TOKENIZER_PATH = hemlp.PRE_TRAINED_MODEL_PATH
 
@@ -25,7 +25,7 @@ PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
     .add(TEXT_COL, psqlt.StringType(), nullable=False)
     .add(LABEL_COL, psqlt.IntegerType(), nullable=False)
-    .add(TOKENIZER_OUTPUT_COL, psqlt.ArrayType(psqlt.IntegerType()), nullable=False)
+    .add(EMBEDDER_OUTPUT_COL, psqlt.ArrayType(psqlt.IntegerType()), nullable=False)
     .add(SENTIMENT_SCORE_COL, psqlt.FloatType(), nullable=False)
 )
 
@@ -202,19 +202,19 @@ def preprocess_dataset(
         raw_df = raw_df.repartition(numPartitions=S.EXECUTORS_AVAILABLE_CORES)
 
     logger.debug("Applying tokenizer...")
-    with_tokens = _apply_tokenizer(df=raw_df, text_col=text_col)
+    with_embeds = _apply_embedder(df=raw_df, text_col=text_col)
 
     logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
-    df = sc.convert_labels_to_sentiment_scores(df=with_tokens, label_col=label_col)
+    df = sc.convert_labels_to_sentiment_scores(df=with_embeds, label_col=label_col)
 
     # Extract additional features
-    df = get_new_features(spark, df, text_col=text_col)  # todo don't add to the og dataset but create a new dataset and return at the end (with_tokens, new_features)
+    df = get_new_features(spark, df, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
-    return df # TODO should contain: text, label, embedding, new_feaeturs
+    return df
 
 
-def _apply_tokenizer(
+def _apply_embedder(
         df: psql.DataFrame,
         text_col: str
 ) -> psql.DataFrame:
@@ -244,10 +244,9 @@ def _apply_tokenizer(
 
     with torch.no_grad():
         features = bertweet(tokenize(psqlf.col(text_col)))
-    states = features.hidden_states[-1]
-    states = states[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
+    embeds = features.hidden_states[-1]
+    embeds = embeds[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
 
-    with_tokens_df = df.withColumn(TOKENIZER_OUTPUT_COL, tokenize(psqlf.col(text_col))) # todo update pier ask what is this and update on what to returns
-    #todo compute and add embeddings insteaed of tokens since htey arre constant (remeber to change funciton name)
+    with_embeds_df = df.withColumn(EMBEDDER_OUTPUT_COL, embeds)
 
-    return with_tokens_df
+    return with_embeds_df

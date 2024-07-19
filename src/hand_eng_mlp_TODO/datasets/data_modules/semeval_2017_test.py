@@ -3,7 +3,7 @@ import lightning as L
 import torch
 from torch.utils.data import DataLoader
 
-import hand_eng_mlp_TODO.datasets.semeval_2017.preprocessing as sem_pp
+import hand_eng_mlp_TODO.datasets.preprocessing_base as hemlp_pb
 from utils.random import RND_SEED
 
 
@@ -68,15 +68,16 @@ class SemEval2017Test(L.LightningDataModule):
 
 
 def _collate_fn(raw_samples):
-    tokenizer_outputs = [item[sem_pp.TOKENIZER_OUTPUT_COL] for item in raw_samples]
-    scores = [item[sem_pp.SENTIMENT_SCORE_COL] for item in raw_samples]
+    # todo shoudl return embeddings, new feeaturs, scores for all data_modules under hang_eng_mlp
+    embeddings = [item[hemlp_pb.EMBEDDER_OUTPUT_COL] for item in raw_samples]
+    scores = [item[hemlp_pb.LABEL_COL] for item in raw_samples]
+    new_features = [item['new_features'] for item in raw_samples]
 
     input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
     att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))
     tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
 
     scores = torch.tensor(scores)
-    # todo shoudl return embeddings, new feeaturs, scores for all data_modules under hang_eng_mlp
 
     return tensorized_tokenizer_output, scores
 
