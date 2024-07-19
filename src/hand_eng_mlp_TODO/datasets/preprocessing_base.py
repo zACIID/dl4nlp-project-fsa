@@ -49,13 +49,6 @@ calculate_pos_neg_features_VADER_udf = udf(
 calculate_sentiment_entropy_VADER_udf = udf(
     ppfe.calculate_vader_sentiment_entropy, FloatType()
 )
-# calculate_pos_neg_features_SN_udf = udf(
-#     ppfe.calculate_sentic_pos_neg_features,
-#     StructType([
-#         StructField("pos_neg_ratio_sentic", FloatType()),
-#         StructField("pos_neg_difference_sentic", FloatType())
-#     ])
-# )
 compute_sentence_polarity_SWN_udf = udf(
     ppfe.compute_swn_polarity, FloatType()
 )
@@ -127,14 +120,6 @@ def get_new_features(
     ).drop("vader_features")
 
     df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
-
-    # df = df.withColumn("senticnet_features", calculate_pos_neg_features_SN_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["senticnet_features"]["pos_neg_ratio_sentic"].alias("pos_neg_ratio_sentic"),
-    #     df["senticnet_features"]["pos_neg_difference_sentic"].alias("pos_neg_difference_sentic")
-    # ).drop("senticnet_features")
-    # TODO remove: works but takes too much time. ask pier: 40 mins for 100 rows
 
     df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
 
@@ -253,6 +238,6 @@ def _apply_embedder(
     embeds = features.hidden_states[-1]
     embeds = embeds[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
 
-    with_embeds_df = df.withColumn(EMBEDDER_OUTPUT_COL, embeds)
+    with_embeds_df = df.withColumn(EMBEDDER_OUTPUT_COL, list(embeds))  # TODO check if necessary to list()
 
     return with_embeds_df

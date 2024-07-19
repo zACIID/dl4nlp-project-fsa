@@ -95,21 +95,20 @@ class Semeval2017TrainVal(L.LightningDataModule):
 
 
 def _collate_fn(raw_samples):
-    # TODO tokenization should happen in the preprocessing phase
-    tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=True)
+    # TODO DO THIS FOR ALL data_modules under hang_eng_mlp (stocktwits files left)
+    # TODO check embeddings shape
 
-    def tokenize(batch_texts: typing.Iterable[str]) -> BatchEncoding:
-        return tokenizer(
-            [text if text is not None else "" for text in batch_texts]
-            return_tensors='pt',
-            return_attention_mask=True,
-            padding='max_length',
-            truncation=True,
-            max_length=160
-        )
+    embeddings = [torch.stack(item[hemlp_pb.EMBEDDER_OUTPUT_COL], dim=0) for item in raw_samples]
+    scores = [item[hemlp_pb.LABEL_COL] for item in raw_samples]
+    new_features = [[item[key] for key in hemlp_pb.NEW_FEATURES] for item in raw_samples]
 
-    scores = [item[ppb.LABEL_COL] for item in raw_samples]
+    embeddings_tensor = torch.stack(embeddings, dim=0)
+    new_features_tensor = torch.stack(new_features)
     scores = torch.tensor(scores)
 
-    return tokenize([item[ppb.TEXT_COL] for item in raw_samples]), scores
+    print("embeddings batch ", embeddings_tensor.shape)
+    print("features batch ", new_features_tensor.shape)
+    print("scores batch ", scores.shape)
+
+    return embeddings_tensor, scores, new_features_tensor
 

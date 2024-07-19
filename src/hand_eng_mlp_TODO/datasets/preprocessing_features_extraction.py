@@ -161,34 +161,6 @@ def get_word_polarity(
         return None
 
 
-# def calculate_sentic_pos_neg_features(  # TODO: this is not used anymore because it takes too much time
-#         text: str
-# ) -> cf.SenticPosNegFeatures:
-#     """
-#     Calculates sentiment lexicon-based features with SenticNet.
-#     - ratio of positive to negative polarity words
-#     - difference between positive and negative words (normalized by total number of words)
-#
-#     :param text: The input text string.
-#     :return: A tuple containing the positive/negative ratio and the positive/negative difference.
-#     """
-#     words = word_tokenize(text)
-#
-#     positive_words = 0
-#     negative_words = 0
-#     for word in words:
-#         polarity = get_word_polarity(word)
-#         if polarity == 'POSITIVE':
-#             positive_words += 1
-#         elif polarity == 'NEGATIVE':
-#             negative_words += 1
-#
-#     pos_neg_ratio = positive_words / negative_words if negative_words != 0 else positive_words
-#     pos_neg_difference = (positive_words - negative_words) / len(words) if len(words) != 0 else 0
-#
-#     return cf.SenticPosNegFeatures(pos_neg_ratio, pos_neg_difference)
-
-
 def compute_swn_polarity(
         text: str
 ) -> float:
@@ -341,7 +313,6 @@ def extract_all_features(  # TODO this is not used
     features.update_vader_pos_neg_features(calculate_vader_pos_neg_features(text))
     features.update_vader_sentiment_entropy(calculate_vader_sentiment_entropy(text))
     features.update_emotions(sentic_emotion_recognition(text))
-    # features.update_sentic_pos_neg_features(calculate_sentic_pos_neg_features(text))
     features.update_swn_polarity(compute_swn_polarity(text))
     features.update_readability_metrics(calculate_readability_metrics(text))
     features.update_overall_sentiment_features(compute_overall_sentiment_features(text, sentiment_data, mean_medians))

@@ -38,9 +38,6 @@ class CustomFeatures:
 
         self.sentiment_entropy_vader: float = 0.0
 
-        # self.pos_neg_ratio_sentic: float = 0.0  # todo: remove bcs similar feature, and it takes too much time: 40 mins for 100 rows
-        # self.pos_neg_difference_sentic: float = 0.0
-
         self.swn_polarity: float = 0.0
 
         self.introspection: float = 0.0
@@ -79,10 +76,6 @@ class CustomFeatures:
         self.attitude = emotions.get('ATTITUDE', 0.0)
         self.sensitivity = emotions.get('SENSITIVITY', 0.0)
 
-    # def update_sentic_pos_neg_features(self, pos_neg_ratio_and_diff: SenticPosNegFeatures):
-    #     self.pos_neg_ratio_sentic = pos_neg_ratio_and_diff[0]
-    #     self.pos_neg_difference_sentic = pos_neg_ratio_and_diff[1]
-
     def update_swn_polarity(self, swn_polarity: float):
         self.swn_polarity = swn_polarity
 
@@ -108,8 +101,6 @@ class CustomFeatures:
             'pos_neg_ratio_vader': self.pos_neg_ratio_vader,
             'pos_neg_difference_vader': self.pos_neg_difference_vader,
             'sentiment_entropy_vader': self.sentiment_entropy_vader,
-            # 'pos_neg_ratio_sentic': self.pos_neg_ratio_sentic,
-            # 'pos_neg_difference_sentic': self.pos_neg_difference_sentic,
             'swn_polarity': self.swn_polarity,
             'introspection': self.introspection,
             'temper': self.temper,
