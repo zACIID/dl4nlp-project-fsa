@@ -13,7 +13,7 @@ from hand_eng_mlp_TODO.models.linear_aggregator import LinAggregator
 from hand_eng_mlp_TODO.models.super_mlp.base.base_mlp import BaseSuperMLP
 from enum import Enum
 from transformers import BertForMaskedLM
-from hand_eng_mlp_TODO.datasets.preprocessing_base import NEW_FEATURES
+from hand_eng_mlp_TODO.datasets.preprocessing_features_extraction import NEW_FEATURES
 from hand_eng_mlp_TODO.models.super_mlp.box_mlp import BoxMLP
 from hand_eng_mlp_TODO.models.super_mlp.rep_rhomboid_mlp import RepRhomboidMLP
 from hand_eng_mlp_TODO.models.super_mlp.rhomboid_mlp import RhomboidMLP

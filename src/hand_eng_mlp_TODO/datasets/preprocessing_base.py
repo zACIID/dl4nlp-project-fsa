@@ -20,12 +20,6 @@ LABEL_COL = common.LABEL_COL
 EMBEDDER_OUTPUT_COL = "embedder"
 SENTIMENT_SCORE_COL = "sentiment_score"
 _TOKENIZER_PATH = hemlp.PRE_TRAINED_MODEL_PATH
-NEW_FEATURES = ['vader_polarity', 'pos_neg_ratio_vader', 'pos_neg_difference_vader', 'sentiment_entropy_vader',
-                'swn_polarity', 'INTROSPECTION', 'TEMPER', 'ATTITUDE', 'SENSITIVITY',
-                'flesch_kincaid_grade', 'gunning_fog', 'coleman_liau_index',
-                'overall_valence_mean', 'overall_arousal_mean', 'overall_dominance_mean',
-                'overall_valence_std', 'overall_arousal_std', 'overall_dominance_std',
-                'valence_contrast', 'arousal_contrast', 'dominance_contrast']
 
 PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
     psqlt.StructType()

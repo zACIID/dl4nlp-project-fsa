@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import hand_eng_mlp_TODO.datasets.preprocessing_base as hemlp_pb
+import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as hemlp_pfe
 from utils.random import RND_SEED
 
 
@@ -73,7 +74,7 @@ def _collate_fn(raw_samples):
 
     embeddings = [torch.stack(item[hemlp_pb.EMBEDDER_OUTPUT_COL], dim=0) for item in raw_samples]
     scores = [item[hemlp_pb.LABEL_COL] for item in raw_samples]
-    new_features = [[item[key] for key in hemlp_pb.NEW_FEATURES] for item in raw_samples]
+    new_features = [[item[key] for key in hemlp_pfe.NEW_FEATURES] for item in raw_samples]
 
     embeddings_tensor = torch.stack(embeddings, dim=0)
     new_features_tensor = torch.stack(new_features)
