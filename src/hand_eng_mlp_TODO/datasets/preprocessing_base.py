@@ -5,7 +5,7 @@ from loguru import logger
 from pyspark.sql import types as psqlt, functions as psqlf
 from pyspark.sql.functions import udf, col, struct, lit
 from pyspark.sql.types import FloatType, StructType, StructField
-from transformers import AutoTokenizer, BatchEncoding, BertForMaskedLM
+from transformers import AutoTokenizer, BatchEncoding, AutoModel
 
 import data.spark as S
 import data.stocktwits_crypto_dataset as sc
@@ -204,10 +204,10 @@ def _apply_embedder(
         text_col: str
 ) -> psql.DataFrame:
     tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
-    bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
+    bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
 
     @psqlf.udf(
-        returnType=psqlt.StructType([
+        returnType=psqlt.StructType([ #todo: what should be the returning type og the udf?
             psqlt.StructField("input_ids", psqlt.ArrayType(psqlt.IntegerType())),
             psqlt.StructField("attention_mask", psqlt.ArrayType(psqlt.IntegerType()))
         ])
@@ -226,12 +226,17 @@ def _apply_embedder(
         )
 
         return torch.tensor([tokenizer.encode(batch)])
+        # TODO check type:
+        #  as we can see from colab file, torch.tensor([tokenizer.encode(line)]) returns a tensor([[...], [...], ...])
+        #  is the type correct? should we not convert to tensor now but do it later below?
 
     with torch.no_grad():
-        features = bertweet(tokenize(psqlf.col(text_col)))
+        features = bertweet(tokenize(psqlf.col(text_col))) # TODO check required input type NOTE: the error is this line
     embeds = features.hidden_states[-1]
     embeds = embeds[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
 
     with_embeds_df = df.withColumn(EMBEDDER_OUTPUT_COL, list(embeds))  # TODO check if necessary to list()
+
+    # TODO run preprocessing and see if everything works before the training TODOs
 
     return with_embeds_df
