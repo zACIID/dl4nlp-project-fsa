@@ -229,9 +229,12 @@ def _apply_embedder(
         # TODO check type:
         #  as we can see from colab file, torch.tensor([tokenizer.encode(line)]) returns a tensor([[...], [...], ...])
         #  is the type correct? should we not convert to tensor now but do it later below?
+        #  pyspark might not like torch tensor type output
 
     with torch.no_grad():
-        features = bertweet(tokenize(psqlf.col(text_col))) # TODO check required input type NOTE: the error is this line
+        features = bertweet(tokenize(psqlf.col(text_col)))
+        # TODO check required input type (Tensor?) NOTE: the error is on this line
+
     embeds = features.hidden_states[-1]
     embeds = embeds[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
 
