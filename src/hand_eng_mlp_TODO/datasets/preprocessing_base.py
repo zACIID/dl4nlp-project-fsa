@@ -194,7 +194,7 @@ def preprocess_dataset(
     df = sc.convert_labels_to_sentiment_scores(df=with_embeds, label_col=label_col)
 
     # Extract additional features
-    # df = get_new_features(spark, df, text_col=text_col)
+    df = get_new_features(spark, df, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
     return df
@@ -224,7 +224,7 @@ def _apply_tokenize_and_embed(
     return df_with_embeddings
 
 
-def _apply_embedder_temporarily_disabled(
+def _apply_embedder_temporarily_disabled(  # TODO TOREMOVE but here for reference
         df: psql.DataFrame,
         text_col: str
 ) -> psql.DataFrame:
