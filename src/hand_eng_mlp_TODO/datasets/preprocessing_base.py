@@ -208,22 +208,19 @@ def _apply_tokenize_and_embed(
     bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
     bertweet.eval()
 
-    # Pandas udf instead of Pyspark udf for better performance or so it says
-    @pandas_udf(ArrayType(FloatType()))
-    def tokenize_and_embed(text_series: pd.Series) -> pd.Series:
-        inputs = tokenizer(text_series.tolist(), padding=True, truncation=True, return_tensors="pt")
+    def tokenize_and_embed(text: str) -> list:
+        inputs = tokenizer(text, padding=True, truncation=True, return_tensors="pt")
 
         with torch.no_grad():
-            outputs = bertweet(**inputs, output_hidden_states=True)  # **inputs unpacks the dictionary returned by the tokenizer
+            outputs = bertweet(**inputs)  # **inputs unpacks the dictionary returned by the tokenizer
 
         # Exclude first (CLS) and last (SEP) tokens
-        embeddings = (outputs.hidden_states[-1][:, 1:-1, :]).tolist()
+        embeddings = outputs.last_hidden_state[:, 1:-1, :].squeeze().numpy()
 
-        return pd.Series([embedding.tolist() for embedding in embeddings])
+        return [embedding.tolist() for embedding in embeddings]
 
-    embeds = tokenize_and_embed(df[text_col])
-    print("--->", embeds)
-    df_with_embeddings = df.withColumn('embeddings', embeds)
+    tokenize_and_embed_udf = udf(tokenize_and_embed, ArrayType(ArrayType(FloatType())))
+    df_with_embeddings = df.withColumn('embeddings', tokenize_and_embed_udf(df[text_col]))
     return df_with_embeddings
 
 
