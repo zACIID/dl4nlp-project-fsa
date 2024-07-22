@@ -212,7 +212,7 @@ def _apply_embedder(
             psqlt.StructField("attention_mask", psqlt.ArrayType(psqlt.IntegerType()))
         ])
     )
-    def tokenize(text: str) -> torch.tensor:
+    def tokenize(text: str) -> typing.List:
         # NOTE: UDFs complex types are defined as StructType
         # - https://stackoverflow.com/a/53346512
         # - https://stackoverflow.com/a/36841721
@@ -226,14 +226,14 @@ def _apply_embedder(
         # )
         #
         # return torch.tensor([tokenizer.encode(batch)])
-        return torch.tensor([tokenizer.encode(text)])
+        return [tokenizer.encode(text)]
         # TODO check type:
         #  as we can see from colab file, torch.tensor([tokenizer.encode(line)]) returns a tensor([[...], [...], ...])
         #  is the type correct? should we not convert to tensor now but do it later below?
         #  pyspark might not like torch tensor type output
 
     with torch.no_grad():
-        batch = tokenize(psqlf.col(text_col))
+        batch = torch.tensor(tokenize(psqlf.col(text_col)))
         print(type(batch))
         features = bertweet(batch)
         print(type(features))
