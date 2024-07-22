@@ -215,7 +215,7 @@ def _apply_tokenize_and_embed(
             outputs = bertweet(**inputs)  # **inputs unpacks the dictionary returned by the tokenizer
 
         # Exclude first (CLS) and last (SEP) tokens
-        embeddings = outputs.last_hidden_state[:, 1:-1, :].squeeze().numpy()
+        embeddings = outputs.last_hidden_state[:, 1:-1, :].numpy()
 
         return [embedding.tolist() for embedding in embeddings]
 
