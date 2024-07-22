@@ -212,7 +212,7 @@ def _apply_embedder(
             psqlt.StructField("attention_mask", psqlt.ArrayType(psqlt.IntegerType()))
         ])
     )
-    def tokenize(text: str) -> typing.List:
+    def tokenize(texts) -> typing.List:
         # NOTE: UDFs complex types are defined as StructType
         # - https://stackoverflow.com/a/53346512
         # - https://stackoverflow.com/a/36841721
@@ -226,7 +226,13 @@ def _apply_embedder(
         # )
         #
         # return torch.tensor([tokenizer.encode(batch)])
-        return [tokenizer.encode(text)]
+
+        print("Tipo del testo: ", type(texts))
+
+        for idx, text in enumerate(texts):
+            texts[idx] = tokenizer.encode(text)
+
+        return texts
         # TODO check type:
         #  as we can see from colab file, torch.tensor([tokenizer.encode(line)]) returns a tensor([[...], [...], ...])
         #  is the type correct? should we not convert to tensor now but do it later below?
