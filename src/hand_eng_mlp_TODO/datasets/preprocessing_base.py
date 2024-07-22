@@ -212,7 +212,7 @@ def _apply_embedder(
             psqlt.StructField("attention_mask", psqlt.ArrayType(psqlt.IntegerType()))
         ])
     )
-    def tokenize(text: str) -> typing.Tuple:
+    def tokenize(text: str) -> torch.tensor:
         # NOTE: UDFs complex types are defined as StructType
         # - https://stackoverflow.com/a/53346512
         # - https://stackoverflow.com/a/36841721
