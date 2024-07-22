@@ -3,10 +3,11 @@ import pyspark.sql as psql
 import torch
 from loguru import logger
 from pyspark.sql import types as psqlt, functions as psqlf
-from pyspark.sql.functions import udf, col, struct, lit
-from pyspark.sql.types import FloatType, StructType, StructField
+from pyspark.sql.functions import udf, col, struct, lit, pandas_udf, PandasUDFType
+from pyspark.sql.types import FloatType, StructType, StructField, ArrayType
 from transformers import AutoTokenizer, BatchEncoding, AutoModel
 
+import pandas as pd
 import data.spark as S
 import data.stocktwits_crypto_dataset as sc
 import data.common as common
@@ -187,7 +188,7 @@ def preprocess_dataset(
         raw_df = raw_df.repartition(numPartitions=S.EXECUTORS_AVAILABLE_CORES)
 
     logger.debug("Applying tokenizer...")
-    with_embeds = _apply_embedder(df=raw_df, text_col=text_col)
+    with_embeds = _apply_tokenize_and_embed(df=raw_df, text_col=text_col)
 
     logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
     df = sc.convert_labels_to_sentiment_scores(df=with_embeds, label_col=label_col)
@@ -199,7 +200,32 @@ def preprocess_dataset(
     return df
 
 
-def _apply_embedder(
+def _apply_tokenize_and_embed(
+        df: psql.DataFrame,
+        text_col: str
+) -> psql.DataFrame:
+    tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
+    bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
+    bertweet.eval()
+
+    # Pandas udf instead of Pyspark udf for better performance or so it says
+    @pandas_udf(ArrayType(FloatType()), PandasUDFType.SCALAR)
+    def tokenize_and_embed(text_series: pd.Series) -> pd.Series:
+        inputs = tokenizer(text_series.tolist(), padding=True, truncation=True, return_tensors="pt")
+        with torch.no_grad():
+            outputs = bertweet(**inputs)  # **inputs unpacks the dictionary returned by the tokenizer
+        # Take the mean of token embeddings to get sentence embeddings
+        # embeddings = outputs.last_hidden_state.mean(dim=1).numpy()
+        # Exclude first (CLS) and last (SEP) tokens
+        embeddings = outputs.last_hidden_state[:, 1:-1, :].mean(dim=1).numpy()
+        return pd.Series([embedding.tolist() for embedding in embeddings])
+
+    # Apply the UDF to the text column
+    df_with_embeddings = df.withColumn('embeddings', tokenize_and_embed(df[text_col]))
+    return df_with_embeddings
+
+
+def _apply_embedder_temporarily_disabled(
         df: psql.DataFrame,
         text_col: str
 ) -> psql.DataFrame:
@@ -235,6 +261,7 @@ def _apply_embedder(
         #  as we can see from colab file, torch.tensor([tokenizer.encode(line)]) returns a tensor([[...], [...], ...])
         #  is the type correct? should we not convert to tensor now but do it later below?
         #  pyspark might not like torch tensor type output
+        #  try sparkdf.apply(column, function)
 
     with torch.no_grad():
         print("Tipo del testo: ", type(psqlf.col(text_col)))
