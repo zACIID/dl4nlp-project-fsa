@@ -194,7 +194,7 @@ def preprocess_dataset(
     df = sc.convert_labels_to_sentiment_scores(df=with_embeds, label_col=label_col)
 
     # Extract additional features
-    df = get_new_features(spark, df, text_col=text_col)
+    # df = get_new_features(spark, df, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
     return df
@@ -209,15 +209,18 @@ def _apply_tokenize_and_embed(
     bertweet.eval()
 
     # Pandas udf instead of Pyspark udf for better performance or so it says
-    @pandas_udf(ArrayType(FloatType()), PandasUDFType.SCALAR)
+    @pandas_udf(ArrayType(FloatType()))
     def tokenize_and_embed(text_series: pd.Series) -> pd.Series:
         inputs = tokenizer(text_series.tolist(), padding=True, truncation=True, return_tensors="pt")
+
         with torch.no_grad():
             outputs = bertweet(**inputs)  # **inputs unpacks the dictionary returned by the tokenizer
+
         # Take the mean of token embeddings to get sentence embeddings
         # embeddings = outputs.last_hidden_state.mean(dim=1).numpy()
         # Exclude first (CLS) and last (SEP) tokens
         embeddings = outputs.last_hidden_state[:, 1:-1, :].mean(dim=1).numpy()
+
         return pd.Series([embedding.tolist() for embedding in embeddings])
 
     # Apply the UDF to the text column
