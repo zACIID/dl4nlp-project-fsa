@@ -239,9 +239,9 @@ def _apply_embedder(
         #  pyspark might not like torch tensor type output
 
     with torch.no_grad():
-        batch = torch.tensor(tokenize(psqlf.col(text_col)))
+        batch = tokenize(psqlf.col(text_col))
         print(type(batch))
-        features = bertweet(batch)
+        features = bertweet(torch.tensor(batch))
         print(type(features))
         # TODO check required input type (Tensor?) NOTE: the error is on this line
 
