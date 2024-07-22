@@ -227,8 +227,6 @@ def _apply_embedder(
         #
         # return torch.tensor([tokenizer.encode(batch)])
 
-        print("Tipo del testo: ", type(texts))
-
         for idx, text in enumerate(texts):
             texts[idx] = tokenizer.encode(text)
 
@@ -239,6 +237,7 @@ def _apply_embedder(
         #  pyspark might not like torch tensor type output
 
     with torch.no_grad():
+        print("Tipo del testo: ", type(psqlf.col(text_col)))
         batch = tokenize(psqlf.col(text_col))
         print(type(batch))
         features = bertweet(torch.tensor(batch))
