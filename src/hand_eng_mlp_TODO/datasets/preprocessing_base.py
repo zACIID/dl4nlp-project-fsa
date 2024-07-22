@@ -214,14 +214,16 @@ def _apply_tokenize_and_embed(
         inputs = tokenizer(text_series.tolist(), padding=True, truncation=True, return_tensors="pt")
 
         with torch.no_grad():
-            outputs = bertweet(**inputs)  # **inputs unpacks the dictionary returned by the tokenizer
+            outputs = bertweet(**inputs, output_hidden_states=True)  # **inputs unpacks the dictionary returned by the tokenizer
 
         # Exclude first (CLS) and last (SEP) tokens
-        embeddings = outputs.last_hidden_state[:, 1:-1, :].numpy()
+        embeddings = outputs.hidden_states[-1][:, 1:-1, :].numpy()
 
         return pd.Series([embedding.tolist() for embedding in embeddings])
 
-    df_with_embeddings = df.withColumn('embeddings', tokenize_and_embed(df[text_col]))
+    embeds = tokenize_and_embed(df[text_col])
+    print("--->", embeds)
+    df_with_embeddings = df.withColumn('embeddings', embeds)
     return df_with_embeddings
 
 
