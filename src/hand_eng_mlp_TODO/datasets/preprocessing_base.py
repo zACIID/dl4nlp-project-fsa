@@ -216,16 +216,17 @@ def _apply_embedder(
         # NOTE: UDFs complex types are defined as StructType
         # - https://stackoverflow.com/a/53346512
         # - https://stackoverflow.com/a/36841721
-        batch: BatchEncoding = tokenizer(
-            text if text is not None else "",
-            return_tensors='np',
-            return_attention_mask=True,
-            padding='max_length',
-            truncation=True,
-            max_length=sc.WORST_CASE_TOKENS
-        )
-
-        return torch.tensor([tokenizer.encode(batch)])
+        # batch: BatchEncoding = tokenizer(
+        #     text if text is not None else "",
+        #     return_tensors='np',
+        #     return_attention_mask=True,
+        #     padding='max_length',
+        #     truncation=True,
+        #     max_length=sc.WORST_CASE_TOKENS
+        # )
+        #
+        # return torch.tensor([tokenizer.encode(batch)])
+        return torch.tensor([tokenizer.encode(text)])
         # TODO check type:
         #  as we can see from colab file, torch.tensor([tokenizer.encode(line)]) returns a tensor([[...], [...], ...])
         #  is the type correct? should we not convert to tensor now but do it later below?
