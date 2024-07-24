@@ -9,4 +9,4 @@ export PYTHONPATH=src:$PYTHONPATH  \
 && poetry run python src/hand_eng_mlp_TODO/datasets/semeval_2017/preprocessing.py \
 #&& poetry run python src/hand_eng_mlp_TODO/datasets/semeval_2017/preprocessing.py --get-train-dataset \  # TODO trying preprocessing train and test all in one
 # TODO possibly other preprocessing scripts
-# TODO poetrypythonsrc src/data/hand_engineered_mlp/stocktwits_crypto/preprocessing.py per runnare script di preprocessing singolarmente da terminal
+# TODO poetrypythonsrc src/hand_eng_mlp_TODO/datasets/semeval_2017/preprocessing.py per runnare script di preprocessing singolarmente da terminal

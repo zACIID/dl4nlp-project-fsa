@@ -45,6 +45,8 @@ def _main():
     )
     raw_df = sem.read_dataset(spark=spark, path=raw_df_path)
 
+    raw_df = raw_df.limit(100)  # Take the first 100 rows TODO: Remove later, just for testing
+
     # TODO split raw_df into raw_df_train and raw_df_test with a 80-20 train test split
     train_ratio = 0.8
     test_ratio = 0.2
