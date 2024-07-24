@@ -134,6 +134,7 @@ class ModelBeijin(L.LightningModule):
             sign_accuracy_mask(y_batch, y_pred)
         ) / batch_len
 
+        # TODO is cosine similarity really the best loss for model Beijin
         loss: Tensor = -torch.cosine_similarity(y_batch, y_pred, dim=-1)
 
         if step_type == 'val':

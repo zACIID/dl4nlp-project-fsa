@@ -103,7 +103,7 @@ def _main():
         evaluators=['default'],
         # TODO add our metrics, e.g. cosine_similarity, f1_score, accuracy, recall, etc.
         # extra_metrics=[
-        #
+        #2
         # ]
     )
 

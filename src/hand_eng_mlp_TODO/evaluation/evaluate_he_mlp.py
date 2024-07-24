@@ -1,10 +1,21 @@
-# TODO ( ͡° ͜ʖ ͡°) implement, take src/fine_tuned_finbert/evaluation/evaluate_finbert as example It is interesting
-#  for us to evaluate every component of our ensemble so that we can see if we actually improved stuff at the end
+import torchmetrics.classification as tc
+from torch import Tensor
 
 # TODO: see their cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
 
-# TODO: Our primary evaluation metric for financial sentiment analysis is the weighted cosine similarity,aligning
-#  with the SemEval2017 challenge’s official evaluation method. This metric measures the proximity between predicted
-#  sentiment scores and the gold standard. Additional standard metrics, including precision, recall, and F1 score
 
+class SaharaEvaluator:
+    def __init__(self, num_classes: int = 3):
+        self._precision: tc.MulticlassPrecision = tc.MulticlassPrecision(num_classes=num_classes)
+        self._recall: tc.MulticlassRecall = tc.MulticlassRecall(num_classes=num_classes)
+        self._f1: tc.MulticlassF1Score = tc.MulticlassF1Score(num_classes=num_classes)
 
+    # I put + 1 because pytorch recall, precision and f1 require non-negative tensors
+    def precision(self, pred: Tensor, target: Tensor) -> Tensor:
+        return self._precision(preds=pred + 1, target=target + 1)
+
+    def recall(self, pred: Tensor, target: Tensor) -> Tensor:
+        return self._recall(preds=pred + 1, target=target + 1)
+
+    def f1(self, pred: Tensor, target: Tensor) -> Tensor:
+        return self._f1(preds=pred + 1, target=target + 1)
