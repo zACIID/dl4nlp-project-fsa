@@ -7,8 +7,4 @@
 #  with the SemEval2017 challenge’s official evaluation method. This metric measures the proximity between predicted
 #  sentiment scores and the gold standard. Additional standard metrics, including precision, recall, and F1 score
 
-# TODO unire dataset, dividere, preprocessing, vono venire fuori due database separati train e test se vai a vedere
-#  c’e’ un flag che viene passato allo script di preprocessing di semeval che decide su quale dataset viene fatto il
-#  preprocessing serve che siano due file separati perche’ poi gli script “evaluation” caricano solo il dataset di
-#  test e ci sono dei datamodules solo per il dataset di test (Semeval2017Test tipo
 
