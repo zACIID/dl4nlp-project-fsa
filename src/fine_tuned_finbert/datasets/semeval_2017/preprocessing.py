@@ -40,7 +40,7 @@ def get_dataset(train_dataset: bool) -> datasets.Dataset:
 )
 @click.option("--get-train-dataset", '-d', is_flag=True, type=click.BOOL)
 def _main(get_train_dataset: bool):
-    raw_df_path = sem.download_dataset(return_train_dataset=get_train_dataset)
+    raw_df_path = sem.download_dataset(return_train_dataset=get_train_dataset)  # TODO i changed download_dataset(), this file hasn't been updated yet
 
     spark = S.create_spark_session(
         app_name=_SPARK_APP_NAME,
@@ -48,9 +48,7 @@ def _main(get_train_dataset: bool):
     raw_df = sem.read_dataset(spark=spark, path=raw_df_path)
 
     logger.info("Cleaning data...")
-    df = sem.clean_dataset(
-        df=raw_df,
-    )
+    df = sem.clean_dataset(df=raw_df)
 
     df = df.withColumnRenamed(sem.SENTIMENT_SCORE_COL, ppb.LABEL_COL)
 

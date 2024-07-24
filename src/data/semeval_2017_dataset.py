@@ -1,9 +1,9 @@
 import os
 import typing
-from pathlib import Path
+import json
 import subprocess
-
 import pyspark.sql as psql
+from pathlib import Path
 from loguru import logger
 from pyspark.sql import types as psqlt, functions as psqlf
 
@@ -39,21 +39,66 @@ Schema may very well very after preprocessing.
 """
 
 
-def download_dataset(return_train_dataset: bool) -> Path:
+def download_dataset() -> Path:
     train_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trainingdata.json'
-    # test_dataset_path = _DOWNLOAD_DIR / 'Microblogs_Testdata.json' # TODO does not contain scores, need the GS dataset (check emails)
-    # TODO the trial dataset contains just 10 entries. If the GS can't be retrieved,
-    #  consider merging the two dataset and taking like 20-30% samples to use as test.
-    #  In the challenge they had something like 400 test samples
     test_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trialdata.json'
-    dataset_path = train_dataset_path if return_train_dataset else test_dataset_path
-    if not os.path.exists(dataset_path):
-        logger.info('Downloading dataset...')
-        subprocess.Popen(_DOWNLOAD_BASH_COMMAND, stdout=subprocess.PIPE, shell=True, executable="/bin/bash").communicate()
-    else:
-        logger.info('Dataset already downloaded')
+    combined_dataset_path = _DOWNLOAD_DIR / 'Combined_Dataset.json'
 
-    return dataset_path
+    # List of duplicate ids to remove from the training set
+    duplicate_ids = {"708668814427348992", "34147106", "18479024", "16142438", "10752226"}
+
+    if not os.path.exists(train_dataset_path):
+        logger.info('Downloading training dataset...')
+        subprocess.Popen(_DOWNLOAD_BASH_COMMAND,
+                         stdout=subprocess.PIPE,
+                         shell=True,
+                         executable="/bin/bash"
+                         ).communicate()
+    else:
+        logger.info('Training dataset already downloaded')
+
+    if not os.path.exists(test_dataset_path):
+        logger.info('Downloading test dataset...')
+        subprocess.Popen(_DOWNLOAD_BASH_COMMAND,
+                         stdout=subprocess.PIPE,
+                         shell=True,
+                         executable="/bin/bash"
+                         ).communicate()
+    else:
+        logger.info('Test dataset already downloaded')
+
+    with open(train_dataset_path, 'r', encoding='utf-8') as train_file:
+        train_data = json.load(train_file)
+    with open(test_dataset_path, 'r', encoding='utf-8') as test_file:
+        test_data = json.load(test_file)
+
+    # Remove duplicates from training data and combine with the test data
+    filtered_train_data = [sample for sample in train_data if sample['id'] not in duplicate_ids]
+    combined_data = filtered_train_data + test_data
+
+    with open(combined_dataset_path, 'w', encoding='utf-8') as combined_file:
+        json.dump(combined_data, combined_file, ensure_ascii=False, indent=4)
+
+    logger.info('Combined dataset saved at %s', combined_dataset_path)
+    return combined_dataset_path
+
+
+# TODO old version
+# def download_dataset(return_train_dataset: bool) -> Path:
+#     train_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trainingdata.json'
+#     # test_dataset_path = _DOWNLOAD_DIR / 'Microblogs_Testdata.json' # TODO does not contain scores, need the GS dataset (check emails)
+#     # TODO the trial dataset contains just 10 entries. If the GS can't be retrieved,
+#     #  consider merging the two dataset and taking like 20-30% samples to use as test.
+#     #  In the challenge they had something like 400 test samples
+#     test_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trialdata.json'
+#     dataset_path = train_dataset_path if return_train_dataset else test_dataset_path
+#     if not os.path.exists(dataset_path):
+#         logger.info('Downloading dataset...')
+#         subprocess.Popen(_DOWNLOAD_BASH_COMMAND, stdout=subprocess.PIPE, shell=True, executable="/bin/bash").communicate()
+#     else:
+#         logger.info('Dataset already downloaded')
+#
+#     return dataset_path
 
 
 def read_dataset(

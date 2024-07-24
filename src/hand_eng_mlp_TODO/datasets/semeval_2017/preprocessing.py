@@ -2,6 +2,7 @@ import os
 
 import click
 import datasets
+import pyspark.sql as psql
 from loguru import logger
 
 import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
@@ -36,16 +37,33 @@ def get_dataset(train_dataset: bool) -> datasets.Dataset:
 @click.command(
     help=f"Preprocess {_MODEL_NAME} dataset"
 )
-@click.option("--get-train-dataset", '-d', is_flag=True, type=click.BOOL)
-def _main(get_train_dataset: bool):
-    raw_df_path = sem.download_dataset(return_train_dataset=get_train_dataset)
+def _main():
+    raw_df_path = sem.download_dataset()  # get combined dataset path
 
     spark = S.create_spark_session(
         app_name=_SPARK_APP_NAME,
     )
     raw_df = sem.read_dataset(spark=spark, path=raw_df_path)
 
-    logger.info("Cleaning data...")
+    # TODO split raw_df into raw_df_train and raw_df_test with a 80-20 train test split
+    train_ratio = 0.8
+    test_ratio = 0.2
+    raw_df_train, raw_df_test = raw_df.randomSplit([train_ratio, test_ratio], seed=28)
+
+    preprocess_and_save(spark=spark,
+                        raw_df=raw_df_train,
+                        is_train=True)
+    preprocess_and_save(spark=spark,
+                        raw_df=raw_df_test,
+                        is_train=False)
+
+
+def preprocess_and_save(
+        spark: psql.SparkSession,
+        raw_df: psql.DataFrame,
+        is_train: bool):
+    dataset_type = "train" if is_train else "test"
+    logger.info(f"Cleaning {dataset_type} data...")
     df = sem.clean_dataset(df=raw_df)
 
     df = df.withColumnRenamed(sem.SENTIMENT_SCORE_COL, ppb.LABEL_COL)
@@ -57,10 +75,46 @@ def _main(get_train_dataset: bool):
         label_col=ppb.LABEL_COL
     )
 
-    dataset_path = TRAIN_DATASET_PATH if get_train_dataset else VAL_DATASET_PATH
-    logger.info("Preprocessing dataset...")
+    dataset_path = TRAIN_DATASET_PATH if is_train else VAL_DATASET_PATH
+    logger.info(f"Preprocessing {dataset_type} dataset...")
     df.write.parquet(str(dataset_path), mode='overwrite')
-    logger.info("Preprocessing finished")
+    logger.info(f"Preprocessing {dataset_type} finished")
+
+
+# TODO old version before doing only one preprocessing:
+# @click.command(
+#     help=f"Preprocess {_MODEL_NAME} dataset"
+# )
+# @click.option("--get-train-dataset", '-d', is_flag=True, type=click.BOOL)
+# def _main(get_train_dataset: bool):
+#     raw_df_path = sem.download_dataset(return_train_dataset=get_train_dataset)
+#
+#     spark = S.create_spark_session(
+#         app_name=_SPARK_APP_NAME,
+#     )
+#     raw_df = sem.read_dataset(spark=spark, path=raw_df_path)
+#
+#     # raw_df = raw_df.limit(50)  # Take the first 100 rows TODO: Remove later, just for testing
+#
+#     logger.info("Cleaning data...")
+#     df = sem.clean_dataset(df=raw_df)
+#
+#     df = df.withColumnRenamed(sem.SENTIMENT_SCORE_COL, ppb.LABEL_COL)
+#     df = ppb.preprocess_dataset(
+#         spark=spark,
+#         raw_df=df,
+#         drop_neutral_samples=False,  # NOTE: false in this case because labels are continuously-valued sentiment scores
+#         text_col=sem.TEXT_COL,
+#         label_col=ppb.LABEL_COL
+#     )
+#
+#     # TODO ( ͡° ͜ʖ ͡°) need to derive a test dataset from the training dataset
+#     #   maybe merge 'Microblog_Trainingdata.json' and 'Microblog_Trialdata.json'
+#     #   and then take 200 samples out to make the test set, remaining samples for training
+#     dataset_path = TRAIN_DATASET_PATH if get_train_dataset else VAL_DATASET_PATH
+#     logger.info("Preprocessing dataset...")
+#     df.write.parquet(str(dataset_path), mode='overwrite')
+#     logger.info("Preprocessing finished")
 
 
 if __name__ == "__main__":

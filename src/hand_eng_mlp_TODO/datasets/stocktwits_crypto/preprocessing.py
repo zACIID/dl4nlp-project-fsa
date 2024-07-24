@@ -39,8 +39,6 @@ def _main(drop_neutral_samples: bool):
     )
     raw_df = sc.read_dataset(spark=spark, path=raw_csv_path)
 
-    # raw_df = raw_df.limit(50)  # Take the first 100 rows TODO: Remove later, just for testing
-
     logger.info("Cleaning dataset...")
     df = sc.clean(
         raw_df=raw_df,
@@ -65,11 +63,3 @@ def _main(drop_neutral_samples: bool):
 
 if __name__ == "__main__":
     _main()
-
-
-
-
-# TODO unire dataset, dividere, preprocessing, vono venire fuori due database separati train e test se vai a vedere
-#  c’e’ un flag che viene passato allo script di preprocessing di semeval che decide su quale dataset viene fatto il
-#  preprocessing serve che siano due file separati perche’ poi gli script “evaluation” caricano solo il dataset di
-#  test e ci sono dei datamodules solo per il dataset di test (Semeval2017Test tipo
