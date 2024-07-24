@@ -79,7 +79,7 @@ def download_dataset() -> Path:
     with open(combined_dataset_path, 'w', encoding='utf-8') as combined_file:
         json.dump(combined_data, combined_file, ensure_ascii=False, indent=4)
 
-    logger.info('Combined dataset saved at %s', combined_dataset_path)
+    logger.info('Combined dataset saved')
     return combined_dataset_path
 
 
