@@ -105,8 +105,10 @@ def get_new_features(
     :return: DataFrame with additional computed features
     """
     # Sentiment score with VADER and SentiWordNet
+    logger.debug("1 of 7 steps")
     df = df.withColumn('vader_polarity', compute_sentence_polarity_VADER_udf(df[text_col]))
 
+    logger.debug("2 of 7 steps")
     df = df.withColumn("vader_features", calculate_pos_neg_features_VADER_udf(df[text_col]))
     df = df.select(
         "*",
@@ -114,10 +116,13 @@ def get_new_features(
         df["vader_features"]["pos_neg_difference_vader"].alias("pos_neg_difference_vader")
     ).drop("vader_features")
 
+    logger.debug("3 of 7 steps")
     df = df.withColumn('sentiment_entropy_vader', calculate_sentiment_entropy_VADER_udf(df[text_col]))
 
+    logger.debug("4 of 7 steps")
     df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
 
+    logger.debug("5 of 7 steps")
     # Emotion recognition with SenticNet
     df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
     df = df.select(
@@ -128,6 +133,7 @@ def get_new_features(
         df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
     ).drop("emotion_recognition")
 
+    logger.debug("6 of 7 steps")
     # Readability metrics
     df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
     df = df.select(
@@ -137,6 +143,7 @@ def get_new_features(
         df["readability_metrics"]["coleman_liau_index"].alias("coleman_liau_index")
     ).drop("readability_metrics")
 
+    logger.debug("7 of 7 steps")
     # Lexical Affect Features: Valence, Arousal, Dominance (VAD)
     sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
     sentiment_data_broadcast = spark.sparkContext.broadcast(sentiment_data)
