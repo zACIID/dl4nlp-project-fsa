@@ -122,7 +122,7 @@ class ModelBeijin(L.LightningModule):
             self, batch: tuple[Tensor, Tensor, Tensor],
             batch_idx: int, dataloader_idx: int = 0, step_type: str = None) -> Tensor:
 
-        x_batch, y_batch, new_features = batch  # todo shoudl get embeddings, new feeaturs, scores does it work
+        x_batch, y_batch, new_features = batch  # todo should get embeddings, new features, scores. does it work?
         y_pred: Tensor = self(x_batch, new_features)
 
         mse: Tensor = F.mse_loss(y_batch, y_pred)

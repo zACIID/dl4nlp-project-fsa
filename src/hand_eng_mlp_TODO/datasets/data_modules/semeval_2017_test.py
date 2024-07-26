@@ -69,8 +69,7 @@ class SemEval2017Test(L.LightningDataModule):
 
 
 def _collate_fn(raw_samples):
-    # TODO DO THIS FOR ALL data_modules under hang_eng_mlp (stocktwits files left)
-    # TODO check embeddings shape
+    # TODO copy THIS FOR ALL data_modules under hang_eng_mlp (stocktwits files left) and check embeddings shape
 
     embeddings = [torch.stack(item[hemlp_pb.EMBEDDER_OUTPUT_COL], dim=0) for item in raw_samples]
     scores = [item[hemlp_pb.LABEL_COL] for item in raw_samples]

@@ -224,7 +224,7 @@ def _apply_tokenize_and_embed(
     return df_with_embeddings
 
 
-def _apply_embedder_temporarily_disabled(  # TODO TOREMOVE but here for reference
+def _apply_embedder_temporarily_disabled(  # TODO old code, gives error
         df: psql.DataFrame,
         text_col: str
 ) -> psql.DataFrame:
@@ -268,7 +268,6 @@ def _apply_embedder_temporarily_disabled(  # TODO TOREMOVE but here for referenc
         print(type(batch))
         features = bertweet(torch.tensor(batch))
         print(type(features))
-        # TODO check required input type (Tensor?) NOTE: the error is on this line
 
     embeds = features.hidden_states[-1]
     embeds = embeds[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens

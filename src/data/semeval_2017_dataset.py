@@ -83,24 +83,6 @@ def download_dataset() -> Path:
     return combined_dataset_path
 
 
-# TODO old version
-# def download_dataset(return_train_dataset: bool) -> Path:
-#     train_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trainingdata.json'
-#     # test_dataset_path = _DOWNLOAD_DIR / 'Microblogs_Testdata.json' # TODO does not contain scores, need the GS dataset (check emails)
-#     # TODO the trial dataset contains just 10 entries. If the GS can't be retrieved,
-#     #  consider merging the two dataset and taking like 20-30% samples to use as test.
-#     #  In the challenge they had something like 400 test samples
-#     test_dataset_path = _DOWNLOAD_DIR / 'Microblog_Trialdata.json'
-#     dataset_path = train_dataset_path if return_train_dataset else test_dataset_path
-#     if not os.path.exists(dataset_path):
-#         logger.info('Downloading dataset...')
-#         subprocess.Popen(_DOWNLOAD_BASH_COMMAND, stdout=subprocess.PIPE, shell=True, executable="/bin/bash").communicate()
-#     else:
-#         logger.info('Dataset already downloaded')
-#
-#     return dataset_path
-
-
 def read_dataset(
         spark: psql.SparkSession,
         path: Path,
