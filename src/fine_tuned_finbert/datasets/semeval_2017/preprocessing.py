@@ -41,7 +41,7 @@ def get_dataset(train_dataset: bool) -> datasets.Dataset:
     help=f"Preprocess {_MODEL_NAME} dataset"
 )
 # @click.option("--get-train-dataset", '-d', is_flag=True, type=click.BOOL)
-def _main(get_train_dataset: bool):
+def _main():
     raw_df_path = sem.download_dataset()
 
     spark = S.create_spark_session(
