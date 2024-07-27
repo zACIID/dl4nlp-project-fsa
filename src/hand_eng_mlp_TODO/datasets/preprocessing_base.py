@@ -207,71 +207,26 @@ def _apply_tokenize_and_embed( # TODO problem of too much data?
     bertweet.eval()
 
     def tokenize_and_embed(text: str) -> list:
-        inputs = tokenizer(text, padding=True, truncation=True, return_tensors="pt")
+        inputs = tokenizer(
+            text,
+            padding=False,
+            return_tensors="pt",
+            truncation=True,
+            max_length=sc.WORST_CASE_TOKENS
+        )
 
         with torch.no_grad():
             outputs = bertweet(**inputs)  # **inputs unpacks the dictionary returned by the tokenizer
 
         # Exclude first (CLS) and last (SEP) tokens
-        embeddings = outputs.last_hidden_state[:, 1:-1, :].numpy()
+        # Need to squeeze because we want to remove the "batch" dimension
+        # Spark can handle lists but not pytorch tensors, numpy arrays, etc.
+        embeddings = outputs.last_hidden_state[:, 1:-1, :].squeeze().tolist()
+        logger.debug(embeddings)
 
-        return [embedding.tolist() for embedding in embeddings]
+        return embeddings
 
     tokenize_and_embed_udf = udf(tokenize_and_embed, ArrayType(ArrayType(FloatType())))
     df_with_embeddings = df.withColumn('embeddings', tokenize_and_embed_udf(df[text_col]))
     return df_with_embeddings
 
-
-def _apply_embedder_temporarily_disabled(  # TODO old code, gives error
-        df: psql.DataFrame,
-        text_col: str
-) -> psql.DataFrame:
-    tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
-    bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
-
-    @psqlf.udf(
-        returnType=psqlt.StructType([ #todo: what should be the returning type og the udf?
-            psqlt.StructField("input_ids", psqlt.ArrayType(psqlt.IntegerType())),
-            psqlt.StructField("attention_mask", psqlt.ArrayType(psqlt.IntegerType()))
-        ])
-    )
-    def tokenize(texts) -> typing.List:
-        # NOTE: UDFs complex types are defined as StructType
-        # - https://stackoverflow.com/a/53346512
-        # - https://stackoverflow.com/a/36841721
-        # batch: BatchEncoding = tokenizer(
-        #     text if text is not None else "",
-        #     return_tensors='np',
-        #     return_attention_mask=True,
-        #     padding='max_length',
-        #     truncation=True,
-        #     max_length=sc.WORST_CASE_TOKENS
-        # )
-        #
-        # return torch.tensor([tokenizer.encode(batch)])
-
-        for idx, text in enumerate(texts):
-            texts[idx] = tokenizer.encode(text)
-
-        return texts
-        # TODO check type:
-        #  as we can see from colab file, torch.tensor([tokenizer.encode(line)]) returns a tensor([[...], [...], ...])
-        #  is the type correct? should we not convert to tensor now but do it later below?
-        #  pyspark might not like torch tensor type output
-        #  try sparkdf.apply(column, function)
-
-    with torch.no_grad():
-        print("Tipo del testo: ", type(psqlf.col(text_col)))
-        batch = tokenize(psqlf.col(text_col))
-        print(type(batch))
-        features = bertweet(torch.tensor(batch))
-        print(type(features))
-
-    embeds = features.hidden_states[-1]
-    embeds = embeds[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
-
-    with_embeds_df = df.withColumn(EMBEDDER_OUTPUT_COL, list(embeds))  # TODO check if necessary to list()
-
-    # TODO run preprocessing and see if everything works before the training TODOs
-
-    return with_embeds_df
