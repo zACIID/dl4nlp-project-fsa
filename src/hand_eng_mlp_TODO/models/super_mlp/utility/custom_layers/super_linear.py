@@ -13,7 +13,7 @@ def find_split(multi: int, target: int) -> int:
 class SuperLinear(nn.Module):
     def __init__(
             self, in_features: int, out_features: int,
-            alpha: float = 0.5, n_dim: int = 1
+            alpha: float = 0.5
     ) -> None:
         super().__init__()
 
@@ -29,7 +29,6 @@ class SuperLinear(nn.Module):
         self.V: nn.Parameter = nn.Parameter(data=t.randn(amplify_layer_dim) * std_dev)
         self.b_V: nn.Parameter = nn.Parameter(data=t.randn(out_features) * std_dev)
 
-        self.n_dim: int = n_dim
         self.in_features: int = in_features
         self.out_features: int = out_features
 
@@ -37,11 +36,7 @@ class SuperLinear(nn.Module):
         reduction_out: Tensor = self.reduction_layer(x_batch)
 
         tensor_prod: Tensor = tensordot(reduction_out, self.V, dims=0)
-        dim: int = 1 if self.n_dim == x_batch.dim() else x_batch.shape[0]
 
-        if dim > 1:
-            tensor_prod = tensor_prod.view(dim, self.out_features)
-        else:
-            tensor_prod = tensor_prod.view(self.out_features)
+        tensor_prod = tensor_prod.view(x_batch.shape[0], self.out_features)
 
         return tensor_prod + self.b_V
