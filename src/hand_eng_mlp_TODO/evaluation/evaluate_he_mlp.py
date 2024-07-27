@@ -2,7 +2,7 @@ import torchmetrics.classification as tc
 from torch import Tensor
 
 # TODO: see their cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
-
+# TODO didn't understand shit about what I should do here
 
 class SaharaEvaluator:
     def __init__(self, num_classes: int = 3):
