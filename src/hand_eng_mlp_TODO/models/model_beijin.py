@@ -1,19 +1,21 @@
 import warnings
+from enum import Enum
 from typing import Any, Type
+
 import lightning as L
 import mlflow
 import torch
 import torch.nn as nn
-from torch import Tensor
 import torch.nn.functional as F
+from torch import Tensor
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
+from transformers import BertForMaskedLM
+
 from fine_tuned_finbert.models.loss_functions import sign_accuracy_mask
+from hand_eng_mlp_TODO.datasets.preprocessing_features_extraction import NEW_FEATURES
 from hand_eng_mlp_TODO.models.linear_aggregator import LinAggregator
 from hand_eng_mlp_TODO.models.super_mlp.base.base_mlp import BaseSuperMLP
-from enum import Enum
-from transformers import BertForMaskedLM
-from hand_eng_mlp_TODO.datasets.preprocessing_features_extraction import NEW_FEATURES
 from hand_eng_mlp_TODO.models.super_mlp.box_mlp import BoxMLP
 from hand_eng_mlp_TODO.models.super_mlp.rep_rhomboid_mlp import RepRhomboidMLP
 from hand_eng_mlp_TODO.models.super_mlp.rhomboid_mlp import RhomboidMLP

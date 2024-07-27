@@ -1,5 +1,3 @@
-import typing
-
 import datasets
 import lightning as L
 import numpy as np
@@ -7,10 +5,9 @@ import sklearn.model_selection as sel
 import torch
 from torch.utils.data import DataLoader, Subset
 
-import fine_tuned_finbert.datasets.preprocessing_base as ppb
-import fine_tuned_finbert.datasets.semeval_2017.preprocessing as pp #todo vedere cosa dfa
-import hand_eng_mlp_TODO.datasets.preprocessing_base as hemlp_pb
-import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as hemlp_pfe
+import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
+import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppf
+import hand_eng_mlp_TODO.datasets.semeval_2017.preprocessing as pp
 from utils.random import RND_SEED
 
 
@@ -56,7 +53,7 @@ class Semeval2017TrainVal(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        self.dataset.set_format(type='torch', columns=[ppb.TOKENIZER_OUTPUT_COL, ppb.LABEL_COL])
+        self.dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, ppb.LABEL_COL])
         index = np.arange(len(self.dataset))
         train_split_idxs, val_split_idxs = sel.train_test_split(
             index,

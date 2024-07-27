@@ -1,22 +1,22 @@
+import os
+import re
+from collections import Counter
+from typing import Dict, Tuple, Union
+
+import nltk
 import pandas as pd
 import requests
-import re
 import textstat
-import math
-import nltk
-import os
-import utils.io as io_
-import requests
-import hand_eng_mlp_TODO.datasets.custom_features as cf
+from loguru import logger
 from nltk.corpus import sentiwordnet as swn
 from nltk.tokenize import word_tokenize
-from scipy.stats import entropy
-from collections import Counter
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from typing import Dict, Tuple, Union, List
-from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
+from scipy.stats import entropy
 from urllib3.util.retry import Retry
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+import hand_eng_mlp_TODO.datasets.custom_features as cf
+import utils.io as io_
 from utils.custom_features_utils import download_and_extract_zip
 
 # The following two packages have been added to pyproject.toml
@@ -137,9 +137,9 @@ def sentic_emotion_recognition(
                     emotions[name] = value
                 return emotions
         else:
-            print("Error: Unable to retrieve emotion features from API, status code:", response.status_code)
+            logger.warning("Error: Unable to retrieve emotion features from API, retrying... | status code:", response.status_code)
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
     return {}
 
 

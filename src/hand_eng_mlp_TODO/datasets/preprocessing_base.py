@@ -1,20 +1,17 @@
-import typing
 import pyspark.sql as psql
 import torch
 from loguru import logger
-from pyspark.sql import types as psqlt, functions as psqlf
-from pyspark.sql.functions import udf, col, struct, lit, pandas_udf, PandasUDFType
+from pyspark.sql import types as psqlt
+from pyspark.sql.functions import udf
 from pyspark.sql.types import FloatType, StructType, StructField, ArrayType
-from transformers import AutoTokenizer, BatchEncoding, AutoModel
+from transformers import AutoTokenizer, AutoModel
 
-import pandas as pd
+import data.common as common
 import data.spark as S
 import data.stocktwits_crypto_dataset as sc
-import data.common as common
 import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
-import utils.io as io_
 import hand_eng_mlp_TODO.models.model_beijin as hemlp
-
+import utils.io as io_
 
 TEXT_COL = sc.TEXT_COL  # TODO this is actually different for each dataset
 LABEL_COL = common.LABEL_COL
