@@ -22,7 +22,7 @@ from fine_tuned_finbert.datasets.data_modules import Semeval2017Test
 from utils.random import RND_SEED
 
 
-def _main():
+def _main():  # TODO: any implementation about metrics need to be done in Finbert_evaluation as well
     pytorch_logger = logging.getLogger("lightning.pytorch")
     pytorch_logger.setLevel(logging.INFO)
 
@@ -48,7 +48,7 @@ def _main():
         :param df: pandas df provided by mlflow.evaluate(...)
         :return:
         """
-        def collate(tok_output_collection):  # TODO this is for finbert, what should model beijin do?, trasformare dataframe in batch
+        def collate(tok_output_collection):  # TODO this is for finbert, what should model beijin do?, trasformare dataframe in batch, what am i passing?
             input_ids = torch.stack(list(
                 map(
                     lambda x: torch.tensor(x['input_ids'], device=model.device).long(),
@@ -84,74 +84,125 @@ def _main():
     # valid_code_metric = make_metric(
     #     eval_fn=eval_fn, greater_is_better=False, name="valid_python_code", version="v1"
     # )
+    # TODO idk what's this above
+
+
 
     test_dataset: datasets.Dataset = Semeval2017Test().dataset
     pandas_df = test_dataset.to_pandas()
 
-    evaluate_results = mlflow.evaluate(
+    evaluate_results = mlflow.evaluate(  # TODO see what evaluate do because idk what to add
         model_type='regressor',
-        model=mlflow_evalute_predict,
+        model=mlflow_evalute_predict, #TODO check function above, and see official doc on the browser page i opened
         data=pandas_df,
-        feature_names=[ppb.EMBEDDER_OUTPUT_COL],  # TODO now embeddings not tokens i need to adapt it
+        feature_names=[ppb.EMBEDDER_OUTPUT_COL],  # TODO now we have embeddings not tokens, i need to adapt it
         targets=common.LABEL_COL,
 
         # NOTE: this raises the following warning:
         #   WARNING mlflow.models.evaluation.default_evaluator: Skip logging model explainability insights because the shap explainer None requires all feature values to be numeric, and each feature column must only contain scalar values.
         # We are good with this because this kind of model explainability is useless in our case
         evaluators=['default'],
+
         # TODO add our metrics, e.g. cosine_similarity, f1_score, accuracy, recall, etc.
-        # extra_metrics=[
-        #2
-        # ]
+        extra_metrics=[
+        2
+        ]
     )
+
+
+
+
+    # TODO EXAMPLE OF EXTRA METRIC USAGE from official documentation
+    def root_mean_squared_error(eval_df, _builtin_metrics):
+        return np.sqrt((np.abs(eval_df["prediction"] - eval_df["target"]) ** 2).mean)
+
+    rmse_metric = mlflow.models.make_metric(
+        eval_fn=root_mean_squared_error,
+        greater_is_better=False,
+    )
+    mlflow.evaluate(..., extra_metrics=[rmse_metric])
+
+
+
+    # TODO: sketch from before:
+    # TODO: see their cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
+    class SaharaEvaluator:
+        def __init__(self, num_classes: int = 3):
+            self._precision: tc.MulticlassPrecision = tc.MulticlassPrecision(num_classes=num_classes)
+            self._recall: tc.MulticlassRecall = tc.MulticlassRecall(num_classes=num_classes)
+            self._f1: tc.MulticlassF1Score = tc.MulticlassF1Score(num_classes=num_classes)
+
+        # I put + 1 because pytorch recall, precision and f1 require non-negative tensors
+        def precision(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+            return self._precision(preds=pred + 1, target=target + 1)
+
+        def recall(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+            return self._recall(preds=pred + 1, target=target + 1)
+
+        def f1(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+            return self._f1(preds=pred + 1, target=target + 1)
+
+
+
+
+
+
+
 
     # TODO ( ͡° ͜ʖ ͡°) maybe make some plots here with res.metrics and log them
     #   via mlflow.log_artifacts/image/plot whatever the method is
-    # evaluate_results.metrics
+    # evaluate_results.metrics # TODO what's this for? haven't checked yet
+
+
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         bjn.PRE_TRAINED_MODEL_PATH, use_fast=True
     )
 
-    # def shap_text_predict(texts: np.ndarray):
-    #     tv = tokenizer(
-    #         texts.tolist(),
-    #         padding="max_length",
-    #         max_length=160,
-    #         truncation=True,
-    #         return_attention_mask=True,
-    #         return_tensors='pt'
-    #     ).to(model.device)
-    #
-    #     # IMPORTANT: why to hide manually these special tokens by setting their attention "bit" to 0?
-    #     #   Because shap.plots.text calculates the base_value as the prediction of the model where
-    #     #       all tokens are masked, i.e. something like '[CLS] [MASK] ... [MASK] [SEP]'
-    #     #   It seems, however, that [MASK] tokens (as do all the other ones, even [PAD]), *when attended* by the model,
-    #     #       do have some impact on the output. Since the tokenizer sets the attention_mask to 0 only for
-    #     #       true pad tokens, i.e. padding after the [SEP] (end sentence) token, we have that the base_value
-    #     #       changes depending on the input sentence.
-    #     #   What I would like to do is establish a common, input-length-independent baseline for each sample.
-    #     #   By manually setting attention of [MASK] tokens to 0, we define the baseline
-    #     #       as only the [CLS] and the [SEP] tokens, which intuitively represents the sentiment score
-    #     #       associated to empty inputs of the same length of the current sample.
-    #     #   I tried only using the [CLS] token as baseline, but base_line results made
-    #     #       less sense than in the [CLS]+[SEP] case, although in the latter case base_value
-    #     #       are *slightly* different from each other  (which was not the case with
-    #     #       [CLS]-only since the output was truly constant w.r.t. input length)
-    #     #   The shap values of each token/token-cluster will hence be the difference w.r.t. to an input that
-    #     #       consists of only the [CLS] token and the [SEP] token.
-    #     special_tokens_mask = (tv['input_ids'] == tokenizer.mask_token_id)  # TODO actually now that dropout is fixed try to attend them and see what happens
-    #     # Mask [SEP] too to test what happens, if curious
-    #     # special_tokens_mask = ((tv['input_ids'] == tokenizer.mask_token_id)
-    #     #                           | (tv['input_ids'] == tokenizer.sep_token_id))
-    #     tv['attention_mask'][special_tokens_mask] = 0
-    #
-    #     # NOTE: Returning list because only type that I am sure does not cause error`s
-    #     sent_score = model.predict(**tv).detach().cpu().tolist()
-    #     return sent_score
+    def shap_text_predict(texts: np.ndarray):  # TODO: what does this function do?
+        tv = tokenizer(
+            texts.tolist(),
+            padding="max_length",
+            max_length=160,
+            truncation=True,
+            return_attention_mask=True,
+            return_tensors='pt'
+        ).to(model.device)
 
+        # IMPORTANT: why to hide manually these special tokens by setting their attention "bit" to 0?
+        #   Because shap.plots.text calculates the base_value as the prediction of the model where
+        #       all tokens are masked, i.e. something like '[CLS] [MASK] ... [MASK] [SEP]'
+        #   It seems, however, that [MASK] tokens (as do all the other ones, even [PAD]), *when attended* by the model,
+        #       do have some impact on the output. Since the tokenizer sets the attention_mask to 0 only for
+        #       true pad tokens, i.e. padding after the [SEP] (end sentence) token, we have that the base_value
+        #       changes depending on the input sentence.
+        #   What I would like to do is establish a common, input-length-independent baseline for each sample.
+        #   By manually setting attention of [MASK] tokens to 0, we define the baseline
+        #       as only the [CLS] and the [SEP] tokens, which intuitively represents the sentiment score
+        #       associated to empty inputs of the same length of the current sample.
+        #   I tried only using the [CLS] token as baseline, but base_line results made
+        #       less sense than in the [CLS]+[SEP] case, although in the latter case base_value
+        #       are *slightly* different from each other  (which was not the case with
+        #       [CLS]-only since the output was truly constant w.r.t. input length)
+        #   The shap values of each token/token-cluster will hence be the difference w.r.t. to an input that
+        #       consists of only the [CLS] token and the [SEP] token.
+        special_tokens_mask = (tv['input_ids'] == tokenizer.mask_token_id)  # TODO actually now that dropout is fixed try to attend them and see what happens
+        # Mask [SEP] too to test what happens, if curious
+        # special_tokens_mask = ((tv['input_ids'] == tokenizer.mask_token_id)
+        #                           | (tv['input_ids'] == tokenizer.sep_token_id))
+        tv['attention_mask'][special_tokens_mask] = 0
+
+        # NOTE: Returning list because only type that I am sure does not cause error`s
+        sent_score = model.predict(**tv).detach().cpu().tolist()
+        return sent_score
+
+
+
+    # TODO what does this do?
+    #  from here below (line 206) it's not my domain anymore
+    #  and i don't see anything that should be changed depending on the model or dataset
     explainer = shap.Explainer(
-        model=shap_text_predict,
+        model=shap_text_predict,  # TODO check function above
         masker=tokenizer,
         seed=RND_SEED
     )
@@ -212,25 +263,3 @@ if __name__ == '__main__':
             run_name=f"{datetime.now().isoformat(timespec='seconds')}-{loader.Model.FINBERT}-evaluation"
     ) as run:
         _main()
-
-
-
-
-
-# TODO: see their cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
-
-class SaharaEvaluator:
-    def __init__(self, num_classes: int = 3):
-        self._precision: tc.MulticlassPrecision = tc.MulticlassPrecision(num_classes=num_classes)
-        self._recall: tc.MulticlassRecall = tc.MulticlassRecall(num_classes=num_classes)
-        self._f1: tc.MulticlassF1Score = tc.MulticlassF1Score(num_classes=num_classes)
-
-    # I put + 1 because pytorch recall, precision and f1 require non-negative tensors
-    def precision(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return self._precision(preds=pred + 1, target=target + 1)
-
-    def recall(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return self._recall(preds=pred + 1, target=target + 1)
-
-    def f1(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return self._f1(preds=pred + 1, target=target + 1)
