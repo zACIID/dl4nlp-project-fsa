@@ -102,6 +102,8 @@ def clean_dataset(df: psql.DataFrame) -> psql.DataFrame:
         return " ".join(spans)
 
     df = df.withColumn(TEXT_COL, join_spans(psqlf.col(TEXT_COL)))
+    df = df.withColumn(TEXT_COL, psqlf.when(psqlf.col(TEXT_COL) == "" ,None).otherwise(psqlf.col(TEXT_COL)))
+    df = df.dropna(subset=[TEXT_COL, SENTIMENT_SCORE_COL])
 
     # Drop useless cols
     df = df.drop(SOURCE_COL, CASHTAG_COL)

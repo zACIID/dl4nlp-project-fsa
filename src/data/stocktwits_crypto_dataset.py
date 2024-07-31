@@ -71,7 +71,8 @@ def clean(
         text_col: str,
         label_col: str
 ) -> psql.DataFrame:
-    raw_df = raw_df.fillna({text_col: "", label_col: 1})  # 1 is neutral label in raw dataset
+    raw_df = raw_df.withColumn(TEXT_COL, psqlf.when(psqlf.col(text_col) == "" ,None).otherwise(psqlf.col(text_col)))
+    raw_df = raw_df.dropna(subset=[text_col, label_col])
 
     if drop_neutral_samples:
         # Drop neutral labels because they add noise:
