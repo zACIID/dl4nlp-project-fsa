@@ -23,10 +23,8 @@ import utils.io as io_
 import utils.mlflow_env as env
 from training.loader import Model
 
-from src.hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE, MLPType
-from src.hand_eng_mlp_TODO.models.super_MLP.box_mlp import BoxMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_mlp import RepRhomboidMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_mlp import RhomboidMLP
+from hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE, MLPType
+
 
 in_features: int = BERT_EMBEDDING_SIZE + CUSTOM_FEATS_SIZE
 out_features: int = 1
@@ -187,11 +185,13 @@ def new_eval(
 @click.option("--lora-rank-min", default=8, type=click.INT)
 @click.option("--lora-rank-max", default=256, type=click.INT)
 # BASE MLP (AND BOX MLP)
-@click.option("--n-layers", default=10, type=click.INT)
+@click.option("--n-layers-min", default=2, type=click.INT)
+@click.option("--n-layers-max", default=10, type=click.INT)
 @click.option("--dropout-min", default=0.1, type=click.FLOAT)
 @click.option("--dropout-max", default=0.5, type=click.FLOAT)
 # REP. RHOMBOID AND RHOMBOID MLP
-@click.option("--beta", default=1.5, type=click.FLOAT)
+@click.option("--beta-min", default=0.5, type=click.FLOAT)
+@click.option("--beta-max", default=2.5, type=click.FLOAT)
 def tune(
         with_neutral_samples,
         algo,
@@ -249,7 +249,6 @@ def tune(
             )),
         }
     elif env.get_model_choice() == Model.HAND_ENG_MLP:
-
         space = {
             "one_cycle_max_lr": hp.loguniform(
                 "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
