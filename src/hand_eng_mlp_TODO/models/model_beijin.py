@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
-from transformers import BertForMaskedLM
+from transformers import RobertaForMaskedLM
 
 from fine_tuned_finbert.models.loss_functions import sign_accuracy_mask
 from hand_eng_mlp_TODO.datasets.preprocessing_features_extraction import NEW_FEATURES
@@ -57,37 +57,61 @@ class ModelBeijin(L.LightningModule):
     """
         super().__init__()
 
-        bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(PRE_TRAINED_MODEL_PATH)
-        last_mlm_layer: nn.Linear = bertweet.cls.predictions.decoder
-        mlm_mat: Tensor = last_mlm_layer.weight
-        mlm_bias: Tensor = last_mlm_layer.bias
-
         self.save_hyperparameters()
 
         if log_hparams:
             mlflow.log_params(self.hparams, synchronous=False)
 
-        match model_spec:
+        self.aggregator: LinAggregator | None = None
+        self.model: BaseSuperMLP | None = None
+        self._val_predictions: list[Tensor] = []
+        self._val_targets: list[Tensor] = []
+
+    def setup(self, stage: str) -> None:
+        # Doing all of this inside setup because here `self.device` is correctly set
+        #   and is not the default "cpu"
+        bertweet: RobertaForMaskedLM = RobertaForMaskedLM.from_pretrained(PRE_TRAINED_MODEL_PATH)
+        last_mlm_layer: nn.Linear = bertweet.lm_head.decoder
+
+        # Need to detach these because these are basically used to initialize the
+        #   parameters of the aggregator, but they (may) be parameters themselves, i.e.
+        #   attached to the comp. graph of the bertweet model, which we don't care about
+        mlm_mat: Tensor = last_mlm_layer.weight.clone().detach().to(self.device)
+        mlm_bias: Tensor = last_mlm_layer.bias.clone().detach().to(self.device)
+
+        self.aggregator = LinAggregator(
+            in_features=BERT_EMBEDDING_SIZE,
+            out_features=self.hparams.aggregator_out,
+            mlm_mat=mlm_mat,
+            mlm_bias=mlm_bias
+        )
+
+        match self.hparams.model_spec:
             case MLPType.BOX:
                 model_type: Type[BoxMLP] = BoxMLP
             case MLPType.RHOMBOID:
                 model_type: Type[RhomboidMLP] = RhomboidMLP
             case MLPType.REPRHOMBOID:
                 model_type: Type[RepRhomboidMLP] = RepRhomboidMLP
+            case _:
+                raise NotImplementedError(f"Unhandled {MLPType.__name__}")
 
-        self.aggregator: LinAggregator(
-            in_features=BERT_EMBEDDING_SIZE, out_features=aggregator_out,
-            mlm_mat=mlm_mat, mlm_bias=mlm_bias
-        )
+        self.hparams.MLP_args["in_features"] = self.hparams.aggregator_out + CUSTOM_FEATS_SIZE
 
-        MLP_args["in_features"] = aggregator_out + CUSTOM_FEATS_SIZE
-        self.model: BaseSuperMLP = model_type(**MLP_args)
+        # Each linear layer of our MLP will have out_features=in_features,
+        #   except for the last one, which will be provided out_features=out_features,
+        #   i.e. the value that we are setting here. We use a constant 1 because the output
+        #   of our MLP will be just one number, the sentiment score
+        self.hparams.MLP_args["out_features"] = 1
+
+        self.model: BaseSuperMLP = model_type(**self.hparams.MLP_args)
         self._val_predictions: list[Tensor] = []
         self._val_targets: list[Tensor] = []
 
     def forward(self, x_batch: Tensor, beijin_feats_batch: Tensor) -> Tensor:
         aggregated_batch: Tensor = self.aggregator(x_batch)
         aggregated_batch = torch.cat((aggregated_batch, beijin_feats_batch), dim=-1)
+
         return self.model(aggregated_batch)
 
     def predict(self, x_batch: Tensor, beijin_feats_batch: Tensor) -> Tensor:
@@ -122,12 +146,15 @@ class ModelBeijin(L.LightningModule):
 
         return self._base_step(batch, batch_idx, dataloader_idx, step_type="test")
 
-    def base_step(
-            self, batch: tuple[Tensor, Tensor, Tensor],
-            batch_idx: int, dataloader_idx: int = 0, step_type: str = None) -> Tensor:
-
+    def _base_step(
+            self,
+            batch: tuple[Tensor, Tensor, Tensor],
+            batch_idx: int,
+            dataloader_idx: int = 0,
+            step_type: str = None
+    ) -> Tensor:
         x_batch, y_batch, new_features = batch  # todo should get embeddings, new features, scores. does it work?
-        y_pred: Tensor = self(x_batch, new_features)
+        y_pred: Tensor = self.forward(x_batch, new_features)
 
         mse: Tensor = F.mse_loss(y_batch, y_pred)
         mae: Tensor = F.l1_loss(y_batch, y_pred)
