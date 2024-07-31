@@ -34,9 +34,12 @@ class MLPType(Enum):
 class ModelBeijin(L.LightningModule):
     def __init__(
             self,
-            model_spec: MLPType, MLP_args: dict[str, Any],
-            one_cycle_max_lr: float = 2e-5, aggregator_out: int = BERT_EMBEDDING_SIZE,
-            weight_decay: float = 0.0, one_cycle_pct_start: float = 0.3,
+            model_spec: MLPType,
+            MLP_args: dict[str, Any],
+            one_cycle_max_lr: float = 2e-5,
+            aggregator_out: int = BERT_EMBEDDING_SIZE,
+            weight_decay: float = 0.0,
+            one_cycle_pct_start: float = 0.3,
             log_hparams: bool = True, **kwargs
     ) -> None:
 
@@ -52,7 +55,6 @@ class ModelBeijin(L.LightningModule):
     :param one_cycle_pct_start: The percentage of the cycle (in number of steps)
           spent increasing the learning rate
     """
-
         super().__init__()
 
         bertweet: BertForMaskedLM = BertForMaskedLM.from_pretrained(PRE_TRAINED_MODEL_PATH)
