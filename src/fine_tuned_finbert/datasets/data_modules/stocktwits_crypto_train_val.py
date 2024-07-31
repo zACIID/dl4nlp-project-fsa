@@ -38,6 +38,7 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
         super().__init__()
 
         self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples)
+        self.train_split_size = train_split_size
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
@@ -56,6 +57,7 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
         index = np.arange(len(self.dataset))
         train_split_idxs, val_split_idxs = sel.train_test_split(
             index,
+            train_size=self.train_split_size,
             stratify=self.dataset.with_format(type='pandas')[ppb.LABEL_COL].to_numpy(),
             random_state=self.rnd_seed
         )
