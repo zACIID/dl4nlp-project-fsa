@@ -5,6 +5,9 @@ from torch.utils.data import DataLoader
 
 import hand_eng_mlp_TODO.datasets.semeval_2017.preprocessing as sem_pp
 import hand_eng_mlp_TODO.datasets.stocktwits_crypto.preprocessing as sc_pp
+import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
+import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppf
+from data.semeval_2017_dataset import TEXT_COL
 from utils.random import RND_SEED
 
 
@@ -48,9 +51,9 @@ class StocktwitsCryptoTrainSemEval2017Val(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        raise NotImplementedError()
-        # self.train_dataset.set_format(type='torch', columns=[sc_pp.TOKENIZER_OUTPUT_COL, sc_pp.SENTIMENT_SCORE_COL])
-        # self.train_dataset.set_format(type='torch', columns=[sem_pp.TOKENIZER_OUTPUT_COL, sem_pp.SENTIMENT_SCORE_COL])
+        # TODO TEXT_COL is here for debugging purposes, so I can actually see what text is associated to the other batch features
+        self.train_dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL, TEXT_COL])
+        self.val_dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL, TEXT_COL])
 
     def train_dataloader(self):
         return DataLoader(
@@ -81,22 +84,21 @@ class StocktwitsCryptoTrainSemEval2017Val(L.LightningDataModule):
         raise NotImplementedError("This data module is only for training and validation datasets")
 
 
-def _collate_fn(raw_samples, sentiment_score_col: str, tokenizer_col: str):
-    tokenizer_outputs = [item[tokenizer_col] for item in raw_samples]
-    scores = [item[sentiment_score_col] for item in raw_samples]
+def _collate_fn(raw_samples, sentiment_score_col: str, embedder_col: str):
+    embeddings = torch.nn.utils.rnn.pad_sequence(
+        [item[embedder_col] for item in raw_samples],
+        batch_first=True
+    )
 
-    input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
-    att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))
-    tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
+    scores = torch.tensor([item[sentiment_score_col] for item in raw_samples])
+    new_features = torch.stack([torch.tensor([item[key] for key in ppf.NEW_FEATURES]) for item in raw_samples])
 
-    scores = torch.tensor(scores)
-
-    return tensorized_tokenizer_output, scores
+    return embeddings, scores, new_features
 
 
 def _train_collate_fn(raw_samples):
-    return _collate_fn(raw_samples, sc_pp.SENTIMENT_SCORE_COL, sc_pp.TOKENIZER_OUTPUT_COL)
+    return _collate_fn(raw_samples, ppb.LABEL_COL, ppb.EMBEDDER_OUTPUT_COL)
 
 
 def _val_collate_fn(raw_samples):
-    return _collate_fn(raw_samples, sem_pp.SENTIMENT_SCORE_COL, sem_pp.TOKENIZER_OUTPUT_COL)
+    return _collate_fn(raw_samples, ppb.LABEL_COL, ppb.EMBEDDER_OUTPUT_COL)
