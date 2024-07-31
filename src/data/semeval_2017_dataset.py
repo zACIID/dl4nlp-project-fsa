@@ -14,10 +14,12 @@ _DOWNLOAD_DIR = io_.RAW_DATASET_DIR / 'semeval2017'
 _DOWNLOAD_BASH_COMMAND = f"git clone git@bitbucket.org:ssix-project/semeval-2017-task-5-subtask-1.git {_DOWNLOAD_DIR}"
 
 # This is the maximum number of characters of the texts in the final test dataset (SemEval)
-# Assuming one token per character, we have a maximum of 160 tokens,
+# Assuming one token per character, we have a maximum of 128 tokens,
 #   meaning that I'd throw away the remaining characters/tokens
 #   so that memory and training times do not explode
-WORST_CASE_TOKENS = 160
+# TODO verify this statement -> we simply tried with the tokenizer and saw that no sentence was longer than 128
+#  (the actual max is even less) -> this is also the max length of Bertweet
+WORST_CASE_TOKENS = 128
 
 SOURCE_COL = "source"
 CASHTAG_COL = "cashtag"
