@@ -23,7 +23,7 @@ PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
     .add(TEXT_COL, psqlt.StringType(), nullable=False)
     .add(LABEL_COL, psqlt.IntegerType(), nullable=False)
-    .add(EMBEDDER_OUTPUT_COL, psqlt.ArrayType(psqlt.IntegerType()), nullable=False)
+    .add(EMBEDDER_OUTPUT_COL, psqlt.ArrayType(psqlt.ArrayType(psqlt.IntegerType())), nullable=False)
     .add(SENTIMENT_SCORE_COL, psqlt.FloatType(), nullable=False)
 )
 
@@ -221,12 +221,11 @@ def _apply_tokenize_and_embed( # TODO problem of too much data?
         # Exclude first (CLS) and last (SEP) tokens
         # Need to squeeze because we want to remove the "batch" dimension
         # Spark can handle lists but not pytorch tensors, numpy arrays, etc.
-        embeddings = outputs.last_hidden_state[:, 1:-1, :].squeeze().tolist()
-        logger.debug(embeddings)
+        embeddings = outputs.last_hidden_state[:, 1:-1, :].squeeze(dim=0).tolist()
 
         return embeddings
 
     tokenize_and_embed_udf = udf(tokenize_and_embed, ArrayType(ArrayType(FloatType())))
-    df_with_embeddings = df.withColumn('embeddings', tokenize_and_embed_udf(df[text_col]))
+    df_with_embeddings = df.withColumn(EMBEDDER_OUTPUT_COL, tokenize_and_embed_udf(df[text_col]))
     return df_with_embeddings
 
