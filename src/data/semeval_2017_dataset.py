@@ -49,6 +49,9 @@ def download_dataset() -> Path:
     # List of duplicate ids to remove from the training set
     duplicate_ids = {"708668814427348992", "34147106", "18479024", "16142438", "10752226"}
 
+    if not os.path.exists(_DOWNLOAD_DIR):
+        os.mkdir(_DOWNLOAD_DIR)
+
     if not os.path.exists(train_dataset_path):
         logger.info('Downloading training dataset...')
         subprocess.Popen(_DOWNLOAD_BASH_COMMAND,
