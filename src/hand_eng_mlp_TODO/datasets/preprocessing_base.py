@@ -188,11 +188,8 @@ def preprocess_dataset(
     logger.debug("Applying tokenizer...")
     with_embeds = _apply_tokenize_and_embed(df=raw_df, text_col=text_col)
 
-    logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
-    df = sc.convert_labels_to_sentiment_scores(df=with_embeds, label_col=label_col)
-
     # Extract additional features
-    df = get_new_features(spark, df, text_col=text_col)
+    df = get_new_features(spark, with_embeds, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
     return df
