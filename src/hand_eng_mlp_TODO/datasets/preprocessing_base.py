@@ -159,6 +159,10 @@ def get_new_features(
         df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
     ).drop("lexical_affect_features")
 
+    # For some reason, some scores are NaN. In such a case, we replace them with 0,
+    #   acting effectively as dropout during training
+    df = df.replace(float('nan'), 0)
+
     return df
 
 
