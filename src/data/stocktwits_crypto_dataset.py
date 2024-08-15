@@ -96,7 +96,6 @@ def convert_labels_to_sentiment_scores(
             case 0.0: return -1.0
             case 1.0: return 0.0
             case 2.0: return 1.0
-            case -1.0: return -1.0  #cerotto 2
             case _: raise ValueError(f'Unknown label {label}')
 
     with_sent_score_df = df.withColumn(label_col, convert_label(psqlf.col(label_col)))
