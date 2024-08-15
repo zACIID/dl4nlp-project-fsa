@@ -19,7 +19,9 @@ if __name__ == "__main__":
         experiment_name=env.get_experiment_name(),
         run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}",
         parameters={
-            'limit_batches': 1.0  # use everything when dataset is SEMEVAL_TRAIN_VAL
+            # Use everything when dataset is SEMEVAL_TRAIN_VAL,
+            # else use much smaller part if SC_TRAIN_SEMEVAL_VAL (else 1.3Mln total, 4h per epoch)
+            'limit_batches': 1.0 if env.get_dataset_choice() == loader.Dataset.SEMEVAL_TRAIN_VAL else 0.015
         },
         synchronous=True
     )
