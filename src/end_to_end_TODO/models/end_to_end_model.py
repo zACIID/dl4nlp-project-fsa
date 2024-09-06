@@ -20,31 +20,24 @@ from torch.optim.lr_scheduler import OneCycleLR
 import training.loader as loader
 import utils.mlflow_env as env
 import fine_tuned_finbert.models.fine_tuned_finbert as ft
-import hand_eng_mlp_TODO.models.model_beijin as hemlp
+from hand_eng_mlp_TODO.models.model_beijin import ModelBeijin
 
 # TODO move this "loss_function" module to utils/ maybe
 from fine_tuned_finbert.models.loss_functions import sign_accuracy_mask
 
 
-PRE_TRAINED_MODEL_PATH = "ProsusAI/finbert"
-
-
-# Initial reference:
-# https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
 class EndToEndModel(L.LightningModule):
     """
-    Class that represents a pre-trained sequence classification model `from combined
-        with a custom implemented LoRA fine-tuning infrastructure.
-    The caller can choose where to apply LoRA layers
-        (query, key, value, output projection matrices of transformer layers)
+    # TODO maybe we should call this EnsembleModel and that's it
     """
 
     def __init__(
             self,
-            finbert_init_args: Mapping[str, Any],
-            hemlp_init_args: Mapping[str, Any],
+            finbert: L.LightningModule,
+            hemlp: L.LightningModule,
             log_hparams: bool = True,
             # TODO n_layers; in_features are determined by the two models size, out_features may be a hyperparam
+            n_layers: int,
             **kwargs,
     ):
         """
@@ -59,6 +52,10 @@ class EndToEndModel(L.LightningModule):
         # NOTE: this call saves all the parameters passed to __init__ into self.hparams
         #   For this reason, do not delete the parameters even if they seem unused
         self.save_hyperparameters()
+
+
+        # TODO finbert and hemlp are passed from the outside, i.e. inside loader.py
+        # TODO we finally opted for common linear layers so that tuning and impl. is easier
 
         self.finbert: ft.FineTunedFinBERT | None = None
         self.hemlp: hemlp.ModelBeijin | None = None
