@@ -21,7 +21,10 @@ if __name__ == "__main__":
         parameters={
             # Use everything when dataset is SEMEVAL_TRAIN_VAL,
             # else use much smaller part if SC_TRAIN_SEMEVAL_VAL (else 1.3Mln total, 4h per epoch)
-            'limit_batches': 1.0 if env.get_dataset_choice() == loader.Dataset.SEMEVAL_TRAIN_VAL else 0.015
+            'limit_batches': 1.0 if env.get_dataset_choice() == loader.Dataset.SEMEVAL_TRAIN_VAL else 0.015,
+
+            # Less runs if pre-training with SC dataset, which has longer epochs
+            'max_runs': 70 if env.get_dataset_choice() == loader.Dataset.SEMEVAL_TRAIN_VAL else 35
         },
         synchronous=True
     )
