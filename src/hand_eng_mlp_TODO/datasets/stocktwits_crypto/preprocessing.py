@@ -38,7 +38,12 @@ def _main(drop_neutral_samples: bool):
         app_name=_SPARK_APP_NAME,
     )
     raw_df = sc.read_dataset(spark=spark, path=raw_csv_path)
-    raw_df = raw_df.limit(2000)  # Take the first 100 rows TODO: Remove later, just for testing
+
+    # NOTE pre-training will be on the first 15000 rows of the dataset,
+    #  since the senticnet API has a request limit that makes preprocessing very time expensive
+    #  Not a problem since labels are randomized, meaning that we should get a representative sample of the dataset
+    #  from the first 15k rows. Besides, this is almost basically the same subset that finbert is pre-trained on
+    raw_df = raw_df.limit(15000)
 
     logger.info("Cleaning dataset...")
     df = sc.clean(
