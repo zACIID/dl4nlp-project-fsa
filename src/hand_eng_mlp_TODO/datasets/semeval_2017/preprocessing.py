@@ -16,8 +16,8 @@ _DATASET_NAME = 'semeval2017'
 _SPARK_APP_NAME = f'{_MODEL_NAME}|{_DATASET_NAME} Preprocessing'
 
 
-TRAIN_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-val.parquet'
-VAL_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-test.parquet'
+TRAIN_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-train.parquet'
+TEST_DATASET_PATH = io_.DATA_DIR / f'{_DATASET_NAME}-{_MODEL_NAME}-test.parquet'
 
 
 def get_dataset(train_dataset: bool) -> datasets.Dataset:
@@ -26,7 +26,7 @@ def get_dataset(train_dataset: bool) -> datasets.Dataset:
     :return:
     """
 
-    dataset_path = TRAIN_DATASET_PATH if train_dataset else VAL_DATASET_PATH
+    dataset_path = TRAIN_DATASET_PATH if train_dataset else TEST_DATASET_PATH
     if not os.path.exists(dataset_path):
         raise FileNotFoundError('Dataset not found. Make sure to run this script to execute '
                                 'the preprocessing pipeline for this dataset')
@@ -45,7 +45,6 @@ def _main():
         app_name=_SPARK_APP_NAME,
     )
     raw_df = sem.read_dataset(spark=spark, path=raw_df_path)
-    raw_df = raw_df.limit(2000)  # Take the first 100 rows TODO: Remove later, just for testing
 
     train_ratio = 0.8
     test_ratio = 0.2
@@ -76,7 +75,7 @@ def preprocess_and_save(
         label_col=ppb.LABEL_COL
     )
 
-    dataset_path = TRAIN_DATASET_PATH if is_train else VAL_DATASET_PATH
+    dataset_path = TRAIN_DATASET_PATH if is_train else TEST_DATASET_PATH
     logger.info(f"Preprocessing {dataset_type} dataset...")
     df.write.parquet(str(dataset_path), mode='overwrite')
     logger.info(f"Preprocessing {dataset_type} finished")

@@ -26,9 +26,6 @@ from training.loader import Model
 from hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE, MLPType
 
 
-in_features: int = BERT_EMBEDDING_SIZE + CUSTOM_FEATS_SIZE
-out_features: int = 1
-
 _inf = np.finfo(np.float64).max
 
 MLFLOW_TRAIN_ENTRYPOINT = 'train' if env.get_model_choice() == Model.FINBERT else "train_MLP"
@@ -112,8 +109,7 @@ def new_eval(
 
         if Model.HAND_ENG_MLP == env.get_model_choice():
             data = params.pop("model_spec")
-            params["model_spec"] = data["model_type"]
-            if params["model_spec"] != MLPType.BOX.value:
+            if MLPType(data["model_type"]) != MLPType.BOX:
                 params["beta"] = data["beta"]
 
         with mlflow.start_run(
@@ -259,8 +255,6 @@ def tune(
             "weight_decay": hp.loguniform(
                 "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
             ),
-            "in_features": in_features,
-            "out_features": out_features,
             "n_layers": scope.int(
                 hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
             ),
@@ -269,15 +263,17 @@ def tune(
             "layernorm": hp.choice("layernorm", [True, False]),
             "model_spec": hp.choice("model_spec", [
                 {
-                    "model_type": 0,
+                    "model_type": MLPType.BOX.value,
+                },
+                # NOTE: the _X prefix on beta nested params is so that hyperopt doesn't complain
+                #   about unique labelling
+                {
+                    "model_type": MLPType.RHOMBOID.value,
+                    "beta": hp.uniform("beta_1", beta_min, beta_max),
                 },
                 {
-                    "model_type": 1,
-                    "beta": hp.uniform("beta", beta_min, beta_max),
-                },
-                {
-                    "model_type": 2,
-                    "beta": hp.uniform("beta", beta_min, beta_max),
+                    "model_type": MLPType.REPRHOMBOID.value,
+                    "beta": hp.uniform("beta_2", beta_min, beta_max),
                 }
             ])
         }

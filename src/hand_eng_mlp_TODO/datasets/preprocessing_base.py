@@ -159,6 +159,10 @@ def get_new_features(
         df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
     ).drop("lexical_affect_features")
 
+    # For some reason, some scores are NaN. In such a case, we replace them with 0,
+    #   acting effectively as dropout during training
+    df = df.replace(float('nan'), 0)
+
     return df
 
 
@@ -188,11 +192,8 @@ def preprocess_dataset(
     logger.debug("Applying tokenizer...")
     with_embeds = _apply_tokenize_and_embed(df=raw_df, text_col=text_col)
 
-    logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
-    df = sc.convert_labels_to_sentiment_scores(df=with_embeds, label_col=label_col)
-
     # Extract additional features
-    df = get_new_features(spark, df, text_col=text_col)
+    df = get_new_features(spark, with_embeds, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
     return df

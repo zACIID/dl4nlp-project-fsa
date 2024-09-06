@@ -303,26 +303,3 @@ def compute_overall_sentiment_features(
         overall_valence_mean, overall_arousal_mean, overall_dominance_mean,
         overall_valence_std, overall_arousal_std, overall_dominance_std,
         valence_contrast, arousal_contrast, dominance_contrast)
-
-
-def extract_all_features(  # TODO this is not used
-        text: str
-) -> Dict:
-    """
-    Extracts all features for a given text by calling all the feature extraction functions.
-
-    :param text: input text string.
-    :return: A dictionary containing all the extracted features.
-    """
-    features = cf.CustomFeatures()
-    sentiment_data, mean_medians = load_sentiment_dataset(io_.DATA_DIR)
-
-    features.update_vader_polarity(compute_vader_polarity(text))
-    features.update_vader_pos_neg_features(calculate_vader_pos_neg_features(text))
-    features.update_vader_sentiment_entropy(calculate_vader_sentiment_entropy(text))
-    features.update_emotions(sentic_emotion_recognition(text))
-    features.update_swn_polarity(compute_swn_polarity(text))
-    features.update_readability_metrics(calculate_readability_metrics(text))
-    features.update_overall_sentiment_features(compute_overall_sentiment_features(text, sentiment_data, mean_medians))
-
-    return features.to_dict()
