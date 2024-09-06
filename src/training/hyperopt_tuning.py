@@ -52,10 +52,10 @@ def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
             # Filter string syntax reference:
             # https://mlflow.org/docs/latest/search-runs.html
             filter_string=f"attributes.run_id = '{current_best_model.run_id}'"
-        )[0]
+        )
 
-        best_val_train = current_best_run.data.metrics[TRAIN_METRIC_KEY]
-        best_val_valid = current_best_run.data.metrics[VAL_METRIC_KEY]
+        best_val_train = _inf if len(current_best_run) == 0 else current_best_run[0].data.metrics[TRAIN_METRIC_KEY]
+        best_val_valid = _inf if len(current_best_run) == 0 else current_best_run[0].data.metrics[VAL_METRIC_KEY]
     else:
         best_val_train = _inf
         best_val_valid = _inf
