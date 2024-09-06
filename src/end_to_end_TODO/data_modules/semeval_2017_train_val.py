@@ -5,20 +5,24 @@ import sklearn.model_selection as sel
 import torch
 from torch.utils.data import DataLoader, Subset
 
-import fine_tuned_finbert.datasets.preprocessing_base as ppb
-import fine_tuned_finbert.datasets.stocktwits_crypto.preprocessing as pp
+import fine_tuned_finbert.datasets.preprocessing_base as ppb_ft
+import fine_tuned_finbert.datasets.semeval_2017.preprocessing as sem_pp_ft
+import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb_mlp
+import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe_mlp
+import hand_eng_mlp_TODO.datasets.semeval_2017.preprocessing as sem_pp_mlp
+import fine_tuned_finbert.datasets.data_modules as ft_dm
+import hand_eng_mlp_TODO.datasets.data_modules as mlp_dm
 from utils.random import RND_SEED
 
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
-class StocktwitsCryptoTrainVal(L.LightningDataModule):
+class Semeval2017TrainVal(L.LightningDataModule):
     def __init__(
             self,
             train_batch_size: int = 32,
             eval_batch_size: int = 32,
             train_split_size: float = 0.9,
-            with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
             num_workers: int = 4,
@@ -31,13 +35,18 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
         :param eval_batch_size: val/test/predict batch size
         :param train_split_size: fraction of data used for training.
             The remaining fraction of data will be used for validation
-        :param with_neutral_samples: whether to load the dataset containing neutrally-labelled samples
         :param kwargs:
         """
 
         super().__init__()
 
-        self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples)
+        self._finbert_dataset: datasets.Dataset = sem_pp_ft.get_dataset(train_dataset=True)
+        self._hemlp_dataset: datasets.Dataset = sem_pp_mlp.get_dataset(train_dataset=True)
+        
+        # Concatenate the two datasets horizontally
+        # Since they refer to the same data, they should have the same number of rows
+        self.dataset = datasets.concatenate_datasets([self._finbert_dataset, self._hemlp_dataset], axis=1)
+
         self.train_split_size = train_split_size
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
@@ -53,12 +62,20 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        self.dataset.set_format(type='torch', columns=[ppb.TOKENIZER_OUTPUT_COL, ppb.LABEL_COL])
+        self.dataset.set_format(
+            type='torch',
+            columns=[
+                ppb_ft.TOKENIZER_OUTPUT_COL,
+                ppb_ft.LABEL_COL,
+                ppb_mlp.EMBEDDER_OUTPUT_COL,
+                *ppfe_mlp.NEW_FEATURES
+            ]
+        )
         index = np.arange(len(self.dataset))
         train_split_idxs, val_split_idxs = sel.train_test_split(
             index,
             train_size=self.train_split_size,
-            stratify=self.dataset.with_format(type='pandas')[ppb.LABEL_COL].to_numpy(),
+            stratify=(self.dataset.with_format(type='pandas')[ppb_ft.LABEL_COL].to_numpy() >= 0).astype(int),
             random_state=self.rnd_seed
         )
 
@@ -95,14 +112,17 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
 
 
 def _collate_fn(raw_samples):
-    tokenizer_outputs = [item[ppb.TOKENIZER_OUTPUT_COL] for item in raw_samples]
-    scores = [item[ppb.LABEL_COL] for item in raw_samples]
+    # collate_fn is the same for any instance of the same datamodule (i.e. regardless of init params)
+    #   and every dataloader
+    tokenizer_output, scores = ft_dm.Semeval2017TrainVal().train_dataloader().collate_fn(raw_samples)
+    embeddings, _, new_features = mlp_dm.Semeval2017TrainVal().train_dataloader().collate_fn(raw_samples)
 
-    input_ids = torch.stack(list(map(lambda x: x['input_ids'], tokenizer_outputs)))
-    att_masks = torch.stack(list(map(lambda x: x['attention_mask'], tokenizer_outputs)))
-    tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
-
-    scores = torch.tensor(scores)
-
-    return tensorized_tokenizer_output, scores
+    # TODO future refactorings:
+    # - This means that I would have to extract the collate_fn functions into a single file, for both finbert and hemlp
+    #   and then reference them here. I Could also define this collate_fn into a separate file
+    #   Maybe such file could be datamodules/collate.py
+    # - I am also not sure about the fact of putting datamodules/ inside datasets/, maybe
+    #   put them at the <model_root> level? Also they could be refactored because all they do is just hardcode the dataset to fetch,
+    #   the rest is code repetition...
+    return tokenizer_output, embeddings, new_features, scores
 

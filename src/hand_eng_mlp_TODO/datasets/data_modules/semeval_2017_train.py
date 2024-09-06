@@ -1,54 +1,43 @@
 import datasets
 import lightning as L
-import numpy as np
 import torch
-import sklearn.model_selection as sel
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 
 import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
 import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppf
-import hand_eng_mlp_TODO.datasets.stocktwits_crypto.preprocessing as pp
+import hand_eng_mlp_TODO.datasets.semeval_2017.preprocessing as pp
 from data.semeval_2017_dataset import TEXT_COL
 from utils.random import RND_SEED
 
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
-class StocktwitsCryptoTrainVal(L.LightningDataModule):
+class Semeval2017Train(L.LightningDataModule):
     def __init__(
             self,
-            train_batch_size: int = 64,
-            eval_batch_size: int = 32,
-            train_split_size: float = 0.9,
+            train_batch_size: int = 32,
             with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
-            num_workers: int = 0,
+            num_workers: int = 4,
             rnd_seed: int = RND_SEED,
             **kwargs,
     ):
         """
         :param dataset:
         :param train_batch_size:
-        :param eval_batch_size: val/test/predict batch size
-        :param train_split_size: fraction of data used for training.
-            The remaining fraction of data will be used for validation
         :param with_neutral_samples: whether to load the dataset containing neutrally-labelled samples
         :param kwargs:
         """
 
         super().__init__()
 
-        self.dataset: datasets.Dataset = pp.get_dataset(drop_neutral_samples=with_neutral_samples)
-        self.train_split_size = train_split_size
+        self.dataset: datasets.Dataset = pp.get_dataset(train_dataset=True)
         self.train_batch_size = train_batch_size
-        self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
         self.prefetch_factor = prefetch_factor
         self.num_workers = num_workers
         self.rnd_seed = rnd_seed
-        self.train_idxs: np.ndarray | None = None
-        self.val_idxs: np.ndarray | None = None
 
     def prepare_data(self):
         # Nothing to do here since the dataset is provided from the outside
@@ -57,20 +46,10 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
     def setup(self, stage: str = None):
         # TODO TEXT_COL is here for debugging purposes, so I can actually see what text is associated to the other batch features
         self.dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL, TEXT_COL])
-        index = np.arange(len(self.dataset))
-        train_split_idxs, val_split_idxs = sel.train_test_split(
-            index,
-            train_size=self.train_split_size,
-            stratify=(self.dataset.with_format(type='pandas')[ppb.LABEL_COL].to_numpy() >= 0).astype(int),
-            random_state=self.rnd_seed
-        )
-
-        self.train_idxs = train_split_idxs
-        self.val_idxs = val_split_idxs
 
     def train_dataloader(self):
         return DataLoader(
-            dataset=Subset(self.dataset, self.train_idxs),
+            dataset=self.dataset,
             batch_size=self.train_batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
@@ -80,21 +59,13 @@ class StocktwitsCryptoTrainVal(L.LightningDataModule):
         )
 
     def val_dataloader(self):
-        return DataLoader(
-            dataset=Subset(self.dataset, self.val_idxs),
-            batch_size=self.eval_batch_size,
-            pin_memory=self.pin_memory,
-            num_workers=self.num_workers,
-            persistent_workers=True,
-            shuffle=False,
-            collate_fn=_collate_fn
-        )
+        raise NotImplementedError("This data module is only for training datasets")
 
     def test_dataloader(self):
-        raise NotImplementedError("This data module is only for training and validation datasets")
+        raise NotImplementedError("This data module is only for training datasets")
 
     def predict_dataloader(self) -> DataLoader:
-        raise NotImplementedError("This data module is only for training and validation datasets")
+        raise NotImplementedError("This data module is only for training datasets")
 
 
 def _collate_fn(raw_samples):

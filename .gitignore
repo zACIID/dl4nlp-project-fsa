@@ -165,7 +165,8 @@ cython_debug/
 artifacts
 
 # Data
-/data/
+data/*
+!data/raw/.keep
 
 # Spark
 /spark/src.zip

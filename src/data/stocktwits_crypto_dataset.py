@@ -13,10 +13,12 @@ import utils.io as io_
 _DOWNLOAD_URL = 'https://huggingface.co/datasets/ElKulako/stocktwits-crypto/resolve/main/st-data-full.xlsx?download=true'
 
 # This is the maximum number of characters of the texts in the final test dataset (SemEval)
-# Assuming one token per character, we have a maximum of 160 tokens,
+# Assuming one token per character, we have a maximum of 128 tokens,
 #   meaning that I'd throw away the remaining characters/tokens
 #   so that memory and training times do not explode
-WORST_CASE_TOKENS = 160
+# TODO verify this statement -> we simply tried with the tokenizer and saw that no sentence was longer than 128
+#  (the actual max is even less) -> this is also the max length of Bertweet
+WORST_CASE_TOKENS = 128
 
 TEXT_COL = "text"
 LABEL_COL = "label"
@@ -71,7 +73,8 @@ def clean(
         text_col: str,
         label_col: str
 ) -> psql.DataFrame:
-    raw_df = raw_df.fillna({text_col: "", label_col: 1})  # 1 is neutral label in raw dataset
+    raw_df = raw_df.withColumn(TEXT_COL, psqlf.when(psqlf.col(text_col) == "" ,None).otherwise(psqlf.col(text_col)))
+    raw_df = raw_df.dropna(subset=[text_col, label_col])
 
     if drop_neutral_samples:
         # Drop neutral labels because they add noise:
@@ -93,7 +96,6 @@ def convert_labels_to_sentiment_scores(
             case 0.0: return -1.0
             case 1.0: return 0.0
             case 2.0: return 1.0
-            case -1.0: return -1.0  #cerotto 2
             case _: raise ValueError(f'Unknown label {label}')
 
     with_sent_score_df = df.withColumn(label_col, convert_label(psqlf.col(label_col)))

@@ -1,5 +1,3 @@
-import typing
-
 import datasets
 import lightning as L
 import numpy as np
@@ -7,10 +5,10 @@ import sklearn.model_selection as sel
 import torch
 from torch.utils.data import DataLoader, Subset
 
-import fine_tuned_finbert.datasets.preprocessing_base as ppb
-import fine_tuned_finbert.datasets.semeval_2017.preprocessing as pp #todo vedere cosa dfa
-import hand_eng_mlp_TODO.datasets.preprocessing_base as hemlp_pb
-import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as hemlp_pfe
+import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
+import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppf
+import hand_eng_mlp_TODO.datasets.semeval_2017.preprocessing as pp
+from data.semeval_2017_dataset import TEXT_COL  # TODO for debugging purposes
 from utils.random import RND_SEED
 
 
@@ -22,7 +20,6 @@ class Semeval2017TrainVal(L.LightningDataModule):
             train_batch_size: int = 32,
             eval_batch_size: int = 32,
             train_split_size: float = 0.9,
-            with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
             num_workers: int = 4,
@@ -42,6 +39,7 @@ class Semeval2017TrainVal(L.LightningDataModule):
         super().__init__()
 
         self.dataset: datasets.Dataset = pp.get_dataset(train_dataset=True)
+        self.train_split_size = train_split_size
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
@@ -56,10 +54,12 @@ class Semeval2017TrainVal(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        self.dataset.set_format(type='torch', columns=[ppb.TOKENIZER_OUTPUT_COL, ppb.LABEL_COL])
+        # TODO TEXT_COL is here for debugging purposes, so I can actually see what text is associated to the other batch features
+        self.dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL, TEXT_COL])
         index = np.arange(len(self.dataset))
         train_split_idxs, val_split_idxs = sel.train_test_split(
             index,
+            train_size=self.train_split_size,
             stratify=(self.dataset.with_format(type='pandas')[ppb.LABEL_COL].to_numpy() >= 0).astype(int),
             random_state=self.rnd_seed
         )
@@ -97,19 +97,12 @@ class Semeval2017TrainVal(L.LightningDataModule):
 
 
 def _collate_fn(raw_samples):
-    # TODO copy THIS FOR ALL data_modules under hang_eng_mlp (stocktwits files left), and check embeddings shape
+    embeddings = torch.nn.utils.rnn.pad_sequence(
+        [item[ppb.EMBEDDER_OUTPUT_COL] for item in raw_samples],
+        batch_first=True
+    )
 
-    embeddings = [torch.stack(item[hemlp_pb.EMBEDDER_OUTPUT_COL], dim=0) for item in raw_samples]
-    scores = [item[hemlp_pb.LABEL_COL] for item in raw_samples]
-    new_features = [[item[key] for key in hemlp_pfe.NEW_FEATURES] for item in raw_samples]
+    scores = torch.tensor([item[ppb.LABEL_COL] for item in raw_samples])
+    new_features = torch.stack([torch.tensor([item[key] for key in ppf.NEW_FEATURES]) for item in raw_samples])
 
-    embeddings_tensor = torch.stack(embeddings, dim=0)
-    new_features_tensor = torch.stack(new_features)
-    scores = torch.tensor(scores)
-
-    print("embeddings batch ", embeddings_tensor.shape)
-    print("features batch ", new_features_tensor.shape)
-    print("scores batch ", scores.shape)
-
-    return embeddings_tensor, scores, new_features_tensor
-
+    return embeddings, scores, new_features

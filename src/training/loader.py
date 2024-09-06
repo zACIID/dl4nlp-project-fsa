@@ -26,7 +26,7 @@ class Model(enum.StrEnum):
 
 def get_model_and_data_module(
         model_choice: Model,
-        model_init_args: typing.Mapping[str, typing.Any],
+        model_init_args: typing.MutableMapping[str, typing.Any],
         dataset_choice: Dataset,
         dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
@@ -42,7 +42,7 @@ def get_model_and_data_module(
 
 
 def load_finbert_model_and_data_module(
-        model_init_args: typing.Mapping[str, typing.Any],
+        model_init_args: typing.MutableMapping[str, typing.Any],
         dataset_choice: Dataset,
         dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
@@ -67,12 +67,9 @@ def load_model_beijin_and_data_module(
         dataset_choice: Dataset,
         dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
-    model = ModelBeijin(**model_init_args)
     model_init_args["model_spec"] = MLPType.BOX
     data: typing.Dict[str, typing.Any] = {
         "n_layers": model_init_args.pop("n_layers"),
-        "in_features": model_init_args.pop("in_features"),
-        "out_features": model_init_args.pop("out_features"),
         "dropout": model_init_args.pop("dropout"),
         "linear": model_init_args.pop("linear"),
         "layernorm": model_init_args.pop("layernorm")
@@ -87,6 +84,7 @@ def load_model_beijin_and_data_module(
         data["beta"] = model_init_args["beta"]
 
     model_init_args["MLP_args"] = data
+    model = ModelBeijin(**model_init_args)
 
     match dataset_choice:
         case Dataset.SC_TRAIN_VAL:

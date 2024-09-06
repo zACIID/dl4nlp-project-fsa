@@ -1,20 +1,17 @@
-import typing
 import pyspark.sql as psql
 import torch
 from loguru import logger
-from pyspark.sql import types as psqlt, functions as psqlf
-from pyspark.sql.functions import udf, col, struct, lit, pandas_udf, PandasUDFType
+from pyspark.sql import types as psqlt
+from pyspark.sql.functions import udf
 from pyspark.sql.types import FloatType, StructType, StructField, ArrayType
-from transformers import AutoTokenizer, BatchEncoding, AutoModel
+from transformers import AutoTokenizer, AutoModel
 
-import pandas as pd
+import data.common as common
 import data.spark as S
 import data.stocktwits_crypto_dataset as sc
-import data.common as common
 import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
-import utils.io as io_
 import hand_eng_mlp_TODO.models.model_beijin as hemlp
-
+import utils.io as io_
 
 TEXT_COL = sc.TEXT_COL  # TODO this is actually different for each dataset
 LABEL_COL = common.LABEL_COL
@@ -26,7 +23,7 @@ PROCESSED_DATASET_SCHEMA: psqlt.StructType = (
     psqlt.StructType()
     .add(TEXT_COL, psqlt.StringType(), nullable=False)
     .add(LABEL_COL, psqlt.IntegerType(), nullable=False)
-    .add(EMBEDDER_OUTPUT_COL, psqlt.ArrayType(psqlt.IntegerType()), nullable=False)
+    .add(EMBEDDER_OUTPUT_COL, psqlt.ArrayType(psqlt.ArrayType(psqlt.IntegerType())), nullable=False)
     .add(SENTIMENT_SCORE_COL, psqlt.FloatType(), nullable=False)
 )
 
@@ -118,15 +115,16 @@ def get_new_features(
 
     df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
 
+    # TODO uncomment when ready - takes VERY LONG on stocktwits dataset which has 700k+ sentences
     # Emotion recognition with SenticNet
-    df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
-    df = df.select(
-        "*",
-        df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
-        df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
-        df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
-        df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
-    ).drop("emotion_recognition")
+    # df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
+    # df = df.select(
+    #     "*",
+    #     df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
+    #     df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
+    #     df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
+    #     df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
+    # ).drop("emotion_recognition")
 
     # Readability metrics
     df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
@@ -161,6 +159,10 @@ def get_new_features(
         df["lexical_affect_features"]["dominance_contrast"].alias("dominance_contrast")
     ).drop("lexical_affect_features")
 
+    # For some reason, some scores are NaN. In such a case, we replace them with 0,
+    #   acting effectively as dropout during training
+    df = df.replace(float('nan'), 0)
+
     return df
 
 
@@ -190,11 +192,8 @@ def preprocess_dataset(
     logger.debug("Applying tokenizer...")
     with_embeds = _apply_tokenize_and_embed(df=raw_df, text_col=text_col)
 
-    logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
-    df = sc.convert_labels_to_sentiment_scores(df=with_embeds, label_col=label_col)
-
     # Extract additional features
-    df = get_new_features(spark, df, text_col=text_col)
+    df = get_new_features(spark, with_embeds, text_col=text_col)
 
     logger.debug("Preprocessing implemented")
     return df
@@ -209,71 +208,25 @@ def _apply_tokenize_and_embed( # TODO problem of too much data?
     bertweet.eval()
 
     def tokenize_and_embed(text: str) -> list:
-        inputs = tokenizer(text, padding=True, truncation=True, return_tensors="pt")
+        inputs = tokenizer(
+            text,
+            padding=False,
+            return_tensors="pt",
+            truncation=True,
+            max_length=sc.WORST_CASE_TOKENS
+        )
 
         with torch.no_grad():
             outputs = bertweet(**inputs)  # **inputs unpacks the dictionary returned by the tokenizer
 
         # Exclude first (CLS) and last (SEP) tokens
-        embeddings = outputs.last_hidden_state[:, 1:-1, :].numpy()
+        # Need to squeeze because we want to remove the "batch" dimension
+        # Spark can handle lists but not pytorch tensors, numpy arrays, etc.
+        embeddings = outputs.last_hidden_state[:, 1:-1, :].squeeze(dim=0).tolist()
 
-        return [embedding.tolist() for embedding in embeddings]
+        return embeddings
 
     tokenize_and_embed_udf = udf(tokenize_and_embed, ArrayType(ArrayType(FloatType())))
-    df_with_embeddings = df.withColumn('embeddings', tokenize_and_embed_udf(df[text_col]))
+    df_with_embeddings = df.withColumn(EMBEDDER_OUTPUT_COL, tokenize_and_embed_udf(df[text_col]))
     return df_with_embeddings
 
-
-def _apply_embedder_temporarily_disabled(  # TODO old code, gives error
-        df: psql.DataFrame,
-        text_col: str
-) -> psql.DataFrame:
-    tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
-    bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
-
-    @psqlf.udf(
-        returnType=psqlt.StructType([ #todo: what should be the returning type og the udf?
-            psqlt.StructField("input_ids", psqlt.ArrayType(psqlt.IntegerType())),
-            psqlt.StructField("attention_mask", psqlt.ArrayType(psqlt.IntegerType()))
-        ])
-    )
-    def tokenize(texts) -> typing.List:
-        # NOTE: UDFs complex types are defined as StructType
-        # - https://stackoverflow.com/a/53346512
-        # - https://stackoverflow.com/a/36841721
-        # batch: BatchEncoding = tokenizer(
-        #     text if text is not None else "",
-        #     return_tensors='np',
-        #     return_attention_mask=True,
-        #     padding='max_length',
-        #     truncation=True,
-        #     max_length=sc.WORST_CASE_TOKENS
-        # )
-        #
-        # return torch.tensor([tokenizer.encode(batch)])
-
-        for idx, text in enumerate(texts):
-            texts[idx] = tokenizer.encode(text)
-
-        return texts
-        # TODO check type:
-        #  as we can see from colab file, torch.tensor([tokenizer.encode(line)]) returns a tensor([[...], [...], ...])
-        #  is the type correct? should we not convert to tensor now but do it later below?
-        #  pyspark might not like torch tensor type output
-        #  try sparkdf.apply(column, function)
-
-    with torch.no_grad():
-        print("Tipo del testo: ", type(psqlf.col(text_col)))
-        batch = tokenize(psqlf.col(text_col))
-        print(type(batch))
-        features = bertweet(torch.tensor(batch))
-        print(type(features))
-
-    embeds = features.hidden_states[-1]
-    embeds = embeds[:, 1:-1, :]  # we don't need first and last embeddings because they are CLS and SEP tokens
-
-    with_embeds_df = df.withColumn(EMBEDDER_OUTPUT_COL, list(embeds))  # TODO check if necessary to list()
-
-    # TODO run preprocessing and see if everything works before the training TODOs
-
-    return with_embeds_df

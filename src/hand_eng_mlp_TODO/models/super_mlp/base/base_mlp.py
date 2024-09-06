@@ -33,6 +33,9 @@ class BaseSuperMLP(nn.Module):
                 model_layers[f"f_{f_counter}"] = f()
                 f_counter += 1
 
+        # NOTE: this is because we take as input a tensor of shape (batch_size, embedding_size),
+        #   but we want the output to be a 1D (batch_size) tensor
+        model_layers["flatten"] = nn.Flatten(start_dim=0)
         return nn.Sequential(
             model_layers
         )

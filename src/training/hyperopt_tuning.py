@@ -23,13 +23,8 @@ import utils.io as io_
 import utils.mlflow_env as env
 from training.loader import Model
 
-from src.hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE, MLPType
-from src.hand_eng_mlp_TODO.models.super_MLP.box_mlp import BoxMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rep_rhomboid_mlp import RepRhomboidMLP
-from src.hand_eng_mlp_TODO.models.super_MLP.rhomboid_mlp import RhomboidMLP
+from hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE, MLPType
 
-in_features: int = BERT_EMBEDDING_SIZE + CUSTOM_FEATS_SIZE
-out_features: int = 1
 
 _inf = np.finfo(np.float64).max
 
@@ -54,10 +49,10 @@ def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
             # Filter string syntax reference:
             # https://mlflow.org/docs/latest/search-runs.html
             filter_string=f"attributes.run_id = '{current_best_model.run_id}'"
-        )[0]
+        )
 
-        best_val_train = current_best_run.data.metrics[TRAIN_METRIC_KEY]
-        best_val_valid = current_best_run.data.metrics[VAL_METRIC_KEY]
+        best_val_train = _inf if len(current_best_run) == 0 else current_best_run[0].data.metrics[TRAIN_METRIC_KEY]
+        best_val_valid = _inf if len(current_best_run) == 0 else current_best_run[0].data.metrics[VAL_METRIC_KEY]
     else:
         best_val_train = _inf
         best_val_valid = _inf
@@ -114,8 +109,7 @@ def new_eval(
 
         if Model.HAND_ENG_MLP == env.get_model_choice():
             data = params.pop("model_spec")
-            params["model_spec"] = data["model_type"]
-            if params["model_spec"] != MLPType.BOX.value:
+            if MLPType(data["model_type"]) != MLPType.BOX:
                 params["beta"] = data["beta"]
 
         with mlflow.start_run(
@@ -187,11 +181,13 @@ def new_eval(
 @click.option("--lora-rank-min", default=8, type=click.INT)
 @click.option("--lora-rank-max", default=256, type=click.INT)
 # BASE MLP (AND BOX MLP)
-@click.option("--n-layers", default=10, type=click.INT)
+@click.option("--n-layers-min", default=2, type=click.INT)
+@click.option("--n-layers-max", default=10, type=click.INT)
 @click.option("--dropout-min", default=0.1, type=click.FLOAT)
 @click.option("--dropout-max", default=0.5, type=click.FLOAT)
 # REP. RHOMBOID AND RHOMBOID MLP
-@click.option("--beta", default=1.5, type=click.FLOAT)
+@click.option("--beta-min", default=0.5, type=click.FLOAT)
+@click.option("--beta-max", default=2.5, type=click.FLOAT)
 def tune(
         with_neutral_samples,
         algo,
@@ -249,7 +245,6 @@ def tune(
             )),
         }
     elif env.get_model_choice() == Model.HAND_ENG_MLP:
-
         space = {
             "one_cycle_max_lr": hp.loguniform(
                 "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
@@ -260,8 +255,6 @@ def tune(
             "weight_decay": hp.loguniform(
                 "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
             ),
-            "in_features": in_features,
-            "out_features": out_features,
             "n_layers": scope.int(
                 hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
             ),
@@ -270,15 +263,17 @@ def tune(
             "layernorm": hp.choice("layernorm", [True, False]),
             "model_spec": hp.choice("model_spec", [
                 {
-                    "model_type": 0,
+                    "model_type": MLPType.BOX.value,
+                },
+                # NOTE: the _X prefix on beta nested params is so that hyperopt doesn't complain
+                #   about unique labelling
+                {
+                    "model_type": MLPType.RHOMBOID.value,
+                    "beta": hp.uniform("beta_1", beta_min, beta_max),
                 },
                 {
-                    "model_type": 1,
-                    "beta": hp.uniform("beta", beta_min, beta_max),
-                },
-                {
-                    "model_type": 2,
-                    "beta": hp.uniform("beta", beta_min, beta_max),
+                    "model_type": MLPType.REPRHOMBOID.value,
+                    "beta": hp.uniform("beta_2", beta_min, beta_max),
                 }
             ])
         }

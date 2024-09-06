@@ -3,14 +3,16 @@ import lightning as L
 import torch
 from torch.utils.data import DataLoader
 
-import hand_eng_mlp_TODO.datasets.preprocessing_base as hemlp_pb
-import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as hemlp_pfe
+import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
+import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppf
+import hand_eng_mlp_TODO.datasets.semeval_2017.preprocessing as sem_pp
+from data.semeval_2017_dataset import TEXT_COL
 from utils.random import RND_SEED
 
 
 # Initial reference:
 # https://github.com/Lightning-AI/tutorials/blob/main/lightning_examples/text-transformers/text-transformers.py#L237
-class SemEval2017Test(L.LightningDataModule):
+class Semeval2017Test(L.LightningDataModule):
     def __init__(
             self,
             test_batch_size: int = 32,
@@ -44,8 +46,8 @@ class SemEval2017Test(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        raise NotImplementedError()
-        # self.dataset.set_format(type='torch', columns=[sem_pp.TOKENIZER_OUTPUT_COL, sem_pp.SENTIMENT_SCORE_COL])
+        # TODO TEXT_COL is here for debugging purposes, so I can actually see what text is associated to the other batch features
+        self.dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL, TEXT_COL])
 
     def train_dataloader(self):
         raise NotImplementedError("This data module is only for test datasets")
@@ -69,19 +71,17 @@ class SemEval2017Test(L.LightningDataModule):
 
 
 def _collate_fn(raw_samples):
-    # TODO copy THIS FOR ALL data_modules under hang_eng_mlp (stocktwits files left) and check embeddings shape
+    embeddings = torch.nn.utils.rnn.pad_sequence(
+        [item[ppb.EMBEDDER_OUTPUT_COL] for item in raw_samples],
+        batch_first=True
+    )
 
-    embeddings = [torch.stack(item[hemlp_pb.EMBEDDER_OUTPUT_COL], dim=0) for item in raw_samples]
-    scores = [item[hemlp_pb.LABEL_COL] for item in raw_samples]
-    new_features = [[item[key] for key in hemlp_pfe.NEW_FEATURES] for item in raw_samples]
+    scores = torch.tensor([item[ppb.LABEL_COL] for item in raw_samples])
+    new_features = torch.stack([torch.tensor([item[key] for key in ppf.NEW_FEATURES]) for item in raw_samples])
 
-    embeddings_tensor = torch.stack(embeddings, dim=0)
-    new_features_tensor = torch.stack(new_features)
-    scores = torch.tensor(scores)
+    # print("embeddings batch ", embeddings_tensor.shape)
+    # print("features batch ", new_features_tensor.shape)
+    # print("scores batch ", scores.shape)
 
-    print("embeddings batch ", embeddings_tensor.shape)
-    print("features batch ", new_features_tensor.shape)
-    print("scores batch ", scores.shape)
-
-    return embeddings_tensor, scores, new_features_tensor
+    return embeddings, scores, new_features
 

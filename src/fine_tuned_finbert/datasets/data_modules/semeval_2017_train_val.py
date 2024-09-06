@@ -18,7 +18,6 @@ class Semeval2017TrainVal(L.LightningDataModule):
             train_batch_size: int = 32,
             eval_batch_size: int = 32,
             train_split_size: float = 0.9,
-            with_neutral_samples: bool = True,
             pin_memory: bool = False,
             prefetch_factor: int = 4,
             num_workers: int = 4,
@@ -38,6 +37,7 @@ class Semeval2017TrainVal(L.LightningDataModule):
         super().__init__()
 
         self.dataset: datasets.Dataset = pp.get_dataset(train_dataset=True)
+        self.train_split_size = train_split_size
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.pin_memory = pin_memory
@@ -56,6 +56,7 @@ class Semeval2017TrainVal(L.LightningDataModule):
         index = np.arange(len(self.dataset))
         train_split_idxs, val_split_idxs = sel.train_test_split(
             index,
+            train_size=self.train_split_size,
             stratify=(self.dataset.with_format(type='pandas')[ppb.LABEL_COL].to_numpy() >= 0).astype(int),
             random_state=self.rnd_seed
         )

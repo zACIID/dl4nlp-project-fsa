@@ -8,8 +8,11 @@ from torch.nn import Module, Parameter
 class LinAggregator(Module):
 
     def __init__(
-            self, in_features: int, out_features: int,
-            mlm_mat: Tensor, mlm_bias: Tensor) -> None:
+            self, in_features: int,
+            out_features: int,
+            mlm_mat: Tensor,
+            mlm_bias: Tensor
+    ) -> None:
         super().__init__()
 
         std_dev: float = 1 / out_features

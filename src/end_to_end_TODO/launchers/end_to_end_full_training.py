@@ -12,12 +12,12 @@ if __name__ == "__main__":
 
     # Complete training of models tuned on this train+val combo
     env.set_dataset_choice(loader.Dataset.SEMEVAL_TRAIN_VAL)
-    env.set_model_choice(loader.Model.FINBERT)
+    env.set_model_choice(loader.Model.END_TO_END)
 
     mlflow.set_tracking_uri(env.MLFLOW_TRACKING_URI)
     mlflow.projects.run(
         uri=str(io_.PROJECT_ROOT.absolute()),
-        entry_point='semeval_full_training_finbert',
+        entry_point='semeval_full_training',
         env_manager='local',
         experiment_name=env.get_experiment_name(),
         run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}",

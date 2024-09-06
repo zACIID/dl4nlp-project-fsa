@@ -1,22 +1,22 @@
+import os
+import re
+from collections import Counter
+from typing import Dict, Tuple, Union
+
+import nltk
 import pandas as pd
 import requests
-import re
 import textstat
-import math
-import nltk
-import os
-import utils.io as io_
-import requests
-import hand_eng_mlp_TODO.datasets.custom_features as cf
+from loguru import logger
 from nltk.corpus import sentiwordnet as swn
 from nltk.tokenize import word_tokenize
-from scipy.stats import entropy
-from collections import Counter
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from typing import Dict, Tuple, Union, List
-from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
+from scipy.stats import entropy
 from urllib3.util.retry import Retry
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+import hand_eng_mlp_TODO.datasets.custom_features as cf
+import utils.io as io_
 from utils.custom_features_utils import download_and_extract_zip
 
 # The following two packages have been added to pyproject.toml
@@ -26,7 +26,9 @@ from utils.custom_features_utils import download_and_extract_zip
 SENTICNET_API_EMOTION_KEY = os.getenv('SENTICNET_API_EMOTION_KEY')
 SENTICNET_API_POLARITY_KEY = os.getenv('SENTICNET_API_POLARITY_KEY')
 NEW_FEATURES = ['vader_polarity', 'pos_neg_ratio_vader', 'pos_neg_difference_vader', 'sentiment_entropy_vader',
-                'swn_polarity', 'INTROSPECTION', 'TEMPER', 'ATTITUDE', 'SENSITIVITY',
+                'swn_polarity',
+                # TODO add back when ready
+                # 'INTROSPECTION', 'TEMPER', 'ATTITUDE', 'SENSITIVITY',
                 'flesch_kincaid_grade', 'gunning_fog', 'coleman_liau_index',
                 'overall_valence_mean', 'overall_arousal_mean', 'overall_dominance_mean',
                 'overall_valence_std', 'overall_arousal_std', 'overall_dominance_std',
@@ -137,9 +139,9 @@ def sentic_emotion_recognition(
                     emotions[name] = value
                 return emotions
         else:
-            print("Error: Unable to retrieve emotion features from API, status code:", response.status_code)
+            logger.warning("Error: Unable to retrieve emotion features from API, retrying... | status code:", response.status_code)
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
     return {}
 
 
@@ -301,26 +303,3 @@ def compute_overall_sentiment_features(
         overall_valence_mean, overall_arousal_mean, overall_dominance_mean,
         overall_valence_std, overall_arousal_std, overall_dominance_std,
         valence_contrast, arousal_contrast, dominance_contrast)
-
-
-def extract_all_features(  # TODO this is not used
-        text: str
-) -> Dict:
-    """
-    Extracts all features for a given text by calling all the feature extraction functions.
-
-    :param text: input text string.
-    :return: A dictionary containing all the extracted features.
-    """
-    features = cf.CustomFeatures()
-    sentiment_data, mean_medians = load_sentiment_dataset(io_.DATA_DIR)
-
-    features.update_vader_polarity(compute_vader_polarity(text))
-    features.update_vader_pos_neg_features(calculate_vader_pos_neg_features(text))
-    features.update_vader_sentiment_entropy(calculate_vader_sentiment_entropy(text))
-    features.update_emotions(sentic_emotion_recognition(text))
-    features.update_swn_polarity(compute_swn_polarity(text))
-    features.update_readability_metrics(calculate_readability_metrics(text))
-    features.update_overall_sentiment_features(compute_overall_sentiment_features(text, sentiment_data, mean_medians))
-
-    return features.to_dict()

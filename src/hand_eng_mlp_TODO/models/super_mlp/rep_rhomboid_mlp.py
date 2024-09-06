@@ -10,7 +10,6 @@ class RepRhomboidMLP(BaseSuperMLP):
                  dropout: float = .2, linear: bool = False, layernorm: bool = False) -> None:
 
         layers_spec: list[MLPBundle] = []
-
         mid_out: int = int(beta * in_features)
 
         if linear:

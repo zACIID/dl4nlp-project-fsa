@@ -6,11 +6,16 @@ from hand_eng_mlp_TODO.models.super_mlp.utility.mlp_bundle import MLPBundle
 
 class BoxMLP(BaseSuperMLP):
     def __init__(
-            self, n_layers: int, in_features: int, out_features: int,
-            f: Type[nn.Module] = nn.Tanh, alpha: float = 0.5,
-            dropout: float = .2, linear: bool = False, layernorm: bool = False
+            self,
+            n_layers: int,
+            in_features: int,
+            out_features: int,
+            f: Type[nn.Module] = nn.Tanh,
+            alpha: float = 0.5,
+            dropout: float = .2,
+            linear: bool = False,
+            layernorm: bool = False
     ) -> None:
-
         layers_spec: list[MLPBundle] = []
 
         if linear:
@@ -53,7 +58,6 @@ class BoxMLP(BaseSuperMLP):
         layers_spec: list[MLPBundle] = []
 
         for idx in range(n_layers * 2 - 1):
-
             layers_spec += self.set_linear_layer(
                  in_features=in_features, out_features=in_features,
                 idx=idx, layernorm=layernorm, dropout=dropout, n_layers=n_layers

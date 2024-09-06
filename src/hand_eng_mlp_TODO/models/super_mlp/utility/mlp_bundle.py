@@ -1,5 +1,6 @@
 from typing import Type
 import torch.nn as nn
+import hand_eng_mlp_TODO.models.super_mlp.utility.custom_layers.super_block as sb
 
 
 class MLPBundle:
@@ -27,8 +28,8 @@ class MLPBundle:
         self.name = f"linear_{self._index}"
         self._bundle: tuple[int, int] = (in_features, out_features)
 
-      case SuperBlock:
-        self._type: Type[SuperBlock] = SuperBlock
+      case sb.SuperBlock:
+        self._type: Type[sb.SuperBlock] = sb.SuperBlock
         self.name: str = f"superblock_{self._index}"
         self._bundle: tuple = (
             in_features, mid_out, out_features, alpha,
