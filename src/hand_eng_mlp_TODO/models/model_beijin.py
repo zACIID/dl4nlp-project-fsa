@@ -242,7 +242,7 @@ class ModelBeijin(L.LightningModule):
         # NOTE: by overriding this, lightning's Trainer automatic checkpointing stores only the lora stuff,
         #   meaning that checkpoint size is greatly reduced
         # To use these checkpoints, the model has to first be normally instantiated
-        state_dict = super().state_dict(args=args, destination=destination, prefix=prefix, keep_vars=keep_vars)
+        state_dict = super().state_dict(*args, destination=destination, prefix=prefix, keep_vars=keep_vars)
 
         # These two are loaded and provided to the LinearAggregator when the RoBERTa is loaded,
         #   no needed to checkpoint them
