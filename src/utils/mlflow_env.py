@@ -88,14 +88,21 @@ def get_run_tags() -> typing.Dict[str, str | int]:
 
 def set_common_run_tags(
         with_neutral_samples: bool = False,
-        second_order_fine_tuning: bool = False
+        pretraining_on_sc: bool = False,
 ):
+    """
+    :param with_neutral_samples: tag that indicates if neutral samples have been used in the run.
+        Actually meaningful only for SC dataset
+    :param pretraining_on_sc: tag that indicates if the model has been pretrained on the SC dataset
+        and is being fine-tuned on the semeval dataset
+    :return:
+    """
     tags = get_run_tags()
 
     if with_neutral_samples:
         tags['neutral_samples'] = 'true'
 
-    if second_order_fine_tuning:
-        tags['fine_tuning_on_sc_dataset'] = 'true'
+    if pretraining_on_sc:
+        tags['pretraining_on_sc'] = 'true'
 
     set_run_tags(tags)

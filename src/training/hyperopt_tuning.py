@@ -78,6 +78,8 @@ def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
         version = mlflow.register_model(
             model_uri=f"runs:/{best_run.info.run_id}/artifacts/model",
             name=model_name,
+
+            # Make sure that run tags are assigned to the registered model too
             tags=env.get_run_tags()
         )
         client.set_registered_model_alias(
@@ -216,7 +218,10 @@ def tune(
         beta_min,
         beta_max
 ):
-    env.set_common_run_tags(with_neutral_samples=with_neutral_samples)
+    env.set_common_run_tags(
+        with_neutral_samples=with_neutral_samples,
+        pretraining_on_sc=env.should_hyperopt_on_pretrained_model()
+    )
 
     # NOTE: Check these references to understand how to use the param space distributions:
     # - https://github.com/hyperopt/hyperopt/wiki/FMin#21-parameter-expressions
