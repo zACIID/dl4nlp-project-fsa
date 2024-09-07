@@ -54,21 +54,28 @@ def _load_model_beijin_and_data_module(
         dataset_choice: Dataset,
         dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
-    model_init_args["model_spec"] = MLPType.BOX
+
+    # NOTE: need to specify default values because the full-training script
+    #   loads the model without passing any init keyword basically, the reason
+    #   being that those from the best model are later used
     data: typing.Dict[str, typing.Any] = {
-        "n_layers": model_init_args.pop("n_layers"),
-        "dropout": model_init_args.pop("dropout"),
-        "linear": model_init_args.pop("linear"),
-        "layernorm": model_init_args.pop("layernorm")
-
+        "n_layers": model_init_args.pop("n_layers", 10),
+        "dropout": model_init_args.pop("dropout", 0.2),
+        "linear": model_init_args.pop("linear", False),
+        "layernorm": model_init_args.pop("layernorm", True)
     }
-    if model_init_args["model_spec"] == 1:
-        model_init_args["model_spec"] = MLPType.RHOMBOID
-        data["beta"] = model_init_args["beta"]
 
-    else:
+    # The 0, 1, 2 here is not defined by the enum but by the hyperopt search space
+    if model_init_args["model_spec"] == 0:
+        model_init_args["model_spec"] = MLPType.BOX
+    elif model_init_args["model_spec"] == 1:
+        model_init_args["model_spec"] = MLPType.RHOMBOID
+        data["beta"] = model_init_args.pop("beta", 0.5)
+    elif model_init_args["model_spec"] == 2:
         model_init_args["model_spec"] = MLPType.REPRHOMBOID
-        data["beta"] = model_init_args["beta"]
+        data["beta"] = model_init_args.pop("beta", 0.5)
+    else:
+        raise ValueError(f'Unknown model spec {model_init_args["model_spec"]}')
 
     model_init_args["MLP_args"] = data
     model = ModelBeijin(**model_init_args)
