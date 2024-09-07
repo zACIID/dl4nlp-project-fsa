@@ -37,6 +37,16 @@ def _load_finbert_model_and_data_module(
         dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
     model = FineTunedFinBERT(**model_init_args)
+
+    if env.should_hyperopt_on_pretrained_model():
+        best_model = load_best_model(Model.FINBERT, init_kwargs={
+            "strict": False,
+            "log_hparams": False
+        })
+        # I am loading the state dict and not keeping directly the best model because
+        #   I need to init the model with the provided model_init_args
+        model.load_state_dict(state_dict=best_model.state_dict(), strict=False)
+
     match dataset_choice:
         case Dataset.SC_TRAIN_VAL:
             return model, ft_dm.StocktwitsCryptoTrainVal(**dm_init_args)
@@ -82,6 +92,15 @@ def _load_model_beijin_and_data_module(
 
     model_init_args["MLP_args"] = data
     model = ModelBeijin(**model_init_args)
+
+    if env.should_hyperopt_on_pretrained_model():
+        best_model = load_best_model(Model.HAND_ENG_MLP, init_kwargs={
+            "strict": False,
+            "log_hparams": False
+        })
+        # I am loading the state dict and not keeping directly the best model because
+        #   I need to init the model with the provided model_init_args
+        model.load_state_dict(state_dict=best_model.state_dict(), strict=False)
 
     match dataset_choice:
         case Dataset.SC_TRAIN_VAL:

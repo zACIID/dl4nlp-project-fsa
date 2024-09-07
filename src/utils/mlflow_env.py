@@ -65,6 +65,18 @@ def get_dataset_specific_best_model_alias(dataset: lt.Dataset, tuning_alias: boo
     return f"{BEST_FULL_TRAINED_MODEL_ALIAS if not tuning_alias else BEST_TUNED_MODEL_ALIAS}-{dataset.value}".lower()
 
 
+def set_hyperopt_on_pretrained_model():
+    os.environ['HYPEROPT_ON_PRETRAINED_MODEL'] = "true"
+
+
+def should_hyperopt_on_pretrained_model():
+    """
+    :return: True if the models that should be loaded for hyperopt tuning are those
+        that were pretrained on the SC dataset
+    """
+    return os.environ.get('HYPEROPT_ON_PRETRAINED_MODEL', 'false') == "true"
+
+
 # Kind of dirty way of setting tags for every run
 def set_run_tags(tags: typing.Dict[str, str | int]):
     os.environ['RUN_TAGS'] = json.dumps(tags)
