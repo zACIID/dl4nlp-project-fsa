@@ -136,28 +136,6 @@ entry_points:
                --ckpt-monitor {ckpt_monitor} \
                --ckpt-save-top-k {ckpt_save_top_k} \
                "
-  semeval_full_training_finbert:
-    parameters:
-      # path to the python executable in the project's poetry env (i.e. inside .venv folder),
-      #   relative to the $HOME directory
-      poetry_env:
-        type: string
-        default: "GitHub/dl4nlp-project-fsa/.venv/bin/python"
-
-      model_name: {type: string, default: "best-FINBERT"}
-      model_alias: {type: string, default: "tuning-champion"}
-
-      #== Data module hparams
-      prefetch_factor: {type: float, default: 16}
-      num_workers: {type: float, default: 8}
-    command: "poetry env use ~/{poetry_env} \
-            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/semeval_full_training.py \
-               --model-name {model_name} \
-               --model-alias {model_alias} \
-               --prefetch-factor {prefetch_factor} \
-               --num-workers {num_workers} \
-               "
-
 
   hyperopt_MLP:
     parameters:
@@ -408,4 +386,26 @@ entry_points:
                --es-patience {es_patience} \
                --ckpt-monitor {ckpt_monitor} \
                --ckpt-save-top-k {ckpt_save_top_k} \
+               "
+
+  semeval_full_training:
+    parameters:
+      # path to the python executable in the project's poetry env (i.e. inside .venv folder),
+      #   relative to the $HOME directory
+      poetry_env:
+        type: string
+        default: "GitHub/dl4nlp-project-fsa/.venv/bin/python"
+
+      model_name: {type: string, default: "best-FINBERT"}
+      model_alias: {type: string, default: "tuning-champion"}
+
+      #== Data module hparams
+      prefetch_factor: {type: float, default: 16}
+      num_workers: {type: float, default: 8}
+    command: "poetry env use ~/{poetry_env} \
+            && PYTHONPATH=src:$PYTHONPATH poetry run python src/training/semeval_full_training.py \
+               --model-name {model_name} \
+               --model-alias {model_alias} \
+               --prefetch-factor {prefetch_factor} \
+               --num-workers {num_workers} \
                "
