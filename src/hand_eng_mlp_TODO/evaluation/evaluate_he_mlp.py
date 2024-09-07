@@ -12,6 +12,8 @@ import torch
 import torchmetrics.classification as tc
 import transformers
 from mlflow.entities.model_registry import ModelVersion
+from mlflow.models.evaluation import MetricValue, make_metric
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 import data.common as common
 import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
@@ -27,6 +29,7 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
     pytorch_logger.setLevel(logging.INFO)
 
     model_name = env.get_registered_model_name(loader.Model.HAND_ENG_MLP)
+    # alias = env.BEST_TUNED_MODEL_ALIAS
     alias = env.BEST_FULL_TRAINED_MODEL_ALIAS
     client = mlflow.tracking.MlflowClient()
     best_version: ModelVersion = client.get_model_version_by_alias(name=model_name, alias=alias)
@@ -48,7 +51,7 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         :param df: pandas df provided by mlflow.evaluate(...)
         :return:
         """
-        def collate(tok_output_collection):  # TODO this is for finbert, what should model beijin do?, trasformare dataframe in batch, what am i passing?
+        def collate(tok_output_collection):
             input_ids = torch.stack(list(
                 map(
                     lambda x: torch.tensor(x['input_ids'], device=model.device).long(),
@@ -64,14 +67,22 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
             tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
             return tensorized_tokenizer_output
 
-        embeddings_col = df[ppb.EMBEDDER_OUTPUT_COL].to_list()  # TODO now embeddings not tokens i need to adapt it
+        embeddings_col = df[ppb.EMBEDDER_OUTPUT_COL].to_list()  # we now have embeddings not tokens
         batches = collate(embeddings_col)
 
         # Apparently mlflow.evaluate needs cpu tensors or numpy arrays
         return model.predict(**batches).cpu().detach().numpy()
 
+    # TODO ( ͡° ͜ʖ ͡°) create custom mlflow metrics based on our project proposal so it gets logged on the mlflow server
+    #  (cino: like this?)
+    # SemEval2017 cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
+    # Our metrics:
+    # Main metric: cosine similarity, the SemEval2017 challenge's official evaluation method.
+    # Defined as: cosine(G,P)= \frac{sum_{i=0}^{n} G_i x P_i}{\sqrt{sum_{i=0}^{n} G_i^2} x \sqrt{sum_{i=0}^{n} P_i^2}}
+    # Additional standard metrics, including precision, recall, and F1 score, will be considered.
+    # TODO should we include regression metrics?
 
-    # TODO ( ͡° ͜ʖ ͡°) create custom mlflow metrics based on what we wrote on the project proposal, so that it gets logged on the mlflow server
+    # TODO: this is just a model to follow (remove when finished)
     # Create an evaluation function that iterates through the predictions
     # def eval_fn(predictions):
     #     scores = [int(is_valid_python_code(prediction)) for prediction in predictions]
@@ -84,18 +95,64 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
     # valid_code_metric = make_metric(
     #     eval_fn=eval_fn, greater_is_better=False, name="valid_python_code", version="v1"
     # )
-    # TODO idk what's this above
 
+    # TODO EXAMPLE OF EXTRA METRIC USAGE from official documentation (to remove)
+    # def root_mean_squared_error(eval_df, _builtin_metrics):
+    #     return np.sqrt((np.abs(eval_df["prediction"] - eval_df["target"]) ** 2).mean)
+    #
+    # rmse_metric = mlflow.models.make_metric(
+    #     eval_fn=root_mean_squared_error,
+    #     greater_is_better=False,
+    # )
+    # mlflow.evaluate(..., extra_metrics=[rmse_metric])
 
+    # TODO: same code in finbert eval, move the functinos to another file?
+    # Thresholding predictions and targets
+    def apply_thresholds(values):
+        return np.where(values < -0.25, -1, np.where(values > 0.25, 1, 0))
+
+    def cosine_similarity(y_true, y_pred):
+        cos_sim = np.dot(y_true, y_pred) / (np.linalg.norm(y_true) * np.linalg.norm(y_pred))
+        return cos_sim
+
+    # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score
+    def eval_fn_cosine_similarity(predictions, targets):
+        scores = [cosine_similarity(y_true, y_pred) for y_true, y_pred in zip(targets, predictions)]
+        return MetricValue(scores=scores, aggregate_results=np.mean(scores))
+
+    def eval_fn_precision(predictions, targets):
+        predictions = apply_thresholds(predictions)
+        targets = apply_thresholds(targets)
+        score = precision_score(targets, predictions, average='weighted')
+        return MetricValue(scores=score, aggregate_results=score)
+
+    def eval_fn_recall(predictions, targets):
+        predictions = apply_thresholds(predictions)
+        targets = apply_thresholds(targets)
+        score = recall_score(targets, predictions, average='weighted')
+        return MetricValue(scores=score, aggregate_results=score)
+
+    def eval_fn_f1(predictions, targets):
+        predictions = apply_thresholds(predictions)
+        targets = apply_thresholds(targets)
+        score = f1_score(targets, predictions, average='weighted')
+        return MetricValue(scores=score, aggregate_results=score)
+
+    # Create EvaluationMetric for all metrics
+    cosine_similarity_metric = make_metric(eval_fn=eval_fn_cosine_similarity, greater_is_better=True,
+                                           name="cosine_similarity", version="v1")
+    precision_metric = make_metric(eval_fn=eval_fn_precision, greater_is_better=True, name="precision", version="v1")
+    recall_metric = make_metric(eval_fn=eval_fn_recall, greater_is_better=True, name="recall", version="v1")
+    f1_metric = make_metric(eval_fn=eval_fn_f1, greater_is_better=True, name="f1_score", version="v1")
 
     test_dataset: datasets.Dataset = Semeval2017Test().dataset
     pandas_df = test_dataset.to_pandas()
 
-    evaluate_results = mlflow.evaluate(  # TODO see what evaluate do because idk what to add
+    evaluate_results = mlflow.evaluate(
         model_type='regressor',
-        model=mlflow_evalute_predict, #TODO check function above, and see official doc on the browser page i opened
+        model=mlflow_evalute_predict,
         data=pandas_df,
-        feature_names=[ppb.EMBEDDER_OUTPUT_COL],  # TODO now we have embeddings not tokens, i need to adapt it
+        feature_names=[ppb.EMBEDDER_OUTPUT_COL],
         targets=common.LABEL_COL,
 
         # NOTE: this raises the following warning:
@@ -103,63 +160,23 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         # We are good with this because this kind of model explainability is useless in our case
         evaluators=['default'],
 
-        # TODO add our metrics, e.g. cosine_similarity, f1_score, accuracy, recall, etc.
         extra_metrics=[
-        2
+            cosine_similarity_metric,
+            precision_metric,
+            recall_metric,
+            f1_metric
         ]
     )
-
-
-
-
-    # TODO EXAMPLE OF EXTRA METRIC USAGE from official documentation
-    def root_mean_squared_error(eval_df, _builtin_metrics):
-        return np.sqrt((np.abs(eval_df["prediction"] - eval_df["target"]) ** 2).mean)
-
-    rmse_metric = mlflow.models.make_metric(
-        eval_fn=root_mean_squared_error,
-        greater_is_better=False,
-    )
-    mlflow.evaluate(..., extra_metrics=[rmse_metric])
-
-
-
-    # TODO: sketch from before:
-    # TODO: see their cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
-    class SaharaEvaluator:
-        def __init__(self, num_classes: int = 3):
-            self._precision: tc.MulticlassPrecision = tc.MulticlassPrecision(num_classes=num_classes)
-            self._recall: tc.MulticlassRecall = tc.MulticlassRecall(num_classes=num_classes)
-            self._f1: tc.MulticlassF1Score = tc.MulticlassF1Score(num_classes=num_classes)
-
-        # I put + 1 because pytorch recall, precision and f1 require non-negative tensors
-        def precision(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-            return self._precision(preds=pred + 1, target=target + 1)
-
-        def recall(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-            return self._recall(preds=pred + 1, target=target + 1)
-
-        def f1(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-            return self._f1(preds=pred + 1, target=target + 1)
-
-
-
-
-
-
-
 
     # TODO ( ͡° ͜ʖ ͡°) maybe make some plots here with res.metrics and log them
     #   via mlflow.log_artifacts/image/plot whatever the method is
     # evaluate_results.metrics # TODO what's this for? haven't checked yet
 
-
-
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         bjn.PRE_TRAINED_MODEL_PATH, use_fast=True
     )
 
-    def shap_text_predict(texts: np.ndarray):  # TODO: what does this function do?
+    def shap_text_predict(texts: np.ndarray):
         tv = tokenizer(
             texts.tolist(),
             padding="max_length",
@@ -196,13 +213,8 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         sent_score = model.predict(**tv).detach().cpu().tolist()
         return sent_score
 
-
-
-    # TODO what does this do?
-    #  from here below (line 206) it's not my domain anymore
-    #  and i don't see anything that should be changed depending on the model or dataset
     explainer = shap.Explainer(
-        model=shap_text_predict,  # TODO check function above
+        model=shap_text_predict,
         masker=tokenizer,
         seed=RND_SEED
     )

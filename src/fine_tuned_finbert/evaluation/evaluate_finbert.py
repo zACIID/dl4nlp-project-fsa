@@ -11,6 +11,8 @@ import shap
 import torch
 import transformers
 from mlflow.entities.model_registry import ModelVersion
+from mlflow.models.evaluation import MetricValue, make_metric
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 import data.common as common
 import fine_tuned_finbert.datasets.preprocessing_base as ppb
@@ -87,6 +89,44 @@ def _main():
     #     eval_fn=eval_fn, greater_is_better=False, name="valid_python_code", version="v1"
     # )
 
+    # Thresholding predictions and targets
+    def apply_thresholds(values):
+        return np.where(values < -0.25, -1, np.where(values > 0.25, 1, 0))
+
+    def cosine_similarity(y_true, y_pred):
+        cos_sim = np.dot(y_true, y_pred) / (np.linalg.norm(y_true) * np.linalg.norm(y_pred))
+        return cos_sim
+
+    # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score
+    def eval_fn_cosine_similarity(predictions, targets):
+        scores = [cosine_similarity(y_true, y_pred) for y_true, y_pred in zip(targets, predictions)]
+        return MetricValue(scores=scores, aggregate_results=np.mean(scores))
+
+    def eval_fn_precision(predictions, targets):
+        predictions = apply_thresholds(predictions)
+        targets = apply_thresholds(targets)
+        score = precision_score(targets, predictions, average='weighted')
+        return MetricValue(scores=score, aggregate_results=score)
+
+    def eval_fn_recall(predictions, targets):
+        predictions = apply_thresholds(predictions)
+        targets = apply_thresholds(targets)
+        score = recall_score(targets, predictions, average='weighted')
+        return MetricValue(scores=score, aggregate_results=score)
+
+    def eval_fn_f1(predictions, targets):
+        predictions = apply_thresholds(predictions)
+        targets = apply_thresholds(targets)
+        score = f1_score(targets, predictions, average='weighted')
+        return MetricValue(scores=score, aggregate_results=score)
+
+    # Create EvaluationMetric for all metrics
+    cosine_similarity_metric = make_metric(eval_fn=eval_fn_cosine_similarity, greater_is_better=True,
+                                           name="cosine_similarity", version="v1")
+    precision_metric = make_metric(eval_fn=eval_fn_precision, greater_is_better=True, name="precision", version="v1")
+    recall_metric = make_metric(eval_fn=eval_fn_recall, greater_is_better=True, name="recall", version="v1")
+    f1_metric = make_metric(eval_fn=eval_fn_f1, greater_is_better=True, name="f1_score", version="v1")
+
     test_dataset: datasets.Dataset = Semeval2017Test().dataset
     pandas_df = test_dataset.to_pandas()
 
@@ -101,10 +141,13 @@ def _main():
         #   WARNING mlflow.models.evaluation.default_evaluator: Skip logging model explainability insights because the shap explainer None requires all feature values to be numeric, and each feature column must only contain scalar values.
         # We are good with this because this kind of model explainability is useless in our case
         evaluators=['default'],
-        # TODO add our metrics, e.g. cosine_similarity, f1_score, accuracy, recall, etc.
-        # extra_metrics=[
-        #2
-        # ]
+
+        extra_metrics=[
+            cosine_similarity_metric,
+            precision_metric,
+            recall_metric,
+            f1_metric
+        ]
     )
 
     # TODO ( ͡° ͜ʖ ͡°) maybe make some plots here with res.metrics and log them
