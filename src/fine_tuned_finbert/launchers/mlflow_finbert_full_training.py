@@ -23,7 +23,7 @@ if __name__ == "__main__":
         run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}",
         parameters={
             'model_name': env.get_registered_model_name(env.get_model_choice()),
-            'model_alias': env.get_dataset_specific_best_model_alias(env.get_dataset_choice(), tuning=True),
+            'model_alias': env.get_dataset_specific_best_model_alias(env.get_dataset_choice(), tuning_alias=True),
         },
         synchronous=True
     )
