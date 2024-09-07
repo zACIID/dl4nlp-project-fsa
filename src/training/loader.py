@@ -8,20 +8,7 @@ import hand_eng_mlp_TODO.datasets.data_modules as mlp_dm
 from fine_tuned_finbert.models.fine_tuned_finbert import FineTunedFinBERT
 
 from hand_eng_mlp_TODO.models.model_beijin import ModelBeijin, MLPType
-
-
-class Dataset(enum.StrEnum):
-    SC_TRAIN_VAL = 'SC_TRAIN_VAL'
-    SC_TRAIN_SEMEVAL_VAL = 'SC_TRAIN_SEMEVAL_VAL'
-    SEMEVAL_TRAIN = 'SEMEVAL_TRAIN'
-    SEMEVAL_TRAIN_VAL = 'SEMEVAL_TRAIN_VAL'
-    SEMEVAL_TEST = 'SEMEVAL_TEST'
-
- 
-class Model(enum.StrEnum):
-    FINBERT = 'FINBERT'
-    HAND_ENG_MLP = 'HAND_ENG_MLP'
-    END_TO_END = 'END_TO_END'
+from utils.loader_types import Model, Dataset
 
 
 def get_model_and_data_module(

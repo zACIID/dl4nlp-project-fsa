@@ -2,7 +2,7 @@ import json
 import os
 import typing
 
-import training.loader as loader
+import utils.loader_types as lt
 
 MLFLOW_TRACKING_URI = 'http://0.0.0.0:5000'
 """
@@ -28,19 +28,19 @@ def set_experiment_name_prefix(prefix: str):
     os.environ['EXPERIMENT_NAME_PREFIX'] = prefix
 
 
-def get_model_choice() -> loader.Model:
-    return loader.Model(os.environ.get('MODEL_CHOICE', loader.Model.FINBERT.value))
+def get_model_choice() -> lt.Model:
+    return lt.Model(os.environ.get('MODEL_CHOICE', lt.Model.FINBERT.value))
 
 
-def set_model_choice(model_choice: loader.Model):
+def set_model_choice(model_choice: lt.Model):
     os.environ['MODEL_CHOICE'] = model_choice.value
 
 
-def get_dataset_choice() -> loader.Dataset:
-    return loader.Dataset(os.environ.get('DATASET_CHOICE', loader.Dataset.SEMEVAL_TRAIN_VAL.value))
+def get_dataset_choice() -> lt.Dataset:
+    return lt.Dataset(os.environ.get('DATASET_CHOICE', lt.Dataset.SEMEVAL_TRAIN_VAL.value))
 
 
-def set_dataset_choice(dataset_choice: loader.Dataset):
+def set_dataset_choice(dataset_choice: lt.Dataset):
     os.environ['DATASET_CHOICE'] = dataset_choice.value
 
 
@@ -56,13 +56,13 @@ def get_registered_model_name_prefix() -> str:
     return os.environ.get('REGISTERED_MODEL_NAME_PREFIX', 'best')
 
 
-def get_registered_model_name(model_choice: loader.Model):
+def get_registered_model_name(model_choice: lt.Model):
     return f"{get_registered_model_name_prefix()}-{model_choice.value}"
 
 
-def get_dataset_specific_best_model_alias(dataset: loader.Dataset, tuning: bool = False) -> str:
+def get_dataset_specific_best_model_alias(dataset: lt.Dataset, tuning_alias: bool = False) -> str:
     # aliases are lowercased automatically by MLflow
-    return f"{BEST_FULL_TRAINED_MODEL_ALIAS if not tuning else BEST_TUNED_MODEL_ALIAS}-{dataset.value}".lower()
+    return f"{BEST_FULL_TRAINED_MODEL_ALIAS if not tuning_alias else BEST_TUNED_MODEL_ALIAS}-{dataset.value}".lower()
 
 
 # Kind of dirty way of setting tags for every run
