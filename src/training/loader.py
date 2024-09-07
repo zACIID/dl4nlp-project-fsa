@@ -19,16 +19,16 @@ def get_model_and_data_module(
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
     match model_choice:
         case Model.FINBERT:
-            return load_finbert_model_and_data_module(model_init_args, dataset_choice, dm_init_args)
+            return _load_finbert_model_and_data_module(model_init_args, dataset_choice, dm_init_args)
         case Model.HAND_ENG_MLP:
-            return load_model_beijin_and_data_module(model_init_args, dataset_choice, dm_init_args)
+            return _load_model_beijin_and_data_module(model_init_args, dataset_choice, dm_init_args)
         case Model.END_TO_END:
             raise NotImplementedError() # TODO ( ͡° ͜ʖ ͡°) implement same function as above
         case _:
             raise ValueError(f'Unknown model {model_choice}')
 
 
-def load_finbert_model_and_data_module(
+def _load_finbert_model_and_data_module(
         model_init_args: typing.MutableMapping[str, typing.Any],
         dataset_choice: Dataset,
         dm_init_args: typing.Mapping[str, typing.Any]
@@ -49,7 +49,7 @@ def load_finbert_model_and_data_module(
             raise ValueError(f'Unknown dataset {dataset_choice}')
 
 
-def load_model_beijin_and_data_module(
+def _load_model_beijin_and_data_module(
         model_init_args: typing.MutableMapping[str, typing.Any],
         dataset_choice: Dataset,
         dm_init_args: typing.Mapping[str, typing.Any]
