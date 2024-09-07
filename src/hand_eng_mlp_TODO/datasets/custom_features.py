@@ -6,11 +6,6 @@ class VaderPosNegFeatures(NamedTuple):
     pos_neg_difference: float
 
 
-# class SenticPosNegFeatures(NamedTuple):  # TOREMOVE bcs too much time
-#     pos_neg_ratio: float
-#     pos_neg_difference: float
-
-
 class ReadabilityMetrics(NamedTuple):
     flesch_kincaid_grade: float
     gunning_fog: float
@@ -29,6 +24,7 @@ class SentimentFeatures(NamedTuple):
     dominance_contrast: float
 
 
+# TODO i think this class is not used at all, idk where to use this
 class CustomFeatures:
     def __init__(self):
         self.vader_polarity: float = 0.0

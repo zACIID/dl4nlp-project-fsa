@@ -171,7 +171,12 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         bjn.PRE_TRAINED_MODEL_PATH, use_fast=True
     )
 
-    def shap_text_predict(texts: np.ndarray): #TODO what do i have to do here?
+
+
+
+
+    # TODO what do i do here? pier check the food i cooked
+    def shap_text_predict(texts: np.ndarray):
         tv = tokenizer(
             texts.tolist(),
             padding="max_length",
@@ -204,9 +209,87 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         #                           | (tv['input_ids'] == tokenizer.sep_token_id))
         tv['attention_mask'][special_tokens_mask] = 0
 
+
+        # TODO non so a che serve la parte sopra e boh
+        #  per ogni testo nell'array di testi, prendo (token e) embedding, e feature aggiuntive e passo a embeds e feature a prediction idk
+        model.eval()
+        embeddings = _apply_tokenize_and_embed(texts)
+        features = np.array([list(_extract_features(text).values()) for text in texts])
+        embeddings_tensor = torch.tensor(embeddings)
+        features_tensor = torch.tensor(features)
+        with torch.no_grad():
+            predictions = model.predict(x_batch=embeddings_tensor, beijin_feats_batch=features_tensor)
+        return predictions.numpy()
+        # TODO fine parte aggiunto da ruei perso nelle lande
+
+
         # NOTE: Returning list because only type that I am sure does not cause error`s
         sent_score = model.predict(**tv).detach().cpu().tolist()
         return sent_score
+
+#TODO the code below are modified version from the original functions bcs idk if i should call them directly since they use spark and input is psql.dataframe, here is nparray tho so idk
+# just leaving these here for the time being
+    from transformers import AutoTokenizer, AutoModel
+    from typing import List
+    import utils.io as io_
+    import data.stocktwits_crypto_dataset as sc
+    import hand_eng_mlp_TODO.models.model_beijin as hemlp
+    import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
+
+    def _apply_tokenize_and_embed(texts: np.ndarray) -> List[torch.Tensor]:
+        tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
+        bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
+        bertweet.eval()
+
+        def tokenize_and_embed(text: str) -> torch.Tensor:
+            inputs = tokenizer(
+                text,
+                padding=False,
+                return_tensors="pt",
+                truncation=True,
+                max_length=sc.WORST_CASE_TOKENS
+            )
+            with torch.no_grad():
+                outputs = bertweet(**inputs)  # **inputs unpacks the dictionary returned by the tokenizer
+
+            embeddings = outputs.last_hidden_state[:, 1:-1, :].squeeze(dim=0)
+            return embeddings
+
+        return [tokenize_and_embed(text) for text in texts]
+
+    def _extract_features(text: str) -> dict:
+        sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
+
+        features = {}
+        features['vader_polarity'] = ppfe.compute_vader_polarity(text)
+        vader_features = ppfe.calculate_vader_pos_neg_features(text)
+        features['pos_neg_ratio_vader'] = vader_features.pos_neg_ratio
+        features['pos_neg_difference_vader'] = vader_features.pos_neg_difference
+        features['sentiment_entropy_vader'] = ppfe.calculate_vader_sentiment_entropy(text)
+        features['swn_polarity'] = ppfe.compute_swn_polarity(text)
+        readability_metrics = ppfe.calculate_readability_metrics(text)
+        features.update({
+            'flesch_kincaid_grade': readability_metrics.flesch_kincaid_grade,
+            'gunning_fog': readability_metrics.gunning_fog,
+            'coleman_liau_index': readability_metrics.coleman_liau_index
+        })
+        sentiment_features = ppfe.compute_overall_sentiment_features(text, sentiment_data, default_mean_value)
+        features.update({
+            'overall_valence_mean': sentiment_features.overall_valence_mean,
+            'overall_arousal_mean': sentiment_features.overall_arousal_mean,
+            'overall_dominance_mean': sentiment_features.overall_dominance_mean,
+            'overall_valence_std': sentiment_features.overall_valence_std,
+            'overall_arousal_std': sentiment_features.overall_arousal_std,
+            'overall_dominance_std': sentiment_features.overall_dominance_std,
+            'valence_contrast': sentiment_features.valence_contrast,
+            'arousal_contrast': sentiment_features.arousal_contrast,
+            'dominance_contrast': sentiment_features.dominance_contrast
+        })
+        # TODO gestire i casi in cui i valori son NaN, e mettere 0, non so se era problema di spark che comparivano NaN o le funzoini idk
+        return features
+
+# TODO above is a sketch cuz idk what i'm doing
+
 
     explainer = shap.Explainer(
         model=shap_text_predict,
