@@ -54,8 +54,7 @@ class Semeval2017TrainVal(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        # TODO TEXT_COL is here for debugging purposes, so I can actually see what text is associated to the other batch features
-        self.dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL, TEXT_COL])
+        self.dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL])
         index = np.arange(len(self.dataset))
         train_split_idxs, val_split_idxs = sel.train_test_split(
             index,
