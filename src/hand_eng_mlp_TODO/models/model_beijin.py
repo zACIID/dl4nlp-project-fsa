@@ -40,7 +40,8 @@ class ModelBeijin(L.LightningModule):
             aggregator_out: int = BERT_EMBEDDING_SIZE,
             weight_decay: float = 0.0,
             one_cycle_pct_start: float = 0.3,
-            log_hparams: bool = True, **kwargs
+            log_hparams: bool = True,
+            **kwargs
     ) -> None:
 
         """
@@ -67,9 +68,7 @@ class ModelBeijin(L.LightningModule):
         self._val_predictions: list[Tensor] = []
         self._val_targets: list[Tensor] = []
 
-    def setup(self, stage: str) -> None:
-        # Doing all of this inside setup because here `self.device` is correctly set
-        #   and is not the default "cpu"
+        # TODO if training works here
         bertweet: RobertaForMaskedLM = RobertaForMaskedLM.from_pretrained(PRE_TRAINED_MODEL_PATH)
         last_mlm_layer: nn.Linear = bertweet.lm_head.decoder
 
