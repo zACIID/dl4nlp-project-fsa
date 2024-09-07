@@ -1,5 +1,4 @@
-import logging
-import typing
+import collections
 import warnings
 from typing import Any, Mapping
 
@@ -8,22 +7,15 @@ import mlflow
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import (
-    AutoModelForSequenceClassification
-)
-from mlflow.entities.model_registry import ModelVersion
-from transformers.modeling_outputs import SequenceClassifierOutput
-from transformers.tokenization_utils_base import BatchEncoding
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
+from transformers.tokenization_utils_base import BatchEncoding
 
-import training.loader as loader
-import utils.mlflow_env as env
 import fine_tuned_finbert.models.fine_tuned_finbert as ft
-from hand_eng_mlp_TODO.models.model_beijin import ModelBeijin
-
-# TODO move this "loss_function" module to utils/ maybe
 from fine_tuned_finbert.models.loss_functions import sign_accuracy_mask
+from fine_tuned_finbert.models.modules.lora import CustomLoRA
+# TODO move this "loss_function" module to utils/ maybe
+from hand_eng_mlp_TODO.models.model_beijin import ModelBeijin
 
 
 class EndToEndModel(L.LightningModule):
@@ -31,38 +23,74 @@ class EndToEndModel(L.LightningModule):
     # TODO maybe we should call this EnsembleModel and that's it
     """
 
+    _OUT_FEATURES = 768
+    """
+    Fixed number of out_features for linear layers;
+    in_features is defined by the sum of the out_features of the last layers
+      of the finbert and hemlp models
+    """
+
     def __init__(
             self,
-            finbert: L.LightningModule,
-            hemlp: L.LightningModule,
+            finbert: ft.FineTunedFinBERT,
+            hemlp: ModelBeijin,
+            n_layers: int = 3,
             log_hparams: bool = True,
-            # TODO n_layers; in_features are determined by the two models size, out_features may be a hyperparam
-            n_layers: int,
             **kwargs,
     ):
         """
-        :param finbert_init_args:
-        :param hemlp_init_args:
+        :param finbert:
+        :param hemlp:
+        :param n_layers: number of hidden layers of the classification MLP that is put
+            on top of the finbert and hemlp models. This means that the total number of layers of such MLP
+            is n_layer+2, as one input and output layers are also created.
         :param log_hparams:
         :param kwargs:
         """
-
         super().__init__()
 
         # NOTE: this call saves all the parameters passed to __init__ into self.hparams
         #   For this reason, do not delete the parameters even if they seem unused
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["finbert", "hemlp"])
 
+        # For both mlp and finbert:
+        #   Remove the classification heads, which is functionally the same as
+        #   making them Identity layers that do nothing. This is because we want to put
+        #   another classification head on top, meaning that we are actually interested in
+        #   "cutting" each model at their last non-classification layer
+        old_class_ft: CustomLoRA = finbert.model.classifier
+        finbert.model.classifier = nn.Identity()
+        self.finbert: nn.Module = finbert
 
-        # TODO finbert and hemlp are passed from the outside, i.e. inside loader.py
-        # TODO we finally opted for common linear layers so that tuning and impl. is easier
+        # Need to traverse the modules (except last one) of the hemlp to access and replace the final layer
+        linear_layer_names = [name for name, mod in list(hemlp.named_modules()) if "linear" in name]
+        # Split layer name by dots to identify each module
+        last_linear_layer_components = linear_layer_names[-1].split('.')
+        module = hemlp
+        for component in last_linear_layer_components[:-1]:
+            module = getattr(module, component)
 
-        self.finbert: ft.FineTunedFinBERT | None = None
-        self.hemlp: hemlp.ModelBeijin | None = None
-        self.aggregation_layers = torch.Sequential(
-            # TODO need to implement here
-            # TODO maybe I can even use a boxmlp...,
-            # TODO add Tanh() layer at the end to get one score \in [-1, 1], maybe even a Flatten() before it is needed
+        old_class_hemlp: nn.Linear = getattr(module, last_linear_layer_components[-1])
+        setattr(module, last_linear_layer_components[-1], nn.Identity())
+        self.hemlp: nn.Module = hemlp
+
+        # Getting the in_features from the classification head is equal to the out_features of the last,
+        #   non-classification layer
+        in_features = old_class_ft.old_linear.in_features + old_class_hemlp.in_features
+        self.aggregation_layers = nn.Sequential(
+            collections.OrderedDict([
+                ("linear_1", nn.Linear(in_features=in_features, out_features=EndToEndModel._OUT_FEATURES)),
+                *[
+                    (f"linear_{i}", nn.Linear(
+                        in_features=EndToEndModel._OUT_FEATURES,
+                        out_features=EndToEndModel._OUT_FEATURES
+                    )) for i in range(1, self.hparams.n_layers+1)
+                ],
+
+                # Sentiment head: need 1 number that is crunched \in [-1, 1] by tanh
+                ("sentiment", nn.Linear(in_features=EndToEndModel._OUT_FEATURES, out_features=1)),
+                nn.Tanh()
+            ])
         )
 
         # NOTE: need to manually call log_params here because mlflow.pytorch.autolog() doesn't log them
@@ -72,46 +100,11 @@ class EndToEndModel(L.LightningModule):
         if log_hparams:
             mlflow.log_params(self.hparams, synchronous=False)
 
-    def setup(self, stage: str) -> None:
-        self.finbert = self._load_best_model(loader.Model.FINBERT)
-        self.hemlp = self._load_best_model(loader.Model.HAND_ENG_MLP)
-
-        # TODO remove last layer (the classification head) from finbert
-        # TODO remove the last activation layer from the MLP
-        # TODO freeze the two models: we want to train only the aggregation mlp
-        raise NotImplementedError()
-
-    def _load_best_model(self, model: loader.Model):
-        pytorch_logger = logging.getLogger("lightning.pytorch")
-        pytorch_logger.setLevel(logging.INFO)
-
-        model_name = env.get_registered_model_name(model)
-        # alias = env.BEST_TUNED_MODEL_ALIAS
-        alias = env.BEST_FULL_TRAINED_MODEL_ALIAS
-        client = mlflow.tracking.MlflowClient()
-        best_version: ModelVersion = client.get_model_version_by_alias(name=model_name, alias=alias)
-
-        mlflow.set_tag(key='model_name', value=model_name)
-        mlflow.set_tag(key='model_alias', value=alias)
-        mlflow.set_tag(key='model_version', value=best_version.version)
-
-        best_model: L.LightningModule = mlflow.pytorch.load_checkpoint(
-            ft.FineTunedFinBERT if model == loader.Model.FINBERT else hemlp.ModelBeijin,
-            best_version.run_id,
-            kwargs={
-                'strict': False,  # Needed because in FinBert, LoRA checkpoint do not include all model parameters
-                'log_hparams': True
-            }
-        )
-        return best_model
-
-    def forward(self, batch) -> SequenceClassifierOutput:
-        # TODO implement
+    def forward(self, batch) -> torch.Tensor:
         tokenizer_output, embeddings, new_features = batch
         finbert_out = self.finbert(**tokenizer_output)
-        hemlp_out = self.finbert(**tokenizer_output)
+        hemlp_out = self.hemlp(embeddings, new_features)
 
-        # TODO correct?
         return self.aggregation_layers(torch.concatenate([finbert_out, hemlp_out]))
 
     def predict(self, batch) -> torch.Tensor:
@@ -265,10 +258,13 @@ class EndToEndModel(L.LightningModule):
         # NOTE: by overriding this, lightning's Trainer automatic checkpointing stores only the lora stuff,
         #   meaning that checkpoint size is greatly reduced
         # To use these checkpoints, the model has to first be normally instantiated
-        # TODO here only the final aggregation mlp needs to be checkpointed
-        raise NotImplementedError()
+        return self.aggregation_layers.state_dict(
+            *args,
+            destination=destination,
+            prefix=prefix,
+            keep_vars=keep_vars
+        )
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = False):
-        # Needed to apply the state_dict to the actual model
-        # TODO load the mlp state dict
-        raise NotImplementedError()
+        # The state dict is just that of the aggr layers, since everything else is frozen
+        return self.aggregation_layers.load_state_dict(state_dict, strict=strict, assign=assign)
