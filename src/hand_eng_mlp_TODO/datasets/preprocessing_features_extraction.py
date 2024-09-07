@@ -16,7 +16,6 @@ from urllib3.util.retry import Retry
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 import hand_eng_mlp_TODO.datasets.custom_features as cf
-import utils.io as io_
 from utils.custom_features_utils import download_and_extract_zip
 
 # The following two packages have been added to pyproject.toml
@@ -27,8 +26,7 @@ SENTICNET_API_EMOTION_KEY = os.getenv('SENTICNET_API_EMOTION_KEY')
 SENTICNET_API_POLARITY_KEY = os.getenv('SENTICNET_API_POLARITY_KEY')
 NEW_FEATURES = ['vader_polarity', 'pos_neg_ratio_vader', 'pos_neg_difference_vader', 'sentiment_entropy_vader',
                 'swn_polarity',
-                # TODO add back when ready
-                # 'INTROSPECTION', 'TEMPER', 'ATTITUDE', 'SENSITIVITY',
+                'INTROSPECTION', 'TEMPER', 'ATTITUDE', 'SENSITIVITY',
                 'flesch_kincaid_grade', 'gunning_fog', 'coleman_liau_index',
                 'overall_valence_mean', 'overall_arousal_mean', 'overall_dominance_mean',
                 'overall_valence_std', 'overall_arousal_std', 'overall_dominance_std',
