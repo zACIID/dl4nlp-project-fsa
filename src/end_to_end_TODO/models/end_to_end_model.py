@@ -53,14 +53,16 @@ class EndToEndModel(L.LightningModule):
         #   For this reason, do not delete the parameters even if they seem unused
         self.save_hyperparameters(ignore=["finbert", "hemlp"])
 
-        # For both mlp and finbert:
-        #   Remove the classification heads, which is functionally the same as
+        # For both hemlp and finbert:
+        #   1. Remove the classification heads, which is functionally the same as
         #   making them Identity layers that do nothing. This is because we want to put
         #   another classification head on top, meaning that we are actually interested in
         #   "cutting" each model at their last non-classification layer
+        #   2. Freeze the model, we just want to train the aggr. layers
         old_class_ft: CustomLoRA = finbert.model.classifier
         finbert.model.classifier = nn.Identity()
         self.finbert: nn.Module = finbert
+        self.finbert.requires_grad_(False)
 
         # Need to traverse the modules (except last one) of the hemlp to access and replace the final layer
         linear_layer_names = [name for name, mod in list(hemlp.named_modules()) if "linear" in name]
@@ -73,6 +75,7 @@ class EndToEndModel(L.LightningModule):
         old_class_hemlp: nn.Linear = getattr(module, last_linear_layer_components[-1])
         setattr(module, last_linear_layer_components[-1], nn.Identity())
         self.hemlp: nn.Module = hemlp
+        self.hemlp.requires_grad_(False)
 
         # Getting the in_features from the classification head is equal to the out_features of the last,
         #   non-classification layer
