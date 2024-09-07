@@ -4,6 +4,7 @@ from datetime import datetime
 import datasets
 import lightning
 import matplotlib.pyplot as plt
+import seaborn as sns
 import mlflow
 import numpy as np
 import pandas as pd
@@ -74,22 +75,7 @@ def _main():
         # Apparently mlflow.evaluate needs cpu tensors or numpy arrays
         return model.predict(**batches).cpu().detach().numpy()
 
-
-    # TODO ( ͡° ͜ʖ ͡°) create custom mlflow metrics based on what we wrote on the project proposal, so that it gets logged on the mlflow server
-    # Create an evaluation function that iterates through the predictions
-    # def eval_fn(predictions):
-    #     scores = [int(is_valid_python_code(prediction)) for prediction in predictions]
-    #     return MetricValue(
-    #         scores=scores,
-    #         aggregate_results=standard_aggregations(scores),
-    #     )
-
-    # Create an EvaluationMetric object for the python code metric
-    # valid_code_metric = make_metric(
-    #     eval_fn=eval_fn, greater_is_better=False, name="valid_python_code", version="v1"
-    # )
-
-    # Thresholding predictions and targets
+    # Thresholding predictions and targets: [-1,-0.25)=negative, [-0.25,0.25]=neutral, (0.25,1]=positive
     def apply_thresholds(values):
         return np.where(values < -0.25, -1, np.where(values > 0.25, 1, 0))
 
@@ -152,7 +138,28 @@ def _main():
 
     # TODO ( ͡° ͜ʖ ͡°) maybe make some plots here with res.metrics and log them
     #   via mlflow.log_artifacts/image/plot whatever the method is
-    # evaluate_results.metrics
+    metrics = evaluate_results.metrics
+    metrics_dict = {
+        "Cosine Similarity": metrics["cosine_similarity"].aggregate_results,
+        "Precision": metrics["precision"].aggregate_results,
+        "Recall": metrics["recall"].aggregate_results,
+        "F1 Score": metrics["f1_score"].aggregate_results,
+    }
+
+    for metric_name, metric_value in metrics_dict.items():
+        plt.figure(figsize=(6, 4))
+        sns.barplot(x=[metric_name], y=[metric_value])
+        plt.title(f"{metric_name} Value")
+        plt.xlabel("Metric")
+        plt.ylabel("Value")
+        plt.ylim(0, 1)
+        plt.tight_layout()
+
+        plot_filename = f"{metric_name.lower().replace(' ', '_')}_barplot.png"
+        plt.savefig(plot_filename)
+        mlflow.log_artifact(plot_filename)
+        plt.close()
+    # TODO you mean these plots?
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         ft.PRE_TRAINED_MODEL_PATH, use_fast=True

@@ -4,6 +4,7 @@ from datetime import datetime
 import datasets
 import lightning
 import matplotlib.pyplot as plt
+import seaborn as sns
 import mlflow
 import numpy as np
 import pandas as pd
@@ -73,41 +74,14 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         # Apparently mlflow.evaluate needs cpu tensors or numpy arrays
         return model.predict(**batches).cpu().detach().numpy()
 
-    # TODO ( ͡° ͜ʖ ͡°) create custom mlflow metrics based on our project proposal so it gets logged on the mlflow server
-    #  (cino: like this?)
-    # SemEval2017 cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
     # Our metrics:
     # Main metric: cosine similarity, the SemEval2017 challenge's official evaluation method.
+    # SemEval2017 cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
     # Defined as: cosine(G,P)= \frac{sum_{i=0}^{n} G_i x P_i}{\sqrt{sum_{i=0}^{n} G_i^2} x \sqrt{sum_{i=0}^{n} P_i^2}}
     # Additional standard metrics, including precision, recall, and F1 score, will be considered.
-    # TODO should we include regression metrics?
 
-    # TODO: this is just a model to follow (remove when finished)
-    # Create an evaluation function that iterates through the predictions
-    # def eval_fn(predictions):
-    #     scores = [int(is_valid_python_code(prediction)) for prediction in predictions]
-    #     return MetricValue(
-    #         scores=scores,
-    #         aggregate_results=standard_aggregations(scores),
-    #     )
-
-    # Create an EvaluationMetric object for the python code metric
-    # valid_code_metric = make_metric(
-    #     eval_fn=eval_fn, greater_is_better=False, name="valid_python_code", version="v1"
-    # )
-
-    # TODO EXAMPLE OF EXTRA METRIC USAGE from official documentation (to remove)
-    # def root_mean_squared_error(eval_df, _builtin_metrics):
-    #     return np.sqrt((np.abs(eval_df["prediction"] - eval_df["target"]) ** 2).mean)
-    #
-    # rmse_metric = mlflow.models.make_metric(
-    #     eval_fn=root_mean_squared_error,
-    #     greater_is_better=False,
-    # )
-    # mlflow.evaluate(..., extra_metrics=[rmse_metric])
-
-    # TODO: same code in finbert eval, move the functinos to another file?
-    # Thresholding predictions and targets
+    # TODO: the whole code here is also in finbert eval, move the functinos to another file?
+    # Thresholding predictions and targets: [-1,-0.25)=negative, [-0.25,0.25]=neutral, (0.25,1]=positive
     def apply_thresholds(values):
         return np.where(values < -0.25, -1, np.where(values > 0.25, 1, 0))
 
@@ -170,13 +144,34 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
 
     # TODO ( ͡° ͜ʖ ͡°) maybe make some plots here with res.metrics and log them
     #   via mlflow.log_artifacts/image/plot whatever the method is
-    # evaluate_results.metrics # TODO what's this for? haven't checked yet
+    metrics = evaluate_results.metrics
+    metrics_dict = {
+        "Cosine Similarity": metrics["cosine_similarity"].aggregate_results,
+        "Precision": metrics["precision"].aggregate_results,
+        "Recall": metrics["recall"].aggregate_results,
+        "F1 Score": metrics["f1_score"].aggregate_results,
+    }
+
+    for metric_name, metric_value in metrics_dict.items():
+        plt.figure(figsize=(6, 4))
+        sns.barplot(x=[metric_name], y=[metric_value])
+        plt.title(f"{metric_name} Value")
+        plt.xlabel("Metric")
+        plt.ylabel("Value")
+        plt.ylim(0, 1)
+        plt.tight_layout()
+
+        plot_filename = f"{metric_name.lower().replace(' ', '_')}_barplot.png"
+        plt.savefig(plot_filename)
+        mlflow.log_artifact(plot_filename)
+        plt.close()
+    # TODO you mean these plots?
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         bjn.PRE_TRAINED_MODEL_PATH, use_fast=True
     )
 
-    def shap_text_predict(texts: np.ndarray):
+    def shap_text_predict(texts: np.ndarray): #TODO what do i have to do here?
         tv = tokenizer(
             texts.tolist(),
             padding="max_length",
