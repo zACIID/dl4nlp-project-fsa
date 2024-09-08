@@ -13,13 +13,13 @@ import pandas as pd
 
 class BLBSSType(Enum):
     FinBERT = 0
-    SVM = 1
+    SVR = 1
 
 
 class BLBSSModel(nn.Module):
     def __init__(
             self, model_type: BLBSSType, model_path: str = PRE_TRAINED_MODEL_PATH,
-            SVR_dataset: pd.DataFrame = None, SVR_labels: ndarray[float] = None
+            SVR_dataset: pd.DataFrame = None, SVR_labels: pd.DataFrame = None
     ):
         super().__init__()
 
@@ -29,14 +29,18 @@ class BLBSSModel(nn.Module):
             self._model = AutoModelForSequenceClassification.from_pretrained(model_path)
         else:
             self._model = SVR()
-            print("A pier non piacciono i costruttori con side effect, ma d'altronde cosa mai potrebbe andare storto")
-            self._model.fit(SVR_dataset, SVR_labels)
+            self._svr_x: pd.DataFrame = SVR_dataset
+            self._svr_y: pd.DataFrame = SVR_labels
 
     def forward(self, **inputs) -> Union[SequenceClassifierOutput, ndarray]:
         if self._model_type == BLBSSType.FinBERT:
             return self._model(**inputs)
         else:
             return self._model.predict(**inputs)
+
+    def fit(self) -> None:
+        if self._model_type == BLBSSType.SVR:
+            self._model.fit(self._svr_x, self._svr_y)
 
 
 """
