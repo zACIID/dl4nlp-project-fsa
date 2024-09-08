@@ -160,7 +160,8 @@ def get_new_features(
 
     # For some reason, some scores are NaN. In such a case, we replace them with 0,
     #   acting effectively as dropout during training
-    df = df.replace(float('nan'), 0)
+    df = df.replace(float("nan"), 0)
+    df = df.fillna(0, subset=["INTROSPECTION", "TEMPER", "ATTITUDE", "SENSITIVITY"])
 
     return df
 
