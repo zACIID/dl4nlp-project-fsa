@@ -8,7 +8,6 @@ import lightning.pytorch.callbacks as cb
 import mlflow
 import mlflow.utils.autologging_utils
 from lightning.pytorch.profilers import SimpleProfiler
-from mlflow import MlflowClient
 
 import training.loader as loader
 import utils.mlflow_env as env
@@ -17,6 +16,9 @@ from utils.random import RND_SEED
 
 
 # NOTE: these defaults are for debug purposes
+# TODO epochs must be specified by hand, ideally by looking at the loss curve for the best model on mlflow
+#   unfortunately the automatic way would've required a tag of some sort on the run, because the information
+#   related to the epoch with the best loss cannot be retrieved via mlflow api apparently
 @click.command(
     help=f"Train a specified model (by name, alias) on the full SemEval 2017 Task 5 SubTask 1 training dataset"
 )
@@ -24,11 +26,13 @@ from utils.random import RND_SEED
 @click.option("--model-alias", default=env.BEST_TUNED_MODEL_ALIAS, type=click.STRING)
 @click.option("--prefetch-factor", default=16, type=click.INT)
 @click.option("--num-workers", default=8, type=click.INT)
+@click.option("--epochs", default=25, type=click.INT)
 def train(
         model_name,
         model_alias,
         prefetch_factor,
         num_workers,
+        epochs
 ):
     function_call_kwargs = locals()
 
@@ -48,9 +52,9 @@ def train(
     )
 
     with mlflow.start_run(
-        log_system_metrics=True,
-        run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}-full-training",
-        tags=env.get_run_tags()
+            log_system_metrics=True,
+            run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}-full-training",
+            tags=env.get_run_tags()
     ) as run:
         L.seed_everything(RND_SEED)
         function_call_kwargs['rnd_seed'] = RND_SEED
@@ -63,9 +67,6 @@ def train(
         )
         logging.info(f"Found version for alias '{model_alias}': {version.version}")
 
-        client = MlflowClient()
-        model_run = client.get_run(version.run_id)
-
         # Merge current params with what was used for the model run
         # Maps ordered from first-searched to last-searched - give priority to overrides from current run
         dm_init_args = ChainMap(
@@ -73,9 +74,11 @@ def train(
 
             # Load just some specific, datamodule-related params from the best run
             # Fine-tuned params are stored with the model
+            # TODO remove these comments -> the runs for the pretrained models apprently do not log every parameter,
+            #   meaning that we must operate with a default here
             {
-                'train_batch_size': int(model_run.data.params['train_batch_size']),
-                'accumulate_grad_batches': int(model_run.data.params['accumulate_grad_batches'])
+                'train_batch_size': 32,
+                'accumulate_grad_batches': 4
             }
         )
 
@@ -103,7 +106,7 @@ def train(
 
         trainer = L.Trainer(
             default_root_dir=ARTIFACTS_DIR,
-            max_epochs=int(model_run.data.params['epochs']),  # train for the exact number of epochs of the tuned model
+            max_epochs=epochs,  # train for the exact number of epochs of the tuned model
             accelerator="gpu",
             devices=1,
             profiler=SimpleProfiler(filename='simple-profiler-logs'),

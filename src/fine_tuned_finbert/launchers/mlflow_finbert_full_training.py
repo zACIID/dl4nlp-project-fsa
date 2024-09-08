@@ -24,6 +24,7 @@ if __name__ == "__main__":
         parameters={
             'model_name': env.get_registered_model_name(env.get_model_choice()),
             'model_alias': env.get_dataset_specific_best_model_alias(env.get_dataset_choice(), tuning_alias=True),
+            'epochs': 25  # NOTE: taken by looking at val_cosine_similarity chart from best-FINBERT version 19
         },
         synchronous=True
     )
