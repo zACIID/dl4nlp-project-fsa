@@ -53,7 +53,7 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         }
     )
 
-    def mlflow_evalute_predict(df: pd.DataFrame): #TODO
+    def mlflow_evaluate_predict(df: pd.DataFrame): #TODO
         """
         :param df: pandas df provided by mlflow.evaluate(...)
         :return:
@@ -73,6 +73,18 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
             ))
             tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
             return tensorized_tokenizer_output
+
+        # this is copied from another file, for ref
+        # def _collate_fn(raw_samples):
+        #     embeddings = torch.nn.utils.rnn.pad_sequence(
+        #         [item[ppb.EMBEDDER_OUTPUT_COL] for item in raw_samples],
+        #         batch_first=True
+        #     )
+        #
+        #     scores = torch.tensor([item[ppb.LABEL_COL] for item in raw_samples])
+        #     new_features = torch.stack([torch.tensor([item[key] for key in ppf.NEW_FEATURES]) for item in raw_samples])
+        #
+        #     return embeddings, scores, new_features
 
         embeddings_col = df[ppb.EMBEDDER_OUTPUT_COL].to_list()  # we now have embeddings not tokens
         batches = collate(embeddings_col)
@@ -134,7 +146,7 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
 
     evaluate_results = mlflow.evaluate(
         model_type='regressor',
-        model=mlflow_evalute_predict,
+        model=mlflow_evaluate_predict,
         data=pandas_df,
         feature_names=[ppb.EMBEDDER_OUTPUT_COL],
         targets=common.LABEL_COL,
