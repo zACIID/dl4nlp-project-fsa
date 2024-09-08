@@ -68,7 +68,7 @@ entry_points:
                --limit-batches {limit_batches} \
                --fail-on-error {fail_on_error} \
                "
-  train_hyperopt:
+  train_finbert:
     parameters:
       # path to the python executable in the project's poetry env (i.e. inside .venv folder),
       #   relative to the $HOME directory
