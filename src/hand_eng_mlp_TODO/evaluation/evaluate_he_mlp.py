@@ -12,15 +12,21 @@ import shap
 import torch
 import torchmetrics.classification as tc
 import transformers
+from transformers import AutoTokenizer, AutoModel
 from mlflow.entities.model_registry import ModelVersion
 from mlflow.models.evaluation import MetricValue, make_metric
 from sklearn.metrics import precision_score, recall_score, f1_score
+from typing import List
 
 import data.common as common
 import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
 import hand_eng_mlp_TODO.models.model_beijin as bjn
 import training.loader as loader
 import utils.mlflow_env as env
+import utils.io as io_
+import data.stocktwits_crypto_dataset as sc
+import hand_eng_mlp_TODO.models.model_beijin as hemlp
+import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
 from fine_tuned_finbert.datasets.data_modules import Semeval2017Test
 from utils.random import RND_SEED
 
@@ -47,7 +53,7 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         }
     )
 
-    def mlflow_evalute_predict(df: pd.DataFrame):
+    def mlflow_evalute_predict(df: pd.DataFrame): #TODO
         """
         :param df: pandas df provided by mlflow.evaluate(...)
         :return:
@@ -74,6 +80,10 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         # Apparently mlflow.evaluate needs cpu tensors or numpy arrays
         return model.predict(**batches).cpu().detach().numpy()
 
+
+
+
+
     # Our metrics:
     # Main metric: cosine similarity, the SemEval2017 challenge's official evaluation method.
     # SemEval2017 cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
@@ -91,26 +101,26 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
 
     # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score
     def eval_fn_cosine_similarity(predictions, targets):
-        scores = [cosine_similarity(y_true, y_pred) for y_true, y_pred in zip(targets, predictions)]
-        return MetricValue(scores=scores, aggregate_results=np.mean(scores))
+        score = cosine_similarity(predictions, targets)
+        return MetricValue(scores=score)
 
     def eval_fn_precision(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = precision_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score, aggregate_results=score)
+        return MetricValue(scores=score)
 
     def eval_fn_recall(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = recall_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score, aggregate_results=score)
+        return MetricValue(scores=score)
 
     def eval_fn_f1(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = f1_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score, aggregate_results=score)
+        return MetricValue(scores=score)
 
     # Create EvaluationMetric for all metrics
     cosine_similarity_metric = make_metric(eval_fn=eval_fn_cosine_similarity, greater_is_better=True,
@@ -146,34 +156,20 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
     #   via mlflow.log_artifacts/image/plot whatever the method is
     metrics = evaluate_results.metrics
     metrics_dict = {
-        "Cosine Similarity": metrics["cosine_similarity"].aggregate_results,
-        "Precision": metrics["precision"].aggregate_results,
-        "Recall": metrics["recall"].aggregate_results,
-        "F1 Score": metrics["f1_score"].aggregate_results,
+        "Cosine Similarity": metrics["cosine_similarity"].score,
+        "Precision": metrics["precision"].score,
+        "Recall": metrics["recall"].score,
+        "F1 Score": metrics["f1_score"].score,
     }
+    # TODO what to do with these?
 
-    for metric_name, metric_value in metrics_dict.items():
-        plt.figure(figsize=(6, 4))
-        sns.barplot(x=[metric_name], y=[metric_value])
-        plt.title(f"{metric_name} Value")
-        plt.xlabel("Metric")
-        plt.ylabel("Value")
-        plt.ylim(0, 1)
-        plt.tight_layout()
 
-        plot_filename = f"{metric_name.lower().replace(' ', '_')}_barplot.png"
-        plt.savefig(plot_filename)
-        mlflow.log_artifact(plot_filename)
-        plt.close()
-    # TODO you mean these plots?
+
+
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         bjn.PRE_TRAINED_MODEL_PATH, use_fast=True
     )
-
-
-
-
 
     # TODO what do i do here? pier check the food i cooked
     def shap_text_predict(texts: np.ndarray):
@@ -228,14 +224,6 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         return sent_score
 
 #TODO the code below are modified version from the original functions bcs idk if i should call them directly since they use spark and input is psql.dataframe, here is nparray tho so idk
-# just leaving these here for the time being
-    from transformers import AutoTokenizer, AutoModel
-    from typing import List
-    import utils.io as io_
-    import data.stocktwits_crypto_dataset as sc
-    import hand_eng_mlp_TODO.models.model_beijin as hemlp
-    import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
-
     def _apply_tokenize_and_embed(texts: np.ndarray) -> List[torch.Tensor]:
         tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
         bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
@@ -262,17 +250,27 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
 
         features = {}
         features['vader_polarity'] = ppfe.compute_vader_polarity(text)
+
         vader_features = ppfe.calculate_vader_pos_neg_features(text)
         features['pos_neg_ratio_vader'] = vader_features.pos_neg_ratio
         features['pos_neg_difference_vader'] = vader_features.pos_neg_difference
         features['sentiment_entropy_vader'] = ppfe.calculate_vader_sentiment_entropy(text)
+
         features['swn_polarity'] = ppfe.compute_swn_polarity(text)
+
+        sentic_emotion = ppfe.sentic_emotion_recognition(text)
+        features["INTROSPECTION"] = sentic_emotion["INTROSPECTION"]
+        features["TEMPER"] = sentic_emotion["TEMPER"]
+        features["ATTITUDE"] = sentic_emotion["ATTITUDE"]
+        features["SENSITIVITY"] = sentic_emotion["SENSITIVITY"]
+
         readability_metrics = ppfe.calculate_readability_metrics(text)
         features.update({
             'flesch_kincaid_grade': readability_metrics.flesch_kincaid_grade,
             'gunning_fog': readability_metrics.gunning_fog,
             'coleman_liau_index': readability_metrics.coleman_liau_index
         })
+
         sentiment_features = ppfe.compute_overall_sentiment_features(text, sentiment_data, default_mean_value)
         features.update({
             'overall_valence_mean': sentiment_features.overall_valence_mean,
@@ -285,7 +283,9 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
             'arousal_contrast': sentiment_features.arousal_contrast,
             'dominance_contrast': sentiment_features.dominance_contrast
         })
+
         # TODO gestire i casi in cui i valori son NaN, e mettere 0, non so se era problema di spark che comparivano NaN o le funzoini idk
+
         return features
 
 # TODO above is a sketch cuz idk what i'm doing

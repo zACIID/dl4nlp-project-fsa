@@ -85,26 +85,26 @@ def _main():
 
     # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score
     def eval_fn_cosine_similarity(predictions, targets):
-        scores = [cosine_similarity(y_true, y_pred) for y_true, y_pred in zip(targets, predictions)]
-        return MetricValue(scores=scores, aggregate_results=np.mean(scores))
+        score = cosine_similarity(predictions, targets)
+        return MetricValue(scores=score)
 
     def eval_fn_precision(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = precision_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score, aggregate_results=score)
+        return MetricValue(scores=score)
 
     def eval_fn_recall(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = recall_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score, aggregate_results=score)
+        return MetricValue(scores=score)
 
     def eval_fn_f1(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = f1_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score, aggregate_results=score)
+        return MetricValue(scores=score)
 
     # Create EvaluationMetric for all metrics
     cosine_similarity_metric = make_metric(eval_fn=eval_fn_cosine_similarity, greater_is_better=True,
@@ -140,26 +140,25 @@ def _main():
     #   via mlflow.log_artifacts/image/plot whatever the method is
     metrics = evaluate_results.metrics
     metrics_dict = {
-        "Cosine Similarity": metrics["cosine_similarity"].aggregate_results,
-        "Precision": metrics["precision"].aggregate_results,
-        "Recall": metrics["recall"].aggregate_results,
-        "F1 Score": metrics["f1_score"].aggregate_results,
+        "Cosine Similarity": metrics["cosine_similarity"].score,
+        "Precision": metrics["precision"].score,
+        "Recall": metrics["recall"].score,
+        "F1 Score": metrics["f1_score"].score,
     }
 
-    for metric_name, metric_value in metrics_dict.items():
-        plt.figure(figsize=(6, 4))
-        sns.barplot(x=[metric_name], y=[metric_value])
-        plt.title(f"{metric_name} Value")
-        plt.xlabel("Metric")
-        plt.ylabel("Value")
-        plt.ylim(0, 1)
-        plt.tight_layout()
-
-        plot_filename = f"{metric_name.lower().replace(' ', '_')}_barplot.png"
-        plt.savefig(plot_filename)
-        mlflow.log_artifact(plot_filename)
-        plt.close()
-    # TODO you mean these plots?
+    # for metric_name, metric_value in metrics_dict.items():
+    #     plt.figure(figsize=(6, 4))
+    #     sns.barplot(x=[metric_name], y=[metric_value])
+    #     plt.title(f"{metric_name} Value")
+    #     plt.xlabel("Metric")
+    #     plt.ylabel("Value")
+    #     plt.ylim(0, 1)
+    #     plt.tight_layout()
+    #
+    #     plot_filename = f"{metric_name.lower().replace(' ', '_')}_barplot.png"
+    #     plt.savefig(plot_filename)
+    #     mlflow.log_artifact(plot_filename)
+    #     plt.close()
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         ft.PRE_TRAINED_MODEL_PATH, use_fast=True
