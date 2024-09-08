@@ -19,13 +19,12 @@ class LinAggregator(Module):
 
         self._in_features: int = in_features
         self._out_features: int = out_features
-        self.mlm_mat: Tensor = mlm_mat if mlm_mat.shape[0] == in_features else mlm_mat.T
-        self.mlm_bias: Tensor = mlm_bias
+
+        self.mlm_mat: Parameter = Parameter(mlm_mat if mlm_mat.shape[0] == in_features else mlm_mat.T, requires_grad=False)
+        self.mlm_bias: Parameter = Parameter(mlm_bias, requires_grad=False)
+
         self._W: Parameter = Parameter(data=randn(in_features, 1) * std_dev)
         self._b: Parameter = Parameter(data=randn(1) * std_dev)
-
-        self.mlm_mat.requires_grad = False
-        self.mlm_bias.requires_grad = False
 
     def forward(self, seq: Tensor) -> Tensor:
         # first dimension is reserved to the batch size

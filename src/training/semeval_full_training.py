@@ -132,7 +132,7 @@ def train(
         )
         client.set_registered_model_alias(
             name=model_name,
-            alias=env.get_dataset_specific_best_model_alias(dataset=env.get_dataset_choice(), tuning=False),
+            alias=env.get_dataset_specific_best_model_alias(dataset=env.get_dataset_choice(), tuning_alias=False),
             version=version.version
         )
 

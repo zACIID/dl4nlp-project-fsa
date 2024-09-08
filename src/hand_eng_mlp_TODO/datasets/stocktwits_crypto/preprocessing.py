@@ -39,12 +39,6 @@ def _main(drop_neutral_samples: bool):
     )
     raw_df = sc.read_dataset(spark=spark, path=raw_csv_path)
 
-    # NOTE pre-training will be on the first 15000 rows of the dataset,
-    #  since the senticnet API has a request limit that makes preprocessing very time expensive
-    #  Not a problem since labels are randomized, meaning that we should get a representative sample of the dataset
-    #  from the first 15k rows. Besides, this is almost basically the same subset that finbert is pre-trained on
-    raw_df = raw_df.limit(15000)
-
     logger.info("Cleaning dataset...")
     df = sc.clean(
         raw_df=raw_df,
@@ -52,6 +46,12 @@ def _main(drop_neutral_samples: bool):
         text_col=sc.TEXT_COL,
         label_col=sc.LABEL_COL
     )
+
+    # TODO NOTE pre-training will be on the first 15000 rows of the dataset,
+    #  since the senticnet API has a request limit that makes preprocessing very time expensive
+    #  Not a problem since labels are randomized, meaning that we should get a representative sample of the dataset
+    #  from the first 10k rows. Besides, this is almost basically the same subset that finbert is pre-trained on
+    df = df.limit(10000)
 
     df = ppb.preprocess_dataset(
         spark=spark,
@@ -64,7 +64,7 @@ def _main(drop_neutral_samples: bool):
     logger.debug("Converting labels into sentiment scores (Bearish: -1, Neutral: 0, Bullish: 1)...")
     df = sc.convert_labels_to_sentiment_scores(df=df, label_col=sc.LABEL_COL)
 
-    dataset_path = WITH_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITHOUT_NEUTRALS_DATASET_PATH
+    dataset_path = WITHOUT_NEUTRALS_DATASET_PATH if drop_neutral_samples else WITH_NEUTRALS_DATASET_PATH
     logger.info("Preprocessing dataset...")
     df.write.parquet(str(dataset_path), mode='overwrite')
     logger.info("Preprocessing finished")

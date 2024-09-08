@@ -28,7 +28,15 @@ from hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FE
 
 _inf = np.finfo(np.float64).max
 
-MLFLOW_TRAIN_ENTRYPOINT = 'train' if env.get_model_choice() == Model.FINBERT else "train_MLP"
+match env.get_model_choice():
+    case Model.FINBERT:
+        MLFLOW_TRAIN_ENTRYPOINT = 'train_finbert'
+    case Model.HAND_ENG_MLP:
+        MLFLOW_TRAIN_ENTRYPOINT = 'train_MLP'
+    case Model.END_TO_END:
+        MLFLOW_TRAIN_ENTRYPOINT = 'train_e2e'
+    case _:
+        MLFLOW_TRAIN_ENTRYPOINT = 'unsupported_train_entrypoint'
 
 VAL_METRIC_KEY = 'val_loss'
 TRAIN_METRIC_KEY = 'train_loss'
@@ -78,6 +86,8 @@ def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
         version = mlflow.register_model(
             model_uri=f"runs:/{best_run.info.run_id}/artifacts/model",
             name=model_name,
+
+            # Make sure that run tags are assigned to the registered model too
             tags=env.get_run_tags()
         )
         client.set_registered_model_alias(
@@ -87,7 +97,7 @@ def _update_best_model(experiment: Experiment, eval_run: ActiveRun):
         )
         client.set_registered_model_alias(
             name=model_name,
-            alias=env.get_dataset_specific_best_model_alias(dataset=env.get_dataset_choice(), tuning=True),
+            alias=env.get_dataset_specific_best_model_alias(dataset=env.get_dataset_choice(), tuning_alias=True),
             version=version.version
         )
 
@@ -216,7 +226,10 @@ def tune(
         beta_min,
         beta_max
 ):
-    env.set_common_run_tags(with_neutral_samples=with_neutral_samples)
+    env.set_common_run_tags(
+        with_neutral_samples=with_neutral_samples,
+        pretraining_on_sc=env.should_hyperopt_on_pretrained_model()
+    )
 
     # NOTE: Check these references to understand how to use the param space distributions:
     # - https://github.com/hyperopt/hyperopt/wiki/FMin#21-parameter-expressions
@@ -226,6 +239,8 @@ def tune(
     # NOTE 2: `hp.loguniform(label, low, high)` returns a value drawn according to exp(uniform(low, high)),
     #   meaning that i have to apply the log to the various *min and *max arguments,
     #   because I want the search to be uniform w.r.t. the logarithm of such values (e.g. learning rate)
+    # NOTE 3: cannot provide architecture altering params if tuning a pretrained model because
+    #   else checkpoints do not make sense, see comment in loader.py
     if env.get_model_choice() == Model.FINBERT:
         space = {
             "one_cycle_max_lr": hp.loguniform(
@@ -237,13 +252,18 @@ def tune(
             "weight_decay": hp.loguniform(
                 "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
             ),
-            "lora_rank": scope.int(hp.quniform("lora_rank", lora_rank_min, lora_rank_max, 1)),
-            "lora_alpha": hp.uniform("lora_alpha", lora_alpha_min, lora_alpha_max),
-            "lora_dropout": hp.uniform("lora_dropout", lora_dropout_min, lora_dropout_max),
             "accumulate_grad_batches": scope.int(hp.quniform(
                 "accumulate_grad_batches", accumulate_grad_batches_min, accumulate_grad_batches_max, 1
             )),
+            "lora_dropout": hp.uniform("lora_dropout", lora_dropout_min, lora_dropout_max),
         }
+
+        if not env.should_hyperopt_on_pretrained_model():
+            non_arch_altering_param_space = {
+                "lora_rank": scope.int(hp.quniform("lora_rank", lora_rank_min, lora_rank_max, 1)),
+                "lora_alpha": hp.uniform("lora_alpha", lora_alpha_min, lora_alpha_max),
+            }
+            space.update(non_arch_altering_param_space)
     elif env.get_model_choice() == Model.HAND_ENG_MLP:
         space = {
             "one_cycle_max_lr": hp.loguniform(
@@ -255,38 +275,37 @@ def tune(
             "weight_decay": hp.loguniform(
                 "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
             ),
-            "n_layers": scope.int(
-                hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
-            ),
             "dropout": hp.uniform("dropout", dropout_min, dropout_max),
-            "linear": hp.choice("linear", [True, False]),
-            "layernorm": hp.choice("layernorm", [True, False]),
-            "model_spec": hp.choice("model_spec", [
-                {
-                    "model_type": MLPType.BOX.value,
-                },
-                # NOTE: the _X prefix on beta nested params is so that hyperopt doesn't complain
-                #   about unique labelling
-                {
-                    "model_type": MLPType.RHOMBOID.value,
-                    "beta": hp.uniform("beta_1", beta_min, beta_max),
-                },
-                {
-                    "model_type": MLPType.REPRHOMBOID.value,
-                    "beta": hp.uniform("beta_2", beta_min, beta_max),
-                }
-            ])
         }
-        # TODO ( ͡° ͜ʖ ͡°) implement
-        #   How to add parameters to the tuning and training scripts:
-        #   1. specify them as click.option in each script (hyperopt_tuning.py, train.py)
-        #   2. specify them as params in the MLproject file and pass them inside the "command" section of each entry point
-        #   3. profit
-        #   It might become a mess because of too many parameters but it is the easy way for now I think
-        #   A refactoring somehow for example to split training scripts or at least bring out somewhere
-        #       else those sections that depend on a specific model would not be bad, for sure
+
+        if not env.should_hyperopt_on_pretrained_model():
+            non_arch_altering_param_space = {
+                "n_layers": scope.int(
+                    hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
+                ),
+                "linear": hp.choice("linear", [True, False]),
+                "layernorm": hp.choice("layernorm", [True, False]),
+                "model_spec": hp.choice("model_spec", [
+                    {
+                        "model_type": MLPType.BOX.value,
+                    },
+                    # NOTE: the _X prefix on beta nested params is so that hyperopt doesn't complain
+                    #   about unique labelling
+                    {
+                        "model_type": MLPType.RHOMBOID.value,
+                        "beta": hp.uniform("beta_1", beta_min, beta_max),
+                    },
+                    {
+                        "model_type": MLPType.REPRHOMBOID.value,
+                        "beta": hp.uniform("beta_2", beta_min, beta_max),
+                    }
+                ])
+            }
+            space.update(non_arch_altering_param_space)
+    elif env.get_model_choice() == Model.END_TO_END:
+        raise NotImplementedError()
     else:
-        raise NotImplementedError('Unhandled model choice')
+        raise ValueError('Unhandled model choice')
 
     mlflow.set_tracking_uri(uri=os.environ["MLFLOW_TRACKING_URI"])
     with mlflow.start_run(

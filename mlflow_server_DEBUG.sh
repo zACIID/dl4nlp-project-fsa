@@ -1,1 +1,0 @@
-cd artifacts && MLFLOW_GUNICORN_OPTS="--log-level 'debug' --access-logfile '-' --error-logfile '-' --capture-output" poetry run mlflow server --host 0.0.0.0 --port 5000

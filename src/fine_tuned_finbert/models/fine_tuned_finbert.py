@@ -82,7 +82,8 @@ class FineTunedFinBERT(L.LightningModule):
 
         # NOTE: this call saves all the parameters passed to __init__ into self.hparams
         #   For this reason, do not delete the parameters even if they seem unused
-        self.save_hyperparameters()
+        # TODO the fact that this sends stuff to the logger too may be why manual call to log_params hangs
+        self.save_hyperparameters(logger=log_hparams)
 
         # NOTE: need to manually call log_params here because mlflow.pytorch.autolog() doesn't log them
         #   and I am not using MLflowLogger because it apparently duplicates logging when autolog() is active

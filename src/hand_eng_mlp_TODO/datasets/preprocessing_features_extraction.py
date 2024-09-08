@@ -3,6 +3,7 @@ import re
 from collections import Counter
 from typing import Dict, Tuple, Union
 
+import dotenv
 import nltk
 import pandas as pd
 import requests
@@ -23,12 +24,13 @@ from utils.custom_features_utils import download_and_extract_zip
 # poetry add vaderSentiment
 # poetry add textstat
 
+dotenv.load_dotenv(io_.PROJECT_ROOT / ".env")
+
 SENTICNET_API_EMOTION_KEY = os.getenv('SENTICNET_API_EMOTION_KEY')
 SENTICNET_API_POLARITY_KEY = os.getenv('SENTICNET_API_POLARITY_KEY')
 NEW_FEATURES = ['vader_polarity', 'pos_neg_ratio_vader', 'pos_neg_difference_vader', 'sentiment_entropy_vader',
                 'swn_polarity',
-                # TODO add back when ready
-                # 'INTROSPECTION', 'TEMPER', 'ATTITUDE', 'SENSITIVITY',
+                'INTROSPECTION', 'TEMPER', 'ATTITUDE', 'SENSITIVITY',
                 'flesch_kincaid_grade', 'gunning_fog', 'coleman_liau_index',
                 'overall_valence_mean', 'overall_arousal_mean', 'overall_dominance_mean',
                 'overall_valence_std', 'overall_arousal_std', 'overall_dominance_std',
@@ -137,36 +139,22 @@ def sentic_emotion_recognition(
                     # Remove percentage symbol and convert to float
                     value = float(value.rstrip('%')) / 100
                     emotions[name] = value
-                return emotions
+
+                if len(emotions) > 0:
+                    return emotions
         else:
             logger.warning("Error: Unable to retrieve emotion features from API, retrying... | status code:", response.status_code)
     except requests.exceptions.RequestException as e:
         logger.error(f"An error occurred: {e}")
-    return {}
 
-
-def get_word_polarity(
-        word: str
-) -> Union[str, None]:
-    """
-    Fetches the polarity of a word from SenticNet.
-
-    :param word:
-    :return: The polarity of the word ('POSITIVE', 'NEGATIVE', or None if not found).
-    """
-    url = f"http://sentic.net/api/en/{SENTICNET_API_POLARITY_KEY}.py?text={word}"
-
-    session = create_session_with_retries()
-    try:
-        response = session.get(url)
-        if response.status_code == 200:
-            polarity = response.text.strip()
-            return polarity
-        else:
-            return None
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
-        return None
+    # Returns this in case of error or successful response with "No emotions detected"
+    # I am setting them manually to 0 because apparently the fillna(0) or replace(nan, 0) doesn't work in this case
+    return {
+        "INTROSPECTION": 0,
+        "TEMPER": 0,
+        "ATTITUDE": 0,
+        "SENSITIVITY": 0
+    }
 
 
 def compute_swn_polarity(

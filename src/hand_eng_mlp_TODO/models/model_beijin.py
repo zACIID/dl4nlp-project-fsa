@@ -40,7 +40,8 @@ class ModelBeijin(L.LightningModule):
             aggregator_out: int = BERT_EMBEDDING_SIZE,
             weight_decay: float = 0.0,
             one_cycle_pct_start: float = 0.3,
-            log_hparams: bool = True, **kwargs
+            log_hparams: bool = True,
+            **kwargs
     ) -> None:
 
         """
@@ -67,9 +68,7 @@ class ModelBeijin(L.LightningModule):
         self._val_predictions: list[Tensor] = []
         self._val_targets: list[Tensor] = []
 
-    def setup(self, stage: str) -> None:
-        # Doing all of this inside setup because here `self.device` is correctly set
-        #   and is not the default "cpu"
+        # TODO if training works here
         bertweet: RobertaForMaskedLM = RobertaForMaskedLM.from_pretrained(PRE_TRAINED_MODEL_PATH)
         last_mlm_layer: nn.Linear = bertweet.lm_head.decoder
 
@@ -238,3 +237,16 @@ class ModelBeijin(L.LightningModule):
         }
 
         return [optimizer], [scheduler]
+
+    def state_dict(self, *args, destination=None, prefix='', keep_vars=False):
+        # NOTE: by overriding this, lightning's Trainer automatic checkpointing stores only the lora stuff,
+        #   meaning that checkpoint size is greatly reduced
+        # To use these checkpoints, the model has to first be normally instantiated
+        state_dict = super().state_dict(*args, destination=destination, prefix=prefix, keep_vars=keep_vars)
+
+        # These two are loaded and provided to the LinearAggregator when the RoBERTa is loaded,
+        #   no needed to checkpoint them
+        del state_dict["aggregator.mlm_mat"]
+        del state_dict["aggregator.mlm_bias"]
+
+        return state_dict

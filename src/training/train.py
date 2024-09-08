@@ -78,7 +78,10 @@ def train(
     function_call_kwargs = locals()
     function_call_kwargs['with_neutral_samples'] = True if with_neutral_samples == 'true' else False
 
-    env.set_common_run_tags(with_neutral_samples=with_neutral_samples)
+    env.set_common_run_tags(
+        with_neutral_samples=with_neutral_samples,
+        pretraining_on_sc=env.should_hyperopt_on_pretrained_model()
+    )
 
     # configure logging at the root level of Lightning
     pytorch_logger = logging.getLogger("lightning.pytorch")

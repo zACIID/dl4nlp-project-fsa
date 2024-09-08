@@ -51,9 +51,8 @@ class StocktwitsCryptoTrainSemEval2017Val(L.LightningDataModule):
         pass
 
     def setup(self, stage: str = None):
-        # TODO TEXT_COL is here for debugging purposes, so I can actually see what text is associated to the other batch features
-        self.train_dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL, TEXT_COL])
-        self.val_dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL, TEXT_COL])
+        self.train_dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL])
+        self.val_dataset.set_format(type='torch', columns=[ppb.EMBEDDER_OUTPUT_COL, *ppf.NEW_FEATURES, ppb.LABEL_COL])
 
     def train_dataloader(self):
         return DataLoader(

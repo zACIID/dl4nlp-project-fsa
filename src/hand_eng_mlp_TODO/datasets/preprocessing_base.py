@@ -115,16 +115,15 @@ def get_new_features(
 
     df = df.withColumn('swn_polarity', compute_sentence_polarity_SWN_udf(df[text_col]))
 
-    # TODO uncomment when ready - takes VERY LONG on stocktwits dataset which has 700k+ sentences
     # Emotion recognition with SenticNet
-    # df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
-    # df = df.select(
-    #     "*",
-    #     df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
-    #     df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
-    #     df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
-    #     df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
-    # ).drop("emotion_recognition")
+    df = df.withColumn("emotion_recognition", emotion_recognition_SN_udf(df[text_col]))
+    df = df.select(
+        "*",
+        df["emotion_recognition"]["INTROSPECTION"].alias("INTROSPECTION"),
+        df["emotion_recognition"]["TEMPER"].alias("TEMPER"),
+        df["emotion_recognition"]["ATTITUDE"].alias("ATTITUDE"),
+        df["emotion_recognition"]["SENSITIVITY"].alias("SENSITIVITY")
+    ).drop("emotion_recognition")
 
     # Readability metrics
     df = df.withColumn("readability_metrics", calculate_readability_metrics_udf(df[text_col]))
@@ -161,7 +160,8 @@ def get_new_features(
 
     # For some reason, some scores are NaN. In such a case, we replace them with 0,
     #   acting effectively as dropout during training
-    df = df.replace(float('nan'), 0)
+    df = df.replace(float("nan"), 0)
+    df = df.fillna(0, subset=["INTROSPECTION", "TEMPER", "ATTITUDE", "SENSITIVITY"])
 
     return df
 
