@@ -305,7 +305,11 @@ def tune(
             }
             space.update(arch_altering_param_space)
     elif env.get_model_choice() == Model.END_TO_END:
-        raise NotImplementedError()
+        space = {
+            scope.int(
+                hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
+            )
+        }
     else:
         raise ValueError('Unhandled model choice')
 
