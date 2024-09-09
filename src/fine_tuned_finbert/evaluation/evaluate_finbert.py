@@ -126,30 +126,6 @@ def _main():
         ]
     )
 
-    # TODO ( ͡° ͜ʖ ͡°) maybe make some plots here with res.metrics and log them
-    #   via mlflow.log_artifacts/image/plot whatever the method is
-    metrics = evaluate_results.metrics
-    metrics_dict = {
-        "Cosine Similarity": metrics["cosine_similarity"].score,
-        "Precision": metrics["precision"].score,
-        "Recall": metrics["recall"].score,
-        "F1 Score": metrics["f1_score"].score,
-    }
-
-    # for metric_name, metric_value in metrics_dict.items():
-    #     plt.figure(figsize=(6, 4))
-    #     sns.barplot(x=[metric_name], y=[metric_value])
-    #     plt.title(f"{metric_name} Value")
-    #     plt.xlabel("Metric")
-    #     plt.ylabel("Value")
-    #     plt.ylim(0, 1)
-    #     plt.tight_layout()
-    #
-    #     plot_filename = f"{metric_name.lower().replace(' ', '_')}_barplot.png"
-    #     plt.savefig(plot_filename)
-    #     mlflow.log_artifact(plot_filename)
-    #     plt.close()
-
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         ft.PRE_TRAINED_MODEL_PATH, use_fast=True
     )
