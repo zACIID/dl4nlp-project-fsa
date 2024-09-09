@@ -1,6 +1,6 @@
 import numpy as np
 from mlflow.metrics import MetricValue
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score, mean_absolute_error
 
 
 # Our metrics:
@@ -17,6 +17,10 @@ def apply_thresholds(values):
 def cosine_similarity(y_true, y_pred):
     cos_sim = np.dot(y_true, y_pred) / (np.linalg.norm(y_true) * np.linalg.norm(y_pred))
     return cos_sim
+
+
+def eval_fn_mae(y_true, y_pred):
+    return MetricValue(aggregate_results={"mae": mean_absolute_error(y_true, y_pred)})
 
 
 # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score

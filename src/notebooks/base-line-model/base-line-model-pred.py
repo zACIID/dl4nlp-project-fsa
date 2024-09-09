@@ -179,7 +179,10 @@ pd.DataFrame.from_records([{
     "cosine_similarity": eval_utils.eval_fn_cosine_similarity(svr_preds["0"].values, svr_test_y).aggregate_results["cosine_similarity"],
     "f1_score": eval_utils.eval_fn_f1(svr_preds["0"].values, svr_test_y).aggregate_results["f1"],
     "precision": eval_utils.eval_fn_precision(svr_preds["0"].values, svr_test_y).aggregate_results["precision"],
+    "mae": eval_utils.eval_fn_mae(svr_preds["0"].values, svr_test_y).aggregate_results["mae"],
 }])
+
+
 
 # ### FinBERT
 
@@ -193,8 +196,26 @@ pd.DataFrame.from_records([{
     "cosine_similarity": eval_utils.eval_fn_cosine_similarity(ft_preds["0"].values, ft_y).aggregate_results["cosine_similarity"],
     "f1_score": eval_utils.eval_fn_f1(ft_preds["0"].values, ft_y).aggregate_results["f1"],
     "precision": eval_utils.eval_fn_precision(ft_preds["0"].values, ft_y).aggregate_results["precision"],
+    "mae": eval_utils.eval_fn_mae(ft_preds["0"].values, ft_y).aggregate_results["mae"],
 }])
 
 # -
+
+# ### Average Baseline
+
+# +
+mean_prediction = svr_train_y.values.mean()
+avg_preds = np.full(svr_test_y.shape, mean_prediction)
+
+pd.DataFrame.from_records([{
+    "recall": eval_utils.eval_fn_recall(avg_preds, svr_test_y).aggregate_results["recall"],
+    "cosine_similarity": eval_utils.eval_fn_cosine_similarity(avg_preds, svr_test_y).aggregate_results["cosine_similarity"],
+    "f1_score": eval_utils.eval_fn_f1(avg_preds, svr_test_y).aggregate_results["f1"],
+    "precision": eval_utils.eval_fn_precision(avg_preds, svr_test_y).aggregate_results["precision"],
+    "mae": eval_utils.eval_fn_mae(avg_preds, svr_test_y).aggregate_results["mae"],
+}])
+# -
+
+print(mean_prediction)
 
 
