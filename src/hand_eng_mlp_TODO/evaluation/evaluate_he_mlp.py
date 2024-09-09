@@ -1,33 +1,31 @@
 import logging
+import typing
 from datetime import datetime
+from typing import List
 
 import datasets
-import lightning
 import matplotlib.pyplot as plt
-import seaborn as sns
 import mlflow
 import numpy as np
 import pandas as pd
 import shap
 import torch
-import torchmetrics.classification as tc
 import transformers
-from transformers import AutoTokenizer, AutoModel
-from mlflow.entities.model_registry import ModelVersion
-from mlflow.models.evaluation import MetricValue, make_metric
+from mlflow.metrics import MetricValue
+from mlflow.models.evaluation import make_metric
 from sklearn.metrics import precision_score, recall_score, f1_score
-from typing import List
+from sklearn.metrics.pairwise import cosine_similarity
+from transformers import AutoTokenizer, AutoModel
 
 import data.common as common
-import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
-import hand_eng_mlp_TODO.models.model_beijin as bjn
-import training.loader as loader
-import utils.mlflow_env as env
-import utils.io as io_
 import data.stocktwits_crypto_dataset as sc
-import hand_eng_mlp_TODO.models.model_beijin as hemlp
+import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
 import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
-from fine_tuned_finbert.datasets.data_modules import Semeval2017Test
+import hand_eng_mlp_TODO.models.model_beijin as hemlp
+import training.loader as loader
+import utils.io as io_
+import utils.mlflow_env as env
+from hand_eng_mlp_TODO.datasets.data_modules import Semeval2017Test
 from utils.random import RND_SEED
 
 
@@ -35,66 +33,8 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
     pytorch_logger = logging.getLogger("lightning.pytorch")
     pytorch_logger.setLevel(logging.INFO)
 
-    model_name = env.get_registered_model_name(loader.Model.HAND_ENG_MLP)
-    # alias = env.BEST_TUNED_MODEL_ALIAS
-    alias = env.BEST_FULL_TRAINED_MODEL_ALIAS
-    client = mlflow.tracking.MlflowClient()
-    best_version: ModelVersion = client.get_model_version_by_alias(name=model_name, alias=alias)
-
-    mlflow.set_tag(key='model_name', value=model_name)
-    mlflow.set_tag(key='model_alias', value=alias)
-    mlflow.set_tag(key='model_version', value=best_version.version)
-
-    model: lightning.LightningModule = mlflow.pytorch.load_checkpoint(
-        bjn.ModelBeijin, best_version.run_id,
-        kwargs={
-            'strict': False,  # Needed because LoRA checkpoint do not include all model parameters
-            'log_hparams': True
-        }
-    )
-
-    def mlflow_evaluate_predict(df: pd.DataFrame): #TODO
-        """
-        :param df: pandas df provided by mlflow.evaluate(...)
-        :return:
-        """
-        def collate(tok_output_collection):
-            input_ids = torch.stack(list(
-                map(
-                    lambda x: torch.tensor(x['input_ids'], device=model.device).long(),
-                    tok_output_collection
-                )
-            ))
-            att_masks = torch.stack(list(
-                map(
-                    lambda x: torch.tensor(x['attention_mask'], device=model.device).long(),
-                    tok_output_collection
-                )
-            ))
-            tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
-            return tensorized_tokenizer_output
-
-        # this is copied from another file, for ref
-        # def _collate_fn(raw_samples):
-        #     embeddings = torch.nn.utils.rnn.pad_sequence(
-        #         [item[ppb.EMBEDDER_OUTPUT_COL] for item in raw_samples],
-        #         batch_first=True
-        #     )
-        #
-        #     scores = torch.tensor([item[ppb.LABEL_COL] for item in raw_samples])
-        #     new_features = torch.stack([torch.tensor([item[key] for key in ppf.NEW_FEATURES]) for item in raw_samples])
-        #
-        #     return embeddings, scores, new_features
-
-        embeddings_col = df[ppb.EMBEDDER_OUTPUT_COL].to_list()  # we now have embeddings not tokens
-        batches = collate(embeddings_col)
-
-        # Apparently mlflow.evaluate needs cpu tensors or numpy arrays
-        return model.predict(**batches).cpu().detach().numpy()
-
-
-
-
+    model: hemlp.ModelBeijin = loader.load_best_model(loader.Model.HAND_ENG_MLP).cpu()
+    model.eval()
 
     # Our metrics:
     # Main metric: cosine similarity, the SemEval2017 challenge's official evaluation method.
@@ -102,7 +42,6 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
     # Defined as: cosine(G,P)= \frac{sum_{i=0}^{n} G_i x P_i}{\sqrt{sum_{i=0}^{n} G_i^2} x \sqrt{sum_{i=0}^{n} P_i^2}}
     # Additional standard metrics, including precision, recall, and F1 score, will be considered.
 
-    # TODO: the whole code here is also in finbert eval, move the functinos to another file?
     # Thresholding predictions and targets: [-1,-0.25)=negative, [-0.25,0.25]=neutral, (0.25,1]=positive
     def apply_thresholds(values):
         return np.where(values < -0.25, -1, np.where(values > 0.25, 1, 0))
@@ -114,25 +53,25 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
     # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score
     def eval_fn_cosine_similarity(predictions, targets):
         score = cosine_similarity(predictions, targets)
-        return MetricValue(scores=score)
+        return MetricValue(aggregate_results={"cosine_similarity": score})
 
     def eval_fn_precision(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = precision_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score)
+        return MetricValue(aggregate_results={"precision": score})
 
     def eval_fn_recall(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = recall_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score)
+        return MetricValue(aggregate_results={"recall": score})
 
     def eval_fn_f1(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = f1_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score)
+        return MetricValue(aggregate_results={"f1": score})
 
     # Create EvaluationMetric for all metrics
     cosine_similarity_metric = make_metric(eval_fn=eval_fn_cosine_similarity, greater_is_better=True,
@@ -141,14 +80,39 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
     recall_metric = make_metric(eval_fn=eval_fn_recall, greater_is_better=True, name="recall", version="v1")
     f1_metric = make_metric(eval_fn=eval_fn_f1, greater_is_better=True, name="f1_score", version="v1")
 
-    test_dataset: datasets.Dataset = Semeval2017Test().dataset
-    pandas_df = test_dataset.to_pandas()
+    test_df: pd.DataFrame = Semeval2017Test().dataset.to_pandas()
+
+    # Remove embedder col and pass it "from outside" because it can't be serialized by mlflow.evaluate(),
+    #   being a column of numpy arrays
+    embedder_col: pd.Series = test_df[ppb.EMBEDDER_OUTPUT_COL]
+    test_df = test_df.drop(columns=[ppb.EMBEDDER_OUTPUT_COL])
+
+    def mlflow_evaluate_predict(df: pd.DataFrame): #TODO
+        """
+        :param df: pandas df provided by mlflow.evaluate(...)
+        :return:
+        """
+
+        def _collate_fn(embedder_col: pd.Series, new_features_cols: typing.List[pd.Series]):
+            embeddings = [torch.tensor(embedding.tolist()) for embedding in embedder_col]
+            embeddings_batch = torch.nn.utils.rnn.pad_sequence(embeddings, batch_first=True)
+
+            new_features = [torch.tensor(feats.values) for feats in new_features_cols]
+            new_features_batch = torch.stack(new_features).T
+
+            return embeddings_batch, new_features_batch
+
+        feature_col = [df[col] for col in ppfe.NEW_FEATURES]
+        embeddings, features = _collate_fn(embedder_col, feature_col)
+
+        # Apparently mlflow.evaluate needs cpu tensors or numpy arrays
+        return model.predict(embeddings, features).cpu().detach().numpy()
 
     evaluate_results = mlflow.evaluate(
         model_type='regressor',
         model=mlflow_evaluate_predict,
-        data=pandas_df,
-        feature_names=[ppb.EMBEDDER_OUTPUT_COL],
+        data=test_df,
+        feature_names=[*ppfe.NEW_FEATURES],
         targets=common.LABEL_COL,
 
         # NOTE: this raises the following warning:
@@ -164,81 +128,22 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         ]
     )
 
-    # TODO ( ͡° ͜ʖ ͡°) maybe make some plots here with res.metrics and log them
-    #   via mlflow.log_artifacts/image/plot whatever the method is
-    metrics = evaluate_results.metrics
-    metrics_dict = {
-        "Cosine Similarity": metrics["cosine_similarity"].score,
-        "Precision": metrics["precision"].score,
-        "Recall": metrics["recall"].score,
-        "F1 Score": metrics["f1_score"].score,
-    }
-    # TODO what to do with these?
-
-
-
-
-
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        bjn.PRE_TRAINED_MODEL_PATH, use_fast=True
-    )
-
-    # TODO what do i do here? pier check the food i cooked
     def shap_text_predict(texts: np.ndarray):
-        tv = tokenizer(
-            texts.tolist(),
-            padding="max_length",
-            max_length=160,
-            truncation=True,
-            return_attention_mask=True,
-            return_tensors='pt'
-        ).to(model.device)
-
-        # IMPORTANT: why to hide manually these special tokens by setting their attention "bit" to 0?
-        #   Because shap.plots.text calculates the base_value as the prediction of the model where
-        #       all tokens are masked, i.e. something like '[CLS] [MASK] ... [MASK] [SEP]'
-        #   It seems, however, that [MASK] tokens (as do all the other ones, even [PAD]), *when attended* by the model,
-        #       do have some impact on the output. Since the tokenizer sets the attention_mask to 0 only for
-        #       true pad tokens, i.e. padding after the [SEP] (end sentence) token, we have that the base_value
-        #       changes depending on the input sentence.
-        #   What I would like to do is establish a common, input-length-independent baseline for each sample.
-        #   By manually setting attention of [MASK] tokens to 0, we define the baseline
-        #       as only the [CLS] and the [SEP] tokens, which intuitively represents the sentiment score
-        #       associated to empty inputs of the same length of the current sample.
-        #   I tried only using the [CLS] token as baseline, but base_line results made
-        #       less sense than in the [CLS]+[SEP] case, although in the latter case base_value
-        #       are *slightly* different from each other  (which was not the case with
-        #       [CLS]-only since the output was truly constant w.r.t. input length)
-        #   The shap values of each token/token-cluster will hence be the difference w.r.t. to an input that
-        #       consists of only the [CLS] token and the [SEP] token.
-        special_tokens_mask = (tv['input_ids'] == tokenizer.mask_token_id)  # TODO actually now that dropout is fixed try to attend them and see what happens
-        # Mask [SEP] too to test what happens, if curious
-        # special_tokens_mask = ((tv['input_ids'] == tokenizer.mask_token_id)
-        #                           | (tv['input_ids'] == tokenizer.sep_token_id))
-        tv['attention_mask'][special_tokens_mask] = 0
-
-
-        # TODO non so a che serve la parte sopra e boh
-        #  per ogni testo nell'array di testi, prendo (token e) embedding, e feature aggiuntive e passo a embeds e feature a prediction idk
-        model.eval()
-        embeddings = _apply_tokenize_and_embed(texts)
+        embeddings: typing.List[torch.Tensor] = _apply_tokenize_and_embed(texts)
         features = np.array([list(_extract_features(text).values()) for text in texts])
-        embeddings_tensor = torch.tensor(embeddings)
-        features_tensor = torch.tensor(features)
+        np.nan_to_num(features, nan=0)
+
+        embeddings_tensor = torch.nn.utils.rnn.pad_sequence(embeddings, batch_first=True)
+        features_tensor = torch.tensor(features).to(dtype=torch.float32)
+
         with torch.no_grad():
             predictions = model.predict(x_batch=embeddings_tensor, beijin_feats_batch=features_tensor)
-        return predictions.numpy()
-        # TODO fine parte aggiunto da ruei perso nelle lande
 
+        return predictions.cpu().tolist()
 
-        # NOTE: Returning list because only type that I am sure does not cause error`s
-        sent_score = model.predict(**tv).detach().cpu().tolist()
-        return sent_score
-
-#TODO the code below are modified version from the original functions bcs idk if i should call them directly since they use spark and input is psql.dataframe, here is nparray tho so idk
+    tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
+    bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
     def _apply_tokenize_and_embed(texts: np.ndarray) -> List[torch.Tensor]:
-        tokenizer = AutoTokenizer.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH, use_fast=True)
-        bertweet = AutoModel.from_pretrained(hemlp.PRE_TRAINED_MODEL_PATH)
         bertweet.eval()
 
         def tokenize_and_embed(text: str) -> torch.Tensor:
@@ -257,9 +162,8 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
 
         return [tokenize_and_embed(text) for text in texts]
 
-    def _extract_features(text: str) -> dict:
-        sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
-
+    sentiment_data, default_mean_value = ppfe.load_sentiment_dataset(io_.DATA_DIR)
+    def _extract_features(text: str) -> typing.Dict[str, float]:
         features = {}
         features['vader_polarity'] = ppfe.compute_vader_polarity(text)
 
@@ -296,12 +200,7 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
             'dominance_contrast': sentiment_features.dominance_contrast
         })
 
-        # TODO gestire i casi in cui i valori son NaN, e mettere 0, non so se era problema di spark che comparivano NaN o le funzoini idk
-
         return features
-
-# TODO above is a sketch cuz idk what i'm doing
-
 
     explainer = shap.Explainer(
         model=shap_text_predict,
