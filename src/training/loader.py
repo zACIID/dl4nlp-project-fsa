@@ -74,6 +74,9 @@ def _load_model_beijin_and_data_module(
         dataset_choice: Dataset,
         dm_init_args: typing.Mapping[str, typing.Any]
 ) -> typing.Tuple[LightningModule, LightningDataModule]:
+    # TODO NOTE: now providing a default so that semeval_full_training doesn't break
+    model_init_args.setdefault("model_spec", MLPType.BOX.value)
+
     # TODO this is janky at best, because it relies on the fact that a) hyperopt is the only place that
     #   instantiates the pretrained models for training and b) that the search space, i.e. args passed,
     #   is defined in such a way that only non-architecture-altering params are provided
@@ -100,12 +103,12 @@ def _load_model_beijin_and_data_module(
         }
 
         # The 0, 1, 2 here is not defined by the enum but by the hyperopt search space
-        if model_init_args["model_spec"] == 0:
+        if model_init_args["model_spec"] == 1:
             model_init_args["model_spec"] = MLPType.BOX
-        elif model_init_args["model_spec"] == 1:
+        elif model_init_args["model_spec"] == 2:
             model_init_args["model_spec"] = MLPType.RHOMBOID
             data["beta"] = model_init_args.pop("beta", 0.5)
-        elif model_init_args["model_spec"] == 2:
+        elif model_init_args["model_spec"] == 3:
             model_init_args["model_spec"] = MLPType.REPRHOMBOID
             data["beta"] = model_init_args.pop("beta", 0.5)
         else:
@@ -181,7 +184,6 @@ def load_best_model(model: Model, load_pretrained_on_sc: bool = False, **init_kw
     match model:
         case Model.FINBERT:
             model_class = FineTunedFinBERT
-            init_kwargs["strict"] = False
         case Model.HAND_ENG_MLP:
             model_class = ModelBeijin
         case Model.END_TO_END:
@@ -191,6 +193,8 @@ def load_best_model(model: Model, load_pretrained_on_sc: bool = False, **init_kw
         case _:
             raise ValueError(f'Unknown model {model}')
 
+    # Load the checkpoint however it is - we do not save every parameter in checkpoints
+    init_kwargs["strict"] = False
     init_kwargs["log_hparams"] = False
 
     # NOTE: check the implementation at https://mlflow.org/docs/latest/_modules/mlflow/pytorch.html#load_checkpoint

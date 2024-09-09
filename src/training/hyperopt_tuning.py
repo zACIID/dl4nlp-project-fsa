@@ -23,7 +23,7 @@ import utils.io as io_
 import utils.mlflow_env as env
 from training.loader import Model
 
-from hand_eng_mlp_TODO.models.model_beijin import BERT_EMBEDDING_SIZE, CUSTOM_FEATS_SIZE, MLPType
+from hand_eng_mlp_TODO.models.model_beijin import MLPType
 
 
 _inf = np.finfo(np.float64).max
@@ -117,8 +117,10 @@ def new_eval(
         params["limit_batches"] = limit_batches
         params["with_neutral_samples"] = with_neutral_samples
 
-        if Model.HAND_ENG_MLP == env.get_model_choice():
+        # TODO remove comment -> reduced set of params if tuning pretrained
+        if not env.should_hyperopt_on_pretrained_model() and Model.HAND_ENG_MLP == env.get_model_choice():
             data = params.pop("model_spec")
+            params["model_spec"] = data["model_type"]
             if MLPType(data["model_type"]) != MLPType.BOX:
                 params["beta"] = data["beta"]
 
@@ -259,11 +261,11 @@ def tune(
         }
 
         if not env.should_hyperopt_on_pretrained_model():
-            non_arch_altering_param_space = {
+            arch_altering_param_space = {
                 "lora_rank": scope.int(hp.quniform("lora_rank", lora_rank_min, lora_rank_max, 1)),
                 "lora_alpha": hp.uniform("lora_alpha", lora_alpha_min, lora_alpha_max),
             }
-            space.update(non_arch_altering_param_space)
+            space.update(arch_altering_param_space)
     elif env.get_model_choice() == Model.HAND_ENG_MLP:
         space = {
             "one_cycle_max_lr": hp.loguniform(
@@ -279,7 +281,7 @@ def tune(
         }
 
         if not env.should_hyperopt_on_pretrained_model():
-            non_arch_altering_param_space = {
+            arch_altering_param_space = {
                 "n_layers": scope.int(
                     hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
                 ),
@@ -301,7 +303,7 @@ def tune(
                     }
                 ])
             }
-            space.update(non_arch_altering_param_space)
+            space.update(arch_altering_param_space)
     elif env.get_model_choice() == Model.END_TO_END:
         raise NotImplementedError()
     else:
