@@ -68,7 +68,6 @@ class ModelBeijin(L.LightningModule):
         self._val_predictions: list[Tensor] = []
         self._val_targets: list[Tensor] = []
 
-        # TODO if training works here
         bertweet: RobertaForMaskedLM = RobertaForMaskedLM.from_pretrained(PRE_TRAINED_MODEL_PATH)
         last_mlm_layer: nn.Linear = bertweet.lm_head.decoder
 

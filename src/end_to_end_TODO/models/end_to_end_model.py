@@ -1,4 +1,5 @@
 import collections
+import typing
 import warnings
 from typing import Any, Mapping
 
@@ -53,6 +54,9 @@ class EndToEndModel(L.LightningModule):
         #   For this reason, do not delete the parameters even if they seem unused
         self.save_hyperparameters(ignore=["finbert", "hemlp"])
 
+        self._val_predictions: typing.List[torch.Tensor] = []
+        self._val_targets: typing.List[torch.Tensor] = []
+
         # For both hemlp and finbert:
         #   1. Remove the classification heads, which is functionally the same as
         #   making them Identity layers that do nothing. This is because we want to put
@@ -78,6 +82,11 @@ class EndToEndModel(L.LightningModule):
 
         old_class_hemlp: nn.Linear = getattr(module, last_linear_layer_components[-1])
         setattr(module, last_linear_layer_components[-1], nn.Identity())
+
+        # Flatten not needed anymore since we removed the class head:
+        #   the output should now have shape (batch_size, hidden_layer_size)
+        hemlp.model.model.flatten = nn.Identity()
+
         self.hemlp: nn.Module = hemlp
         self.hemlp.requires_grad_(False)
 
@@ -86,7 +95,7 @@ class EndToEndModel(L.LightningModule):
         in_features = old_class_ft.old_linear.in_features + old_class_hemlp.in_features
         self.aggregation_layers = nn.Sequential(
             collections.OrderedDict([
-                ("linear_1", nn.Linear(in_features=in_features, out_features=EndToEndModel._OUT_FEATURES)),
+                ("linear_input", nn.Linear(in_features=in_features, out_features=EndToEndModel._OUT_FEATURES)),
                 *[
                     (f"linear_{i}", nn.Linear(
                         in_features=EndToEndModel._OUT_FEATURES,
@@ -96,7 +105,8 @@ class EndToEndModel(L.LightningModule):
 
                 # Sentiment head: need 1 number that is crunched \in [-1, 1] by tanh
                 ("sentiment_head", nn.Linear(in_features=EndToEndModel._OUT_FEATURES, out_features=1)),
-                ("sentiment_tanh", nn.Tanh())
+                ("sentiment_tanh", nn.Tanh()),
+                ("flatten", nn.Flatten(start_dim=0)) # so that final output is (batch_size) instead of (batch_size, 1)
             ])
         )
 
@@ -109,10 +119,11 @@ class EndToEndModel(L.LightningModule):
 
     def forward(self, batch) -> torch.Tensor:
         tokenizer_output, embeddings, new_features = batch
-        finbert_out = self.finbert(**tokenizer_output)
+        finbert_out = self.finbert(**tokenizer_output).logits
         hemlp_out = self.hemlp(embeddings, new_features)
 
-        return self.aggregation_layers(torch.concatenate([finbert_out, hemlp_out]))
+        # Tensor to aggr layers should have shape (finbert_out + hemlp_out)
+        return self.aggregation_layers(torch.concatenate([finbert_out, hemlp_out], dim=1))
 
     def predict(self, batch) -> torch.Tensor:
         self.eval()  # Call this explicitly because this is external to PytorchLightning
@@ -171,7 +182,7 @@ class EndToEndModel(L.LightningModule):
 
         if step_type == 'val':
             self._val_predictions.append(pred_scores)
-            self._val_targets.append(batch[1])
+            self._val_targets.append(scores)
 
         self.log_dict(
             dictionary={
@@ -217,11 +228,11 @@ class EndToEndModel(L.LightningModule):
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
-                "params": [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "params": [p for n, p in self.named_parameters() if not any(nd in n for nd in no_decay)],
                 "weight_decay": self.hparams.weight_decay,
             },
             {
-                "params": [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)],
+                "params": [p for n, p in self.named_parameters() if any(nd in n for nd in no_decay)],
                 "weight_decay": 0.0,
             }
         ]
