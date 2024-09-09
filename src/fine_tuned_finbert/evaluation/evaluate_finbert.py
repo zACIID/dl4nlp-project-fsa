@@ -25,6 +25,10 @@ from fine_tuned_finbert.datasets.data_modules import Semeval2017Test
 from utils.random import RND_SEED
 
 
+# Limiting the number of samples provided to the SHAP explainer to keep computation times low
+SHAP_EXPLAINER_MAX_SAMPLES = 25
+
+
 def _main():
     # shap.initjs() Needed only in notebook environment
 
@@ -192,7 +196,7 @@ def _main():
         masker=tokenizer,
         seed=RND_SEED
     )
-    shap_values = explainer(pandas_df['spans'].to_numpy())
+    shap_values = explainer(pandas_df['spans'][:SHAP_EXPLAINER_MAX_SAMPLES].to_numpy())
 
     # References to understand SHAP plots:
     # https://shap.readthedocs.io/en/latest/example_notebooks/overviews/An%20introduction%20to%20explainable%20AI%20with%20Shapley%20values.html

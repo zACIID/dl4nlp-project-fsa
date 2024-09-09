@@ -29,6 +29,15 @@ from hand_eng_mlp_TODO.datasets.data_modules import Semeval2017Test
 from utils.random import RND_SEED
 
 
+# TODO:
+#   - refactor, even in finbert, so that functions to create metrics and shap_text_predict embeddings can be imported
+#   - fix finbert too
+#   - implement evaluate for e2e model
+
+# Limiting the number of samples provided to the SHAP explainer to keep computation times low
+SHAP_EXPLAINER_MAX_SAMPLES = 25
+
+
 def _main():  # TODO: any implementation about metrics need to be done in Finbert_evaluation as well
     pytorch_logger = logging.getLogger("lightning.pytorch")
     pytorch_logger.setLevel(logging.INFO)
@@ -207,7 +216,7 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         masker=tokenizer,
         seed=RND_SEED
     )
-    shap_values = explainer(pandas_df['spans'].to_numpy())
+    shap_values = explainer(test_df['spans'][:SHAP_EXPLAINER_MAX_SAMPLES].to_numpy())
 
     # References to understand SHAP plots:
     # https://shap.readthedocs.io/en/latest/example_notebooks/overviews/An%20introduction%20to%20explainable%20AI%20with%20Shapley%20values.html
