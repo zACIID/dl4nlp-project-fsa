@@ -41,7 +41,10 @@ def _load_finbert_model_and_data_module(
     #   instantiates the pretrained models for training and b) that the search space, i.e. args passed,
     #   is defined in such a way that only non-architecture-altering params are provided
     if env.should_hyperopt_on_pretrained_model():
-        model = load_best_model(Model.FINBERT, init_kwargs=collections.ChainMap(
+        model = load_best_model(
+            Model.FINBERT,
+            load_pretrained_on_sc=True,
+            init_kwargs=collections.ChainMap(
             model_init_args,
             {
                 "strict": False,
@@ -75,13 +78,16 @@ def _load_model_beijin_and_data_module(
     #   instantiates the pretrained models for training and b) that the search space, i.e. args passed,
     #   is defined in such a way that only non-architecture-altering params are provided
     if env.should_hyperopt_on_pretrained_model():
-        model = load_best_model(Model.HAND_ENG_MLP, init_kwargs=collections.ChainMap(
-            model_init_args,
-            {
-                "strict": False,
-                "log_hparams": False
-            }
-        ))
+        model = load_best_model(
+            Model.HAND_ENG_MLP,
+            load_pretrained_on_sc=True,
+            init_kwargs=collections.ChainMap(
+                model_init_args,
+                {
+                    "strict": False,
+                    "log_hparams": False
+                }
+            ))
     else:
         # NOTE: need to specify default values because the full-training script
         #   loads the model without passing any init keyword basically, the reason
@@ -148,7 +154,7 @@ def _load_end_to_end_model_and_data_module(
             raise ValueError(f'Unknown dataset {dataset_choice}')
 
 
-def load_best_model(model: Model, load_pretrained_on_sc: bool = True, **init_kwargs) -> LightningModule:
+def load_best_model(model: Model, load_pretrained_on_sc: bool = False, **init_kwargs) -> LightningModule:
     """
     Loads the best model for the provided model type from the mlflow registry.
     :param model: model type
