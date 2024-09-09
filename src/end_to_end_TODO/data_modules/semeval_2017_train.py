@@ -35,7 +35,9 @@ class Semeval2017Train(L.LightningDataModule):
         super().__init__()
 
         self._finbert_dataset: datasets.Dataset = sem_pp_ft.get_dataset(train_dataset=True)
-        self._hemlp_dataset: datasets.Dataset = sem_pp_mlp.get_dataset(train_dataset=True)
+        # cannot have duplicate cols when concatenating datasets
+        self._hemlp_dataset: datasets.Dataset = (sem_pp_mlp.get_dataset(train_dataset=True)
+                                                 .remove_columns(column_names=["id", "spans", "label"]))
 
         # Concatenate the two datasets horizontally
         # Since they refer to the same data, they should have the same number of rows
