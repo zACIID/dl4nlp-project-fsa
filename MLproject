@@ -292,7 +292,7 @@ entry_points:
       algo: {type: string, default: "tpe.suggest"} # anything different results in usage of `rand.suggest`
       # maximum number of hyperopt runs to find the best hparams
       # Rule of thumb apparently is 10-20x #hyperparameters
-      max_runs: {type: float, default: 50}
+      max_runs: {type: float, default: 20}
 
       #== E2E hparams
       one_cycle_max_lr_min: {type: float, default: 8e-5}
