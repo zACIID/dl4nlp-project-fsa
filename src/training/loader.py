@@ -146,7 +146,7 @@ def _load_end_to_end_model_and_data_module(
         case Dataset.SC_TRAIN_VAL:
             raise ValueError("Dataset not implemented for E2E model")
         case Dataset.SC_TRAIN_SEMEVAL_VAL:
-            return model, e2e_dm.StocktwitsCryptoTrainSemEval2017Val(**dm_init_args)
+            raise ValueError("Dataset not implemented for E2E model")
         case Dataset.SEMEVAL_TRAIN:
             return model, e2e_dm.Semeval2017Train(**dm_init_args)
         case Dataset.SEMEVAL_TRAIN_VAL:
