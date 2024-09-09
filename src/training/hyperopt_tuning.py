@@ -293,20 +293,21 @@ def tune(
                     },
                     # NOTE: the _X prefix on beta nested params is so that hyperopt doesn't complain
                     #   about unique labelling
-                    {
-                        "model_type": MLPType.RHOMBOID.value,
-                        "beta": hp.uniform("beta_1", beta_min, beta_max),
-                    },
-                    {
-                        "model_type": MLPType.REPRHOMBOID.value,
-                        "beta": hp.uniform("beta_2", beta_min, beta_max),
-                    }
+                    # TODO remove comment -> broken RHOMBOID: RuntimeError: mat1 and mat2 shapes cannot be multiplied (32x1389 and 1390x1389) with linear: true, n_layers=7
+                    # {
+                    #     "model_type": MLPType.RHOMBOID.value,
+                    #     "beta": hp.uniform("beta_1", beta_min, beta_max),
+                    # },
+                    # {
+                    #     "model_type": MLPType.REPRHOMBOID.value,
+                    #     "beta": hp.uniform("beta_2", beta_min, beta_max),
+                    # }
                 ])
             }
             space.update(arch_altering_param_space)
     elif env.get_model_choice() == Model.END_TO_END:
         space = {
-            scope.int(
+            "n_layers": scope.int(
                 hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
             )
         }
