@@ -157,10 +157,11 @@ def _main():
         #       [CLS]-only since the output was truly constant w.r.t. input length)
         #   The shap values of each token/token-cluster will hence be the difference w.r.t. to an input that
         #       consists of only the [CLS] token and the [SEP] token.
+        #   UPDATE: I decided to keep the [CLS] and [SEP] tokens so that the setting is as similar as the,
+        #       true prediction setting as possible, in which such tokens are attended. The downside,
+        #       as mentioned before, is that we are not truly input-length-independent because [SEP] is
+        #       in a different position based on input length, but base_values however are pretty stable
         special_tokens_mask = (tv['input_ids'] == tokenizer.mask_token_id)
-        # Mask [SEP] too to test what happens, if curious
-        # special_tokens_mask = ((tv['input_ids'] == tokenizer.mask_token_id)
-        #                           | (tv['input_ids'] == tokenizer.sep_token_id))
         tv['attention_mask'][special_tokens_mask] = 0
 
         # NOTE: Returning list because only type that I am sure does not cause error`s
