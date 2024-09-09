@@ -299,7 +299,8 @@ entry_points:
       one_cycle_max_lr_max: {type: float, default: 1e-3}
       one_cycle_pct_start_min: {type: float, default: 0.05}
       one_cycle_pct_start_max: {type: float, default: 0.3}
-      # TODO other... n_layers? out_features?
+      n_layers_min: {type: int, default: 1}
+      n_layers_max: {type: int, default: 20}
 
       #== Lightning Trainer hparams
       max_epochs: {type: float, default:  150}
@@ -317,7 +318,8 @@ entry_points:
                --one-cycle-max-lr-max {one_cycle_max_lr_max} \
                --weight-decay-min {weight_decay_min} \
                --weight-decay-max {weight_decay_max} \
-               # TODO...
+               --n-layers-min {n_layers_min} \
+               --n-layers-max {n_layers_max} \
                --max-epochs {max_epochs} \
                --accumulate-grad-batches-min {accumulate_grad_batches_min} \
                --accumulate-grad-batches-max {accumulate_grad_batches_max} \
@@ -347,7 +349,7 @@ entry_points:
       one_cycle_max_lr_max: {type: float, default: 1e-3}
       one_cycle_pct_start_min: {type: float, default: 0.05}
       one_cycle_pct_start_max: {type: float, default: 0.3}
-      # TODO other... n_layers? out_features?
+      n_layers: { type: int, default: 10 }
 
       #== Lightning Trainer hparams
       max_epochs: {type: float, default: 250} # pass -1 for infinite epochs, useful when combined with early stopping
@@ -377,7 +379,7 @@ entry_points:
                --one-cycle-max-lr {one_cycle_max_lr} \
                --one-cycle-pct-start {one_cycle_pct_start} \
                --weight-decay {weight_decay} \
-               # TODO
+               --n-layers {n_layers} \
                --max-epochs {max_epochs} \
                --accumulate-grad-batches {accumulate_grad_batches} \
                --limit-batches {limit_batches} \
