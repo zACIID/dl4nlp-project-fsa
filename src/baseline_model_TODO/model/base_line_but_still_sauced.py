@@ -1,14 +1,18 @@
 from enum import Enum
-from sklearn.svm import SVR
+from typing import Union
+
+import pandas as pd
+import torch
 import torch.nn as nn
-from src.fine_tuned_finbert.models.fine_tuned_finbert import PRE_TRAINED_MODEL_PATH
+import torch.nn.functional as F
+from numpy import ndarray
+from sklearn.svm import SVR
 from transformers import (
     AutoModelForSequenceClassification
 )
 from transformers.modeling_outputs import SequenceClassifierOutput
-from typing import Union
-from numpy import ndarray
-import pandas as pd
+
+from src.fine_tuned_finbert.models.fine_tuned_finbert import PRE_TRAINED_MODEL_PATH
 
 
 class BLBSSType(Enum):
@@ -18,8 +22,11 @@ class BLBSSType(Enum):
 
 class BLBSSModel(nn.Module):
     def __init__(
-            self, model_type: BLBSSType, model_path: str = PRE_TRAINED_MODEL_PATH,
-            SVR_dataset: pd.DataFrame = None, SVR_labels: pd.DataFrame = None
+            self,
+            model_type: BLBSSType,
+            model_path: str = PRE_TRAINED_MODEL_PATH,
+            SVR_dataset: pd.DataFrame = None,
+            SVR_labels: pd.DataFrame = None
     ):
         super().__init__()
 
@@ -32,11 +39,35 @@ class BLBSSModel(nn.Module):
             self._svr_x: pd.DataFrame = SVR_dataset
             self._svr_y: pd.DataFrame = SVR_labels
 
-    def forward(self, **inputs) -> Union[SequenceClassifierOutput, ndarray]:
+    def predict(self, finbert_input=None, svr_input=None) -> Union[SequenceClassifierOutput, ndarray]:
         if self._model_type == BLBSSType.FinBERT:
-            return self._model(**inputs)
+            return self._finbert_predict(finbert_input)
         else:
-            return self._model.predict(**inputs)
+            return self._model.predict(**svr_input)
+
+    def _finbert_predict(self, finbert_input):
+        # _model here is finbert
+        self._model.eval()  # Call this explicitly because this is external to PytorchLightning
+        with torch.no_grad():
+            output = self._model(**finbert_input)
+            return self._to_sentiment_score(output)
+
+    def _to_sentiment_score(self, output: SequenceClassifierOutput) -> torch.Tensor:
+        # NOTE:
+        # Classes are { 0: bearish, 1: neutral, 2: bullish } for the
+        #   ahmedrachid/FinancialBERT-Sentiment-Analysis model
+        # Classes are { 0: positive, 1: negative, 2: neutral } for the
+        #   ProsusAI/finbert model
+
+        # Transpose because it is a batch of 3-elements tensors
+        probabilities = F.softmax(output.logits, dim=1).T
+        # bearish_prob, bullish_prob = probabilities[0], probabilities[2] # TODO for ahmedrachid
+        bearish_prob, bullish_prob = probabilities[1], probabilities[0]
+
+        # This is also how ProsusAI/finbert predicts sentiment score:
+        #   positive prob - negative prob, and then it uses MSE loss
+        pred_sentiment_score = bullish_prob - bearish_prob
+        return pred_sentiment_score
 
     def fit(self) -> None:
         if self._model_type == BLBSSType.SVR:
@@ -57,15 +88,9 @@ __________                      __
  / ____| \____/ |____/   |___  / \___  >|__|   |__|   \___  >|__|   
  \/                          \/      \/                   \/        
 ___.                                                                
-\_ |__    ____                                                      
- | __ \ _/ __ \                                                     
- | \_\ \\  ___/                                                     
- |___  / \___  >                                                    
-     \/      \/                                                     
-        .__ .__               .___                                  
-  ____  |__||  |    ____    __| _/  __ __ ______                    
- /  _ \ |  ||  |  _/ __ \  / __ |  |  |  \\____ \                   
-(  <_> )|  ||  |__\  ___/ / /_/ |  |  |  /|  |_> >                  
- \____/ |__||____/ \___  >\____ |  |____/ |   __/                   
-                       \/      \/         |__|          
+\_ |__    ____      __ __ ______                                                  
+ | __ \ _/ __ \    |  |  \\____ \                                                 
+ | \_\ \\  ___/    |  |  /|  |_> >                                                
+ |___  / \___  >   |____/ |   __/                                                 
+     \/      \/           |__|                                                    
 """
