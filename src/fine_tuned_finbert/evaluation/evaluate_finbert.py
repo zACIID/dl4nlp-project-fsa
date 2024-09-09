@@ -12,7 +12,7 @@ from mlflow.models.evaluation import make_metric
 
 import data.common as common
 import fine_tuned_finbert.datasets.preprocessing_base as ppb
-import fine_tuned_finbert.evaluation.utils as eval_utils
+import fine_tuned_finbert.evaluation.eval_utils as eval_utils
 import fine_tuned_finbert.models.fine_tuned_finbert as ft
 import training.loader as loader
 import utils.mlflow_env as env
