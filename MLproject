@@ -299,6 +299,8 @@ entry_points:
       one_cycle_max_lr_max: {type: float, default: 1e-3}
       one_cycle_pct_start_min: {type: float, default: 0.05}
       one_cycle_pct_start_max: {type: float, default: 0.3}
+      weight_decay_min: {type: float, default: 1e-5}
+      weight_decay_max: {type: float, default: 1e-4}
       n_layers_min: {type: int, default: 1}
       n_layers_max: {type: int, default: 20}
 
@@ -345,10 +347,9 @@ entry_points:
       with_neutral_samples: { type: string, default: "false" } # anything different from 'true' will result in a False boolean value
 
       #== E2E hparams
-      one_cycle_max_lr_min: {type: float, default: 8e-5}
-      one_cycle_max_lr_max: {type: float, default: 1e-3}
-      one_cycle_pct_start_min: {type: float, default: 0.05}
-      one_cycle_pct_start_max: {type: float, default: 0.3}
+      one_cycle_max_lr: {type: float, default: 0.1} # max OneCycle scheduler LR
+      one_cycle_pct_start: {type: float, default: 0.3} # fraction of cycle spent increasing LR to max
+      weight_decay: {type: float, default: 1e-2}
       n_layers: { type: int, default: 10 }
 
       #== Lightning Trainer hparams
