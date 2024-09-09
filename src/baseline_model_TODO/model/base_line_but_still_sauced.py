@@ -1,18 +1,46 @@
+from enum import Enum
+from sklearn.svm import SVR
 import torch.nn as nn
 from src.fine_tuned_finbert.models.fine_tuned_finbert import PRE_TRAINED_MODEL_PATH
 from transformers import (
     AutoModelForSequenceClassification
 )
 from transformers.modeling_outputs import SequenceClassifierOutput
+from typing import Union
+from numpy import ndarray
+import pandas as pd
+
+
+class BLBSSType(Enum):
+    FinBERT = 0
+    SVR = 1
 
 
 class BLBSSModel(nn.Module):
-    def __init__(self, model_path: str = PRE_TRAINED_MODEL_PATH):
+    def __init__(
+            self, model_type: BLBSSType, model_path: str = PRE_TRAINED_MODEL_PATH,
+            SVR_dataset: pd.DataFrame = None, SVR_labels: pd.DataFrame = None
+    ):
         super().__init__()
-        self._model = AutoModelForSequenceClassification.from_pretrained(model_path)
 
-    def forward(self, **inputs) -> SequenceClassifierOutput:
-        return self._model(**inputs)
+        self._model_type: BLBSSType = model_type
+
+        if self._model_type == BLBSSType.FinBERT:
+            self._model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        else:
+            self._model = SVR()
+            self._svr_x: pd.DataFrame = SVR_dataset
+            self._svr_y: pd.DataFrame = SVR_labels
+
+    def forward(self, **inputs) -> Union[SequenceClassifierOutput, ndarray]:
+        if self._model_type == BLBSSType.FinBERT:
+            return self._model(**inputs)
+        else:
+            return self._model.predict(**inputs)
+
+    def fit(self) -> None:
+        if self._model_type == BLBSSType.SVR:
+            self._model.fit(self._svr_x, self._svr_y)
 
 
 """
