@@ -130,7 +130,7 @@ class EndToEndModel(L.LightningModule):
         self.eval()  # Call this explicitly because this is external to PytorchLightning
         with torch.no_grad():
             output = self.forward(batch)
-            return self._to_sentiment_score(output)
+            return output
 
     def predict_step(self, *args: Any, **kwargs: Any) -> Any:
         if len(args) > 0:
