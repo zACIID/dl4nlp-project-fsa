@@ -12,7 +12,8 @@ import shap
 import torch
 import transformers
 from mlflow.entities.model_registry import ModelVersion
-from mlflow.models.evaluation import MetricValue, make_metric
+from mlflow.metrics import MetricValue
+from mlflow.models.evaluation import make_metric
 from sklearn.metrics import precision_score, recall_score, f1_score
 
 import data.common as common
@@ -30,40 +31,25 @@ def _main():
     pytorch_logger = logging.getLogger("lightning.pytorch")
     pytorch_logger.setLevel(logging.INFO)
 
-    model_name = env.get_registered_model_name(loader.Model.FINBERT)
-    # alias = env.BEST_TUNED_MODEL_ALIAS
-    alias = env.BEST_FULL_TRAINED_MODEL_ALIAS
-    client = mlflow.tracking.MlflowClient()
-    best_version: ModelVersion = client.get_model_version_by_alias(name=model_name, alias=alias)
-
-    mlflow.set_tag(key='model_name', value=model_name)
-    mlflow.set_tag(key='model_alias', value=alias)
-    mlflow.set_tag(key='model_version', value=best_version.version)
-
-    model: lightning.LightningModule = mlflow.pytorch.load_checkpoint(
-        ft.FineTunedFinBERT, best_version.run_id,
-        kwargs={
-            'strict': False,  # Needed because LoRA checkpoint do not include all model parameters
-            'log_hparams': True
-        }
-    )
+    model: ft.FineTunedFinBERT = loader.load_best_model(loader.Model.FINBERT).cpu()
+    model.eval()
 
     def mlflow_evalute_predict(df: pd.DataFrame):
         """
         :param df: pandas df provided by mlflow.evaluate(...)
         :return:
         """
-        def collate(tok_output_collection):
+        def collate(tokenizer_col):
             input_ids = torch.stack(list(
                 map(
                     lambda x: torch.tensor(x['input_ids'], device=model.device).long(),
-                    tok_output_collection
+                    tokenizer_col
                 )
             ))
             att_masks = torch.stack(list(
                 map(
                     lambda x: torch.tensor(x['attention_mask'], device=model.device).long(),
-                    tok_output_collection
+                    tokenizer_col
                 )
             ))
             tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
@@ -86,25 +72,25 @@ def _main():
     # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score
     def eval_fn_cosine_similarity(predictions, targets):
         score = cosine_similarity(predictions, targets)
-        return MetricValue(scores=score)
+        return MetricValue(aggregate_results={"cosine_similarity": score})
 
     def eval_fn_precision(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = precision_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score)
+        return MetricValue(aggregate_results={"precision": score})
 
     def eval_fn_recall(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = recall_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score)
+        return MetricValue(aggregate_results={"recall": score})
 
     def eval_fn_f1(predictions, targets):
         predictions = apply_thresholds(predictions)
         targets = apply_thresholds(targets)
         score = f1_score(targets, predictions, average='weighted')
-        return MetricValue(scores=score)
+        return MetricValue(aggregate_results={"f1": score})
 
     # Create EvaluationMetric for all metrics
     cosine_similarity_metric = make_metric(eval_fn=eval_fn_cosine_similarity, greater_is_better=True,
@@ -191,7 +177,7 @@ def _main():
         #       [CLS]-only since the output was truly constant w.r.t. input length)
         #   The shap values of each token/token-cluster will hence be the difference w.r.t. to an input that
         #       consists of only the [CLS] token and the [SEP] token.
-        special_tokens_mask = (tv['input_ids'] == tokenizer.mask_token_id)  # TODO actually now that dropout is fixed try to attend them and see what happens
+        special_tokens_mask = (tv['input_ids'] == tokenizer.mask_token_id)
         # Mask [SEP] too to test what happens, if curious
         # special_tokens_mask = ((tv['input_ids'] == tokenizer.mask_token_id)
         #                           | (tv['input_ids'] == tokenizer.sep_token_id))
