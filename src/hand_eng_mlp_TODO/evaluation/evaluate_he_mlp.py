@@ -10,29 +10,20 @@ import numpy as np
 import pandas as pd
 import shap
 import torch
-import transformers
-from mlflow.metrics import MetricValue
 from mlflow.models.evaluation import make_metric
-from sklearn.metrics import precision_score, recall_score, f1_score
-from sklearn.metrics.pairwise import cosine_similarity
 from transformers import AutoTokenizer, AutoModel
 
 import data.common as common
 import data.stocktwits_crypto_dataset as sc
 import hand_eng_mlp_TODO.datasets.preprocessing_base as ppb
 import hand_eng_mlp_TODO.datasets.preprocessing_features_extraction as ppfe
+import hand_eng_mlp_TODO.evaluation.utils as eval_utils
 import hand_eng_mlp_TODO.models.model_beijin as hemlp
 import training.loader as loader
 import utils.io as io_
 import utils.mlflow_env as env
 from hand_eng_mlp_TODO.datasets.data_modules import Semeval2017Test
 from utils.random import RND_SEED
-
-
-# TODO:
-#   - refactor, even in finbert, so that functions to create metrics and shap_text_predict embeddings can be imported
-#   - fix finbert too
-#   - implement evaluate for e2e model
 
 # Limiting the number of samples provided to the SHAP explainer to keep computation times low
 SHAP_EXPLAINER_MAX_SAMPLES = 25
@@ -45,51 +36,15 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
     model: hemlp.ModelBeijin = loader.load_best_model(loader.Model.HAND_ENG_MLP).cpu()
     model.eval()
 
-    # Our metrics:
-    # Main metric: cosine similarity, the SemEval2017 challenge's official evaluation method.
-    # SemEval2017 cosine similarity - https://alt.qcri.org/semeval2017/task5/index.php?id=evaluation
-    # Defined as: cosine(G,P)= \frac{sum_{i=0}^{n} G_i x P_i}{\sqrt{sum_{i=0}^{n} G_i^2} x \sqrt{sum_{i=0}^{n} P_i^2}}
-    # Additional standard metrics, including precision, recall, and F1 score, will be considered.
-
-    # Thresholding predictions and targets: [-1,-0.25)=negative, [-0.25,0.25]=neutral, (0.25,1]=positive
-    def apply_thresholds(values):
-        return np.where(values < -0.25, -1, np.where(values > 0.25, 1, 0))
-
-    def cosine_similarity(y_true, y_pred):
-        cos_sim = np.dot(y_true, y_pred) / (np.linalg.norm(y_true) * np.linalg.norm(y_pred))
-        return cos_sim
-
-    # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score
-    def eval_fn_cosine_similarity(predictions, targets):
-        score = cosine_similarity(predictions, targets)
-        return MetricValue(aggregate_results={"cosine_similarity": score})
-
-    def eval_fn_precision(predictions, targets):
-        predictions = apply_thresholds(predictions)
-        targets = apply_thresholds(targets)
-        score = precision_score(targets, predictions, average='weighted')
-        return MetricValue(aggregate_results={"precision": score})
-
-    def eval_fn_recall(predictions, targets):
-        predictions = apply_thresholds(predictions)
-        targets = apply_thresholds(targets)
-        score = recall_score(targets, predictions, average='weighted')
-        return MetricValue(aggregate_results={"recall": score})
-
-    def eval_fn_f1(predictions, targets):
-        predictions = apply_thresholds(predictions)
-        targets = apply_thresholds(targets)
-        score = f1_score(targets, predictions, average='weighted')
-        return MetricValue(aggregate_results={"f1": score})
-
     # Create EvaluationMetric for all metrics
-    cosine_similarity_metric = make_metric(eval_fn=eval_fn_cosine_similarity, greater_is_better=True,
+    cosine_similarity_metric = make_metric(eval_fn=eval_utils.eval_fn_cosine_similarity, greater_is_better=True,
                                            name="cosine_similarity", version="v1")
-    precision_metric = make_metric(eval_fn=eval_fn_precision, greater_is_better=True, name="precision", version="v1")
-    recall_metric = make_metric(eval_fn=eval_fn_recall, greater_is_better=True, name="recall", version="v1")
-    f1_metric = make_metric(eval_fn=eval_fn_f1, greater_is_better=True, name="f1_score", version="v1")
+    precision_metric = make_metric(eval_fn=eval_utils.eval_fn_precision, greater_is_better=True, name="precision", version="v1")
+    recall_metric = make_metric(eval_fn=eval_utils.eval_fn_recall, greater_is_better=True, name="recall", version="v1")
+    f1_metric = make_metric(eval_fn=eval_utils.eval_fn_f1, greater_is_better=True, name="f1_score", version="v1")
 
-    test_df: pd.DataFrame = Semeval2017Test().dataset.to_pandas()
+    test_dataset: datasets.Dataset = Semeval2017Test().dataset
+    test_df = test_dataset.to_pandas()
 
     # Remove embedder col and pass it "from outside" because it can't be serialized by mlflow.evaluate(),
     #   being a column of numpy arrays
@@ -101,18 +56,8 @@ def _main():  # TODO: any implementation about metrics need to be done in Finber
         :param df: pandas df provided by mlflow.evaluate(...)
         :return:
         """
-
-        def _collate_fn(embedder_col: pd.Series, new_features_cols: typing.List[pd.Series]):
-            embeddings = [torch.tensor(embedding.tolist()) for embedding in embedder_col]
-            embeddings_batch = torch.nn.utils.rnn.pad_sequence(embeddings, batch_first=True)
-
-            new_features = [torch.tensor(feats.values) for feats in new_features_cols]
-            new_features_batch = torch.stack(new_features).T
-
-            return embeddings_batch, new_features_batch
-
         feature_col = [df[col] for col in ppfe.NEW_FEATURES]
-        embeddings, features = _collate_fn(embedder_col, feature_col)
+        embeddings, features = eval_utils.collate(embedder_col, feature_col, model)
 
         # Apparently mlflow.evaluate needs cpu tensors or numpy arrays
         return model.predict(embeddings, features).cpu().detach().numpy()

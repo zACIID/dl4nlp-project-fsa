@@ -2,28 +2,22 @@ import logging
 from datetime import datetime
 
 import datasets
-import lightning
 import matplotlib.pyplot as plt
-import seaborn as sns
 import mlflow
 import numpy as np
 import pandas as pd
 import shap
-import torch
 import transformers
-from mlflow.entities.model_registry import ModelVersion
-from mlflow.metrics import MetricValue
 from mlflow.models.evaluation import make_metric
-from sklearn.metrics import precision_score, recall_score, f1_score
 
 import data.common as common
 import fine_tuned_finbert.datasets.preprocessing_base as ppb
+import fine_tuned_finbert.evaluation.utils as eval_utils
 import fine_tuned_finbert.models.fine_tuned_finbert as ft
 import training.loader as loader
 import utils.mlflow_env as env
 from fine_tuned_finbert.datasets.data_modules import Semeval2017Test
 from utils.random import RND_SEED
-
 
 # Limiting the number of samples provided to the SHAP explainer to keep computation times low
 SHAP_EXPLAINER_MAX_SAMPLES = 25
@@ -38,73 +32,28 @@ def _main():
     model: ft.FineTunedFinBERT = loader.load_best_model(loader.Model.FINBERT).cpu()
     model.eval()
 
+    # Create EvaluationMetric for all metrics
+    cosine_similarity_metric = make_metric(eval_fn=eval_utils.eval_fn_cosine_similarity, greater_is_better=True,
+                                           name="cosine_similarity", version="v1")
+    precision_metric = make_metric(eval_fn=eval_utils.eval_fn_precision, greater_is_better=True, name="precision", version="v1")
+    recall_metric = make_metric(eval_fn=eval_utils.eval_fn_recall, greater_is_better=True, name="recall", version="v1")
+    f1_metric = make_metric(eval_fn=eval_utils.eval_fn_f1, greater_is_better=True, name="f1_score", version="v1")
+
+    test_dataset: datasets.Dataset = Semeval2017Test().dataset
+    pandas_df = test_dataset.to_pandas()
+
+
     def mlflow_evalute_predict(df: pd.DataFrame):
         """
         :param df: pandas df provided by mlflow.evaluate(...)
         :return:
         """
-        def collate(tokenizer_col):
-            input_ids = torch.stack(list(
-                map(
-                    lambda x: torch.tensor(x['input_ids'], device=model.device).long(),
-                    tokenizer_col
-                )
-            ))
-            att_masks = torch.stack(list(
-                map(
-                    lambda x: torch.tensor(x['attention_mask'], device=model.device).long(),
-                    tokenizer_col
-                )
-            ))
-            tensorized_tokenizer_output = {'input_ids': input_ids, 'attention_mask': att_masks}
-            return tensorized_tokenizer_output
 
         tokenizer_col = df[ppb.TOKENIZER_OUTPUT_COL].to_list()
-        batches = collate(tokenizer_col)
+        batches = eval_utils.collate(tokenizer_col, model)
 
         # Apparently mlflow.evaluate needs cpu tensors or numpy arrays
         return model.predict(**batches).cpu().detach().numpy()
-
-    # Thresholding predictions and targets: [-1,-0.25)=negative, [-0.25,0.25]=neutral, (0.25,1]=positive
-    def apply_thresholds(values):
-        return np.where(values < -0.25, -1, np.where(values > 0.25, 1, 0))
-
-    def cosine_similarity(y_true, y_pred):
-        cos_sim = np.dot(y_true, y_pred) / (np.linalg.norm(y_true) * np.linalg.norm(y_pred))
-        return cos_sim
-
-    # Evaluation functions that compute Cosine similarity, Precision, Recall, F1 score
-    def eval_fn_cosine_similarity(predictions, targets):
-        score = cosine_similarity(predictions, targets)
-        return MetricValue(aggregate_results={"cosine_similarity": score})
-
-    def eval_fn_precision(predictions, targets):
-        predictions = apply_thresholds(predictions)
-        targets = apply_thresholds(targets)
-        score = precision_score(targets, predictions, average='weighted')
-        return MetricValue(aggregate_results={"precision": score})
-
-    def eval_fn_recall(predictions, targets):
-        predictions = apply_thresholds(predictions)
-        targets = apply_thresholds(targets)
-        score = recall_score(targets, predictions, average='weighted')
-        return MetricValue(aggregate_results={"recall": score})
-
-    def eval_fn_f1(predictions, targets):
-        predictions = apply_thresholds(predictions)
-        targets = apply_thresholds(targets)
-        score = f1_score(targets, predictions, average='weighted')
-        return MetricValue(aggregate_results={"f1": score})
-
-    # Create EvaluationMetric for all metrics
-    cosine_similarity_metric = make_metric(eval_fn=eval_fn_cosine_similarity, greater_is_better=True,
-                                           name="cosine_similarity", version="v1")
-    precision_metric = make_metric(eval_fn=eval_fn_precision, greater_is_better=True, name="precision", version="v1")
-    recall_metric = make_metric(eval_fn=eval_fn_recall, greater_is_better=True, name="recall", version="v1")
-    f1_metric = make_metric(eval_fn=eval_fn_f1, greater_is_better=True, name="f1_score", version="v1")
-
-    test_dataset: datasets.Dataset = Semeval2017Test().dataset
-    pandas_df = test_dataset.to_pandas()
 
     evaluate_results = mlflow.evaluate(
         model_type='regressor',
