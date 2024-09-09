@@ -14,7 +14,7 @@ if __name__ == "__main__":
     mlflow.set_tracking_uri(env.MLFLOW_TRACKING_URI)
     mlflow.projects.run(
         uri=str(io_.PROJECT_ROOT.absolute()),
-        entry_point='hyperopt',
+        entry_point='hyperopt_e2e',
         env_manager='local',
         experiment_name=env.get_experiment_name(),
         run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}",
