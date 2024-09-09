@@ -40,6 +40,7 @@ class EndToEndModel(L.LightningModule):
             **kwargs,
     ):
         """
+        # TODO I think it would be better to just fetch them inside here instead of having them come from outside
         :param finbert:
         :param hemlp:
         :param n_layers: number of hidden layers of the classification MLP that is put
