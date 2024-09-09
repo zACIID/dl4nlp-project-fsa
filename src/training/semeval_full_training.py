@@ -1,3 +1,4 @@
+import collections
 import datetime
 import logging
 from collections import ChainMap
@@ -74,7 +75,7 @@ def train(
 
             # Load just some specific, datamodule-related params from the best run
             # Fine-tuned params are stored with the model
-            # TODO remove these comments -> the runs for the pretrained models apprently do not log every parameter,
+            # TODO remove this comment -> the runs for the pretrained models apprently do not log every parameter,
             #   meaning that we must operate with a default here
             {
                 'train_batch_size': 32,
@@ -97,12 +98,25 @@ def train(
             version.run_id,
             kwargs={
                 'strict': False,  # `True` does not work with FinBERT, because checkpoints contain only LoRA weights
-                'log_hparams': False  # autolog is already active, setting to True causes problems
+                'log_hparams': False,  # autolog is already active, setting to True causes problems
+
+                # Useful only if the model is the E2E, which requires finbert and hemlp passed from the outside
+                'finbert': loader.load_best_model(loader.Model.FINBERT) if env.get_model_choice() == loader.Model.END_TO_END else None,
+                'hemlp': loader.load_best_model(loader.Model.HAND_ENG_MLP) if env.get_model_choice() == loader.Model.END_TO_END else None,
             }
         )
         best_params = best_model.hparams
         del best_model  # Not needed anymore, just needed tuned hparams
-        virgin_model: L.LightningModule = virgin_model.__class__(**best_params)
+        virgin_model: L.LightningModule = virgin_model.__class__(
+            **collections.ChainMap(
+                {
+                    # Useful only if the model is the E2E, which requires finbert and hemlp passed from the outside
+                    'finbert': loader.load_best_model(loader.Model.FINBERT) if env.get_model_choice() == loader.Model.END_TO_END else None,
+                    'hemlp': loader.load_best_model(loader.Model.HAND_ENG_MLP) if env.get_model_choice() == loader.Model.END_TO_END else None,
+                },
+                best_params
+            )
+        )
 
         trainer = L.Trainer(
             default_root_dir=ARTIFACTS_DIR,
