@@ -20,7 +20,8 @@ if __name__ == "__main__":
         experiment_name=env.get_experiment_name(),
         run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}",
         parameters={
-            'limit_batches': 1.0  # use everything when dataset is SEMEVAL_TRAIN_VAL
+            'limit_batches': 1.0,  # use everything when dataset is SEMEVAL_TRAIN_VAL
+            'max_runs': 20  # Less runs because less params to tune on pre-trained model
         },
         synchronous=True
     )

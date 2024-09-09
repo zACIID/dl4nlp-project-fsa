@@ -8,7 +8,7 @@ import training.loader as loader
 
 if __name__ == "__main__":
     env.set_experiment_name_prefix(env.HYPEROPT_EXPERIMENT_NAME_PREFIX)
-    env.set_dataset_choice(loader.Dataset.SEMEVAL_TRAIN_VAL)
+    env.set_dataset_choice(loader.Dataset.SC_TRAIN_SEMEVAL_VAL)
     env.set_model_choice(loader.Model.HAND_ENG_MLP)
 
     mlflow.set_tracking_uri(env.MLFLOW_TRACKING_URI)
@@ -19,7 +19,11 @@ if __name__ == "__main__":
         experiment_name=env.get_experiment_name(),
         run_name=f"{datetime.datetime.now().isoformat(timespec='seconds')}",
         parameters={
-            'limit_batches': 1.0  # use everything when dataset is SEMEVAL_TRAIN_VAL
+            'limit_batches': 1.0,  # use everything when dataset is SEMEVAL_TRAIN_VAL
+
+            # Less runs and max epochs if pre-training with SC dataset, which has longer epochs
+            'max_runs': 70 if env.get_dataset_choice() == loader.Dataset.SEMEVAL_TRAIN_VAL else 20,
+            'max_epochs': 200 if env.get_dataset_choice() == loader.Dataset.SEMEVAL_TRAIN_VAL else 50
         },
         synchronous=True
     )
