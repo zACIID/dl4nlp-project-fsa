@@ -270,6 +270,6 @@ if __name__ == '__main__':
     mlflow.set_experiment(env.EVALUATION_EXPERIMENT_NAME_PREFIX)
     with mlflow.start_run(
             log_system_metrics=True,
-            run_name=f"{datetime.now().isoformat(timespec='seconds')}-{loader.Model.FINBERT}-evaluation"
+            run_name=f"{datetime.now().isoformat(timespec='seconds')}-{loader.Model.HAND_ENG_MLP}-evaluation"
     ) as run:
         _main()
