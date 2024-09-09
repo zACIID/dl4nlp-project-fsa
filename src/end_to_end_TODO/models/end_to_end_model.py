@@ -59,7 +59,11 @@ class EndToEndModel(L.LightningModule):
         #   another classification head on top, meaning that we are actually interested in
         #   "cutting" each model at their last non-classification layer
         #   2. Freeze the model, we just want to train the aggr. layers
-        old_class_ft: CustomLoRA = finbert.model.classifier
+
+        # Just need to store the final bert layer, not the additional classifier
+        #   layer that is apparently on top of BERT
+        old_class_ft: CustomLoRA = finbert.model.bert.classifier
+        finbert.model.bert.classifier = nn.Identity()
         finbert.model.classifier = nn.Identity()
         self.finbert: nn.Module = finbert
         self.finbert.requires_grad_(False)
@@ -91,8 +95,8 @@ class EndToEndModel(L.LightningModule):
                 ],
 
                 # Sentiment head: need 1 number that is crunched \in [-1, 1] by tanh
-                ("sentiment", nn.Linear(in_features=EndToEndModel._OUT_FEATURES, out_features=1)),
-                nn.Tanh()
+                ("sentiment_head", nn.Linear(in_features=EndToEndModel._OUT_FEATURES, out_features=1)),
+                ("sentiment_tanh", nn.Tanh())
             ])
         )
 
