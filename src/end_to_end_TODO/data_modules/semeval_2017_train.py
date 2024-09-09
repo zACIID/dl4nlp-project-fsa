@@ -85,11 +85,17 @@ class Semeval2017Train(L.LightningDataModule):
         raise NotImplementedError("This data module is only for training datasets")
 
 
+_FT_DM = ft_dm.Semeval2017Train()
+_FT_DM.setup()
+_FT_COLLATE_FN = _FT_DM.train_dataloader().collate_fn
+_HEMLP_DM = mlp_dm.Semeval2017Train()
+_HEMLP_DM.setup()
+_HEMLP_COLLATE_FN = _HEMLP_DM.train_dataloader().collate_fn
 def _collate_fn(raw_samples):
     # collate_fn is the same for any instance of the same datamodule (i.e. regardless of init params)
     #   and every dataloader
-    tokenizer_output, scores = ft_dm.Semeval2017Train().train_dataloader().collate_fn(raw_samples)
-    embeddings, _, new_features = mlp_dm.Semeval2017Train().train_dataloader().collate_fn(raw_samples)
+    tokenizer_output, scores = _FT_COLLATE_FN(raw_samples)
+    embeddings, _, new_features = _HEMLP_COLLATE_FN(raw_samples)
 
     # TODO future refactorings:
     # - This means that I would have to extract the collate_fn functions into a single file, for both finbert and hemlp
