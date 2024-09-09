@@ -307,6 +307,15 @@ def tune(
             space.update(arch_altering_param_space)
     elif env.get_model_choice() == Model.END_TO_END:
         space = {
+            "one_cycle_max_lr": hp.loguniform(
+                "one_cycle_max_lr", math.log(one_cycle_max_lr_min), math.log(one_cycle_max_lr_max)
+            ),
+            "one_cycle_pct_start": hp.uniform(
+                "one_cycle_pct_start", one_cycle_pct_start_min, one_cycle_pct_start_max
+            ),
+            "weight_decay": hp.loguniform(
+                "weight_decay", math.log(weight_decay_min), math.log(weight_decay_max)
+            ),
             "n_layers": scope.int(
                 hp.quniform("n_layers", n_layers_min, n_layers_max, 1)
             )
